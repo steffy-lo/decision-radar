@@ -1,0 +1,12 @@
+{
+  "venvPath": "services/radar",
+  "venv": ".venv",
+  "executionEnvironments": [
+    {
+      "root": "services/radar",
+      "extraPaths": [
+        "."
+      ]
+    }
+  ]
+}
