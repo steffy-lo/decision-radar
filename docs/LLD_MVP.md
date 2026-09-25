@@ -399,14 +399,42 @@ To ensure the live competition pitch never fails due to network or Google API la
 
 ## 9. Two-Person Implementation Roadmap (14 Active Tasks)
 
-| Dates | Engineer A — Platform & Data | Engineer B — Product & Intelligence | Exit Milestone |
+The plan uses direct prerequisites only. Transitive prerequisites are deliberately omitted from Jira links so the board remains readable while still enforcing the full delivery order.
+
+| Milestone | Dates | Ready work, in implementation order | Exit outcome |
 |---|---|---|---|
-| **Phase 1 · 25–26 Sep** | **KAN-1**: FastAPI & worker scaffold<br/>**KAN-2**: Firebase auth proxy & JWT baseline | **KAN-13**: Next.js shell & navigation<br/>**KAN-14**: Domain schemas & demo fixture | Authenticated proxy works; shared schemas & fixture test passing. |
-| **Phase 2 · 27–29 Sep** | **KAN-3**: OAuth token in Secret Manager<br/>**KAN-4**: Drive folder ingestion & refresh | **KAN-16**: Gemini extraction & quote validation | **Thin E2E Slice:** Drive Doc ingested $\to$ extracted decision candidate with verified quote. |
-| **Phase 3 · 30 Sep–1 Oct** | Support manual refresh & sync task handler | **KAN-17**: Typed date rules & decision confirmation | Ingested date change generates a deterministic `DATE_AFTER_REQUIRED_BY` finding. |
-| **Phase 4 · 2–4 Oct** | **KAN-8**: Cloud Tasks direct dispatch & retries | **KAN-18**: Evidence viewer & side-by-side quotes | Alert renders baseline vs. update quotes with clickable native Doc links. |
-| **Phase 5 · 5–8 Oct** | **KAN-9**: Impact graph persistence & DAG API | **KAN-19**: `@xyflow/react` impact graph & path panel<br/>**KAN-21**: Human review workflow | Flagship feature complete: Interactive graph highlights direct vs downstream impact. |
-| **Phase 6–7 · 9–15 Oct** | Environment deployment & health checks | **KAN-26**: Demo rehearsal & walkthrough polish | Two consecutive successful end-to-end rehearsals using fixture fallback. |
+| **M0A — prerequisite-free foundations** | **25 Sep** | **KAN-1**: FastAPI & worker scaffold<br/>**KAN-14**: Domain schemas & demo fixture | Both engineers can start immediately; the executable boundary and shared contracts exist. |
+| **M0B — secured application shell** | **26–27 Sep** | **KAN-2** after KAN-1<br/>**KAN-13** after KAN-2 | Authenticated proxy works and the application shell consumes the shared API boundary. |
+| **M1 — connected evidence** | **28 Sep–1 Oct** | **KAN-3** after KAN-2<br/>**KAN-4** after KAN-3<br/>**KAN-16** after KAN-4 and KAN-14 | **Thin E2E slice:** a Drive document is ingested and produces a quote-validated extraction. |
+| **M2 — decision signal** | **2–4 Oct** | **KAN-17** after KAN-16<br/>Then in parallel: **KAN-8** after KAN-4 and KAN-17; **KAN-18** after KAN-13 and KAN-17 | The date change creates one deterministic finding, runs idempotently, and renders with its evidence. |
+| **M3 — decision intelligence demo** | **5–8 Oct** | **KAN-9** after KAN-17<br/>**KAN-21** after KAN-18<br/>**KAN-19** after KAN-9 and KAN-18 | The impact graph and human review flow are presentation-ready. |
+| **M4 — prototype hardening** | **9–15 Oct** | **KAN-26** after KAN-8, KAN-19, and KAN-21 | Two consecutive end-to-end rehearsals succeed using the fixture fallback. |
+
+### 9.1 Direct Jira prerequisite graph
+
+```mermaid
+flowchart LR
+    KAN1[KAN-1] --> KAN2[KAN-2]
+    KAN2 --> KAN13[KAN-13]
+    KAN2 --> KAN3[KAN-3]
+    KAN3 --> KAN4[KAN-4]
+    KAN4 --> KAN16[KAN-16]
+    KAN14[KAN-14] --> KAN16
+    KAN16 --> KAN17[KAN-17]
+    KAN4 --> KAN8[KAN-8]
+    KAN17 --> KAN8
+    KAN13 --> KAN18[KAN-18]
+    KAN17 --> KAN18
+    KAN17 --> KAN9[KAN-9]
+    KAN9 --> KAN19[KAN-19]
+    KAN18 --> KAN19
+    KAN18 --> KAN21[KAN-21]
+    KAN8 --> KAN26[KAN-26]
+    KAN19 --> KAN26
+    KAN21 --> KAN26
+```
+
+The Kanban rank follows the same topological order: **KAN-1, KAN-14, KAN-2, KAN-13, KAN-3, KAN-4, KAN-16, KAN-17, KAN-8, KAN-18, KAN-9, KAN-21, KAN-19, KAN-26**. KAN-1 and KAN-14 are the only prerequisite-free active tasks and therefore lead the To Do queue.
 
 ---
 
