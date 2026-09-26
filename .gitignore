@@ -33,3 +33,10 @@ Thumbs.db
 # Logs
 firebase-debug.log*
 firestore-debug.log*
+
+# Graphify local extraction state; graph, report, visualization and labels can be shared.
+/graphify-out/cache/
+/graphify-out/cost.json
+/graphify-out/manifest.json
+/graphify-out/.*
+!/graphify-out/.graphify_labels.json

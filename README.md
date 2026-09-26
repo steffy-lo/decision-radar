@@ -10,6 +10,7 @@ Decision Radar is an organisational-memory and decision-intelligence product for
 - [KAN Jira board](https://geminimaxxing.atlassian.net/jira/software/projects/KAN/boards/1): implementation tickets, acceptance criteria, dependencies, and the `back-burner` backlog.
 - [Decision Radar project hub](https://geminimaxxing.atlassian.net/wiki/spaces/GeminiMaxx/overview): product overview, MVP architecture, trust principles, and prototype completion criteria.
 - [MVP scope, delivery plan & backlog](https://geminimaxxing.atlassian.net/wiki/spaces/GeminiMaxx/pages/163960/MVP+Scope+Delivery+Plan+Backlog): two-person milestones, ownership, MVP boundaries, and deferred work.
+- [Graphify guide](graphify-out/README.md): how to query, update, and share the repository knowledge graph.
 
 ---
 
