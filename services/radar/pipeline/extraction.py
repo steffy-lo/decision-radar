@@ -68,6 +68,7 @@ class ExtractedAssumption:
     expected_value: TypedValue
     evidence: VerifiedEvidence
     entity_id: str | None
+    uncertain_reason: str | None
 
 
 @dataclass(frozen=True)
@@ -188,18 +189,23 @@ class Extractor:
         decisions = []
         for candidate in draft.decisions:
             evidence = self.validator.verify(source, candidate.quote, native_url)
-            assumptions = tuple(
-                ExtractedAssumption(
-                    item, _typed_value(item.expected_value), self.validator.verify(source, item.quote, native_url),
-                    _entity_id(item.entity, known_entities),
-                ) for item in candidate.assumptions
-            )
+            assumptions = []
+            for item in candidate.assumptions:
+                value = _typed_value(item.expected_value)
+                assumption_evidence = self.validator.verify(source, item.quote, native_url)
+                entity_id = _entity_id(item.entity, known_entities)
+                uncertain_reason = None
+                if entity_id is None:
+                    uncertain_reason = "assumption entity is unresolved"
+                elif not _value_visible(value, item.quote):
+                    uncertain_reason = "typed value is not visible in assumption evidence quote"
+                assumptions.append(ExtractedAssumption(item, value, assumption_evidence, entity_id, uncertain_reason))
             uncertain = None
             if not candidate.owner or not candidate.owner.strip():
                 uncertain = "owner is not identified"
-            if any(item.entity_id is None for item in assumptions):
-                uncertain = "assumption entity is unresolved"
-            decisions.append(ExtractedDecision(candidate, evidence, assumptions, uncertain))
+            if any(item.uncertain_reason for item in assumptions):
+                uncertain = next(item.uncertain_reason for item in assumptions if item.uncertain_reason)
+            decisions.append(ExtractedDecision(candidate, evidence, tuple(assumptions), uncertain))
 
         facts = []
         for candidate in draft.facts:

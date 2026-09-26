@@ -65,6 +65,25 @@ class ExtractionTests(unittest.TestCase):
         self.assertEqual(result.decisions[0].uncertain_reason, "owner is not identified")
         self.assertEqual(result.decisions[0].assumptions[0].expected_value.value.isoformat(), "2026-10-10")
         self.assertEqual(result.decisions[0].assumptions[0].entity_id, "vendor_acme")
+        self.assertIsNone(result.decisions[0].assumptions[0].uncertain_reason)
+
+    def test_assumption_date_absent_from_quote_marks_decision_uncertain(self):
+        payload = {"decisions": [{
+            "statement": "Launch on October 20, 2026", "owner": "Project Manager",
+            "rationale": "Vendor delivery is needed first.",
+            "quote": "Launch target: October 20, 2026.",
+            "assumptions": [{
+                "statement": "Vendor integration by October 24", "entity": "vendor",
+                "predicate": "delivery_date", "operator": "on_or_before",
+                "expectedValue": {"type": "date", "value": "2026-10-24"},
+                "criticality": "high",
+                "quote": "Core API vendor integration is committed on or before October 10, 2026.",
+            }],
+        }], "facts": []}
+        result = Extractor(FakeGenerator(payload)).extract(PRD, {"vendor": "vendor_acme"}, PRD_URL)
+        reason = "typed value is not visible in assumption evidence quote"
+        self.assertEqual(result.decisions[0].assumptions[0].uncertain_reason, reason)
+        self.assertEqual(result.decisions[0].uncertain_reason, reason)
 
     def test_invalid_or_ambiguous_quote_blocks_whole_extraction(self):
         for quote in ("vendor delivery is cancelled", "vendor"):
