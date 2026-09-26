@@ -4,7 +4,7 @@ Graphify builds a navigable map of the code, design documents, and other support
 
 ## Keep the graph aligned with a branch
 
-The repository has Graphify `post-commit` and `post-checkout` hooks installed. The commit hook launches an asynchronous code-only rebuild after commits; the checkout hook launches a code-only rebuild when switching branches. These hooks keep code relationships fresh, but they do not semantically re-extract docs, papers, or images. Since they run in the background, check the log before inspecting or committing their output:
+Graphify's `post-commit` and `post-checkout` hooks are installed in a local clone with `graphify hook install`. They are local Git hooks, so each developer should run this once; check them with `graphify hook status`. The commit hook launches an asynchronous code-only rebuild after commits; the checkout hook launches a code-only rebuild when switching branches. These hooks keep code relationships fresh, but they do not semantically re-extract docs, papers, or images. Since they run in the background, check the log before inspecting or committing their output:
 
 ```bash
 tail -f ~/.cache/graphify-rebuild.log
@@ -57,4 +57,4 @@ Useful generated artifacts are:
 - `graph.html`: interactive visualization.
 - `.graphify_labels.json`: curated community names used by exports.
 
-The cache, cost tracker, manifest, and local interpreter marker support local extraction. They are not needed to query a shared graph and should generally remain local. In particular, avoid committing machine-specific `.graphify_python` and `.graphify_root` files.
+The content-addressed cache and portable manifest are included to let future extractions reuse prior work and avoid spending tokens on unchanged content. `cost.json`, `.graphify_python`, `.graphify_root`, and temporary extraction files are local state and should stay untracked; the first records one machine's run history, and the interpreter/root markers contain machine-specific paths.

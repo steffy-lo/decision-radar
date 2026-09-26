@@ -30,13 +30,16 @@ Thumbs.db
 .vscode/*
 !.vscode/settings.json
 
+<<<<<<< HEAD
 # Logs
 firebase-debug.log*
 firestore-debug.log*
 
 # Graphify local extraction state; graph, report, visualization and labels can be shared.
 /graphify-out/cache/
+=======
+# Graphify: share graph/report/labels plus portable cache and manifest.
+>>>>>>> 1b4db6a (KAN-27 add shared Graphify integration)
 /graphify-out/cost.json
-/graphify-out/manifest.json
 /graphify-out/.*
 !/graphify-out/.graphify_labels.json
