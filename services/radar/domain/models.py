@@ -12,3 +12,7 @@ class BaseRadarModel(BaseModel):
 class ProjectMember(BaseModel):
     uid: str
     role: Literal["admin", "editor", "viewer"]
+
+
+class AuthenticatedProjectMember(ProjectMember):
+    project_id: str

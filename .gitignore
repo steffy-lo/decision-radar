@@ -29,3 +29,7 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/settings.json
+
+# Logs
+firebase-debug.log*
+firestore-debug.log*

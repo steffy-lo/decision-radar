@@ -6,6 +6,9 @@
     "dev:web": "cd apps/web && npm run dev",
     "dev:api": "PYTHONPATH=. ./services/radar/.venv/bin/uvicorn services.radar.api.main:app --reload --port 8000",
     "dev:worker": "PYTHONPATH=. ./services/radar/.venv/bin/python -m services.radar.worker.tasks",
-    "emulators": "firebase emulators:start --config infra/firebase.json"
+    "emulators": "firebase emulators:start --config infra/firebase.json --project decision-radar"
+  },
+  "devDependencies": {
+    "firebase-tools": "^15.9.0"
   }
 }
