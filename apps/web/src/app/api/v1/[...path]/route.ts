@@ -2,28 +2,33 @@ import { NextRequest, NextResponse } from "next/server";
 
 const TARGET_API_HOST = process.env.RADAR_API_URL || "http://127.0.0.1:8000";
 
+// Workspace responses may contain private project data and must not be cached.
+const PRIVATE_RESPONSE_CACHE_CONTROL = "private, no-store";
+const FORWARDED_REQUEST_HEADERS = [
+  "accept",
+  "accept-language",
+  "authorization",
+  "content-type",
+  "idempotency-key",
+  "if-match",
+] as const;
+const FORWARDED_RESPONSE_HEADERS = ["content-type", "retry-after", "www-authenticate"] as const;
+
 /**
- * Proxies incoming API requests from Next.js (`/api/v1/*`) to the backend FastAPI service.
- *
- * Handles URL target construction, query string preservation, header forwarding,
- * request body streaming, and error handling for unreachable backend instances.
- * Prevents CORS restrictions by serving requests from the same origin as the frontend.
- *
- * @param request - The incoming Next.js HTTP request.
- * @param context - Dynamic route context containing promised path parameters.
- * @returns Next.js response forwarding the backend payload or a 502 Bad Gateway response on failure.
+ * Proxies private same-origin API requests to the FastAPI service.
  */
 async function proxyRequest(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const resolvedParams = await params;
-  const path = resolvedParams.path ? resolvedParams.path.join("/") : "";
+  const pathParts = resolvedParams.path ?? [];
+  const path = pathParts.map(encodeURIComponent).join("/");
   const targetUrl = new URL(`/api/v1/${path}`, TARGET_API_HOST);
-
-  // Preserve query string
   targetUrl.search = request.nextUrl.search;
 
-  // Prepare headers
-  const headers = new Headers(request.headers);
-  headers.set("host", new URL(TARGET_API_HOST).host);
+  const headers = new Headers();
+  for (const name of FORWARDED_REQUEST_HEADERS) {
+    const value = request.headers.get(name);
+    if (value) headers.set(name, value);
+  }
 
   try {
     const body = ["GET", "HEAD"].includes(request.method) ? undefined : await request.arrayBuffer();
@@ -35,8 +40,11 @@ async function proxyRequest(request: NextRequest, { params }: { params: Promise<
       cache: "no-store",
     });
 
-    const responseHeaders = new Headers(response.headers);
-
+    const responseHeaders = new Headers({ "Cache-Control": PRIVATE_RESPONSE_CACHE_CONTROL });
+    for (const name of FORWARDED_RESPONSE_HEADERS) {
+      const value = response.headers.get(name);
+      if (value) responseHeaders.set(name, value);
+    }
     return new NextResponse(response.body, {
       status: response.status,
       statusText: response.statusText,
@@ -44,15 +52,15 @@ async function proxyRequest(request: NextRequest, { params }: { params: Promise<
     });
   } catch (error) {
     console.error("[API Proxy Error]: Failed to reach FastAPI backend:", error);
-    return NextResponse.json(
-      {
-        error: "Bad Gateway",
-        message: `Unable to connect to backend service at ${TARGET_API_HOST}`,
-        details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 502 }
-    );
+    return privateJson({ detail: "Unable to reach the API service." }, 502);
   }
+}
+
+function privateJson(body: unknown, status: number) {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": PRIVATE_RESPONSE_CACHE_CONTROL },
+  });
 }
 
 export const GET = proxyRequest;

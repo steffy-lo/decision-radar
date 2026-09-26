@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from services.radar.config import settings
-from services.radar.api.routes import health
+from services.radar.api.routes import health, projects
 
 app = FastAPI(
     title="Decision Radar API",
@@ -31,6 +31,15 @@ app.include_router(health.router, tags=["Health"])
 
 # Prefix route for proxy matching /api/v1
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
+app.include_router(projects.router, prefix="/api/v1")
+
+
+@app.middleware("http")
+async def prevent_private_api_caching(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/v1/") and request.url.path != "/api/v1/health":
+        response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @app.get("/")
