@@ -1,9 +1,10 @@
 import os
-from typing import Optional
+from functools import lru_cache
 from google.cloud import firestore
 from services.radar.config import settings
 
 
+@lru_cache
 def get_firestore_client() -> firestore.AsyncClient:
     """Returns a Firestore AsyncClient configured for production or local emulator."""
     if settings.FIRESTORE_EMULATOR_HOST:

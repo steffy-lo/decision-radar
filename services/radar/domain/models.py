@@ -22,6 +22,10 @@ class ProjectMember(RadarModel):
     role: Literal["admin", "editor", "viewer"]
 
 
+class AuthenticatedProjectMember(ProjectMember):
+    project_id: str
+
+
 class EvidenceRef(RadarModel):
     source_id: Id
     source_title: str

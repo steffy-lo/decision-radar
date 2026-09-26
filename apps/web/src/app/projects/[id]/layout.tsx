@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { AuthGate } from "@/components/auth/auth-gate";
 
 export default async function ProjectLayout({
   children,
@@ -8,5 +9,5 @@ export default async function ProjectLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <AppShell projectId={id}>{children}</AppShell>;
+  return <AuthGate><AppShell projectId={id}>{children}</AppShell></AuthGate>;
 }
