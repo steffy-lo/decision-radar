@@ -1,15 +1,15 @@
 # Graph Report - kan27-graphify  (2026-09-26)
 
 ## Corpus Check
-- Corpus is ~9,670 words - fits in a single context window. You may not need a graph.
+- Corpus is ~9,835 words - fits in a single context window. You may not need a graph.
 
 ## Summary
-- 168 nodes · 166 edges · 25 communities (15 shown, 10 thin omitted)
-- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 9 edges (avg confidence: 0.87)
+- 174 nodes · 173 edges · 25 communities (15 shown, 10 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 10 edges (avg confidence: 0.86)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `703d67e8`
+- Built from commit: `1b4db6a5`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -18,26 +18,26 @@
 - Product Architecture
 - Web Dependencies
 - TypeScript Configuration
+- Firebase Integration
 - API Proxy Routes
-- Backend Configuration
 - Web Linting
 - Monorepo Scripts
+- Graphify Guidance
 - Web Client
-- Firestore Adapter
-- Development Scripts
+- Web Scripts
 - Project Documentation
 - Backend Service Contracts
-- Web Brand Assets
+- Next.js Assets
 - FastAPI Dependencies
-- Agent Guidance
-- PostCSS Setup
+- Next.js Agent Rules
+- PostCSS Configuration
 - File Icon
 - Globe Icon
 - Window Icon
 - Assessment Service
 - Firestore Client
 - HTTP Client
-- Environment Configuration
+- Python Environment
 
 ## God Nodes (most connected - your core abstractions)
 1. `compilerOptions` - 16 edges
@@ -45,11 +45,11 @@
 3. `Decision Radar MVP Prototype Design` - 7 edges
 4. `scripts` - 5 edges
 5. `scripts` - 5 edges
-6. `next` - 4 edges
-7. `Decision Radar` - 4 edges
-8. `Deterministic Typed Comparison` - 4 edges
-9. `HealthResponse` - 3 edges
-10. `Settings` - 3 edges
+6. `Repository Graphify Instructions` - 5 edges
+7. `next` - 4 edges
+8. `Decision Radar` - 4 edges
+9. `Deterministic Typed Comparison` - 4 edges
+10. `HealthResponse` - 3 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Next.js Web Project` --conceptually_related_to--> `Next.js Wordmark`  [INFERRED]
@@ -67,6 +67,7 @@
 - None detected.
 
 ## Hyperedges (group relationships)
+- **Effective Graphify Workflow** — agents_graphify_query_first, agents_graphify_wiki_navigation, agents_graphify_dirty_output_policy, agents_graphify_ast_update_after_code_changes [EXTRACTED 1.00]
 - **Evidence-to-Decision Review Pipeline** — docs_hld_google_workspace_ingestion, docs_hld_gemini_vertex_ai, docs_hld_typed_comparison_rules, docs_hld_evidence_traceability, docs_hld_impact_graph, docs_hld_human_in_the_loop_review [EXTRACTED 1.00]
 - **MVP Validated Demo Flow** — docs_lld_mvp_single_folder_ingestion, docs_lld_mvp_quote_containment_validation, docs_lld_mvp_deterministic_typed_comparison, docs_lld_mvp_synthetic_demo_fixture, docs_lld_mvp_human_review_workflow [EXTRACTED 1.00]
 
@@ -88,13 +89,13 @@ Nodes (17): eslintConfig, dependencies, next, react, react-dom, name, private, v
 Cohesion: 0.11
 Nodes (18): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModules, jsx, lib, module (+10 more)
 
-### Community 4 - "API Proxy Routes"
+### Community 4 - "Firebase Integration"
+Cohesion: 0.13
+Nodes (14): AsyncClient, BaseSettings, google_cloud, os, pathlib, pydantic_settings, get_firestore_client(), Returns a Firestore AsyncClient configured for production or local emulator. (+6 more)
+
+### Community 5 - "API Proxy Routes"
 Cohesion: 0.12
 Nodes (11): nextConfig, DELETE, GET, PATCH, POST, PUT, apps_web_src_app_globals, geistMono (+3 more)
-
-### Community 5 - "Backend Configuration"
-Cohesion: 0.22
-Nodes (9): BaseSettings, pathlib, pydantic_settings, get_settings(), Settings, Worker entrypoint process for background ingestion and assessment jobs., run_worker(), sys (+1 more)
 
 ### Community 6 - "Web Linting"
 Cohesion: 0.22
@@ -104,15 +105,15 @@ Nodes (9): devDependencies, eslint, eslint-config-next, tailwindcss, @tailwindcs
 Cohesion: 0.22
 Nodes (8): name, private, scripts, dev:api, dev:web, dev:worker, emulators, version
 
-### Community 8 - "Web Client"
+### Community 8 - "Graphify Guidance"
+Cohesion: 0.47
+Nodes (6): AST Graph Update After Code Changes, Dirty Graph Output Policy, Query the Knowledge Graph First, Repository Graphify Instructions, Use Graphify Instructions on /graphify, Graph Wiki Navigation
+
+### Community 9 - "Web Client"
 Cohesion: 0.53
 Nodes (4): Home(), checkBackendHealth(), HealthResponse, react
 
-### Community 9 - "Firestore Adapter"
-Cohesion: 0.33
-Nodes (5): AsyncClient, google_cloud, os, get_firestore_client(), Returns a Firestore AsyncClient configured for production or local emulator.
-
-### Community 10 - "Development Scripts"
+### Community 10 - "Web Scripts"
 Cohesion: 0.40
 Nodes (5): scripts, build, dev, lint, start
 
@@ -124,7 +125,7 @@ Nodes (5): Decision Radar, Graphify Guide, High-Level Design, Low-Level Design (
 Cohesion: 0.50
 Nodes (4): Full Production Implementation Contract, Decision Radar Low-Level Design, Idempotency and Optimistic Locking, JobService
 
-### Community 13 - "Web Brand Assets"
+### Community 13 - "Next.js Assets"
 Cohesion: 0.67
 Nodes (3): Next.js Wordmark, Vercel Triangle Mark, Next.js Web Project
 
@@ -134,18 +135,18 @@ Nodes (3): FastAPI, Pydantic, Uvicorn
 
 ## Knowledge Gaps
 - **84 isolated node(s):** `eslintConfig`, `next`, `react`, `react-dom`, `name` (+79 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 108 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 109 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `next` connect `API Proxy Routes` to `Web Dependencies`?**
-  _High betweenness centrality (0.047) - this node is a cross-community bridge._
+  _High betweenness centrality (0.044) - this node is a cross-community bridge._
 - **Why does `devDependencies` connect `Web Linting` to `Web Dependencies`?**
-  _High betweenness centrality (0.029) - this node is a cross-community bridge._
+  _High betweenness centrality (0.027) - this node is a cross-community bridge._
 - **Why does `react` connect `Web Client` to `Web Dependencies`?**
-  _High betweenness centrality (0.018) - this node is a cross-community bridge._
+  _High betweenness centrality (0.016) - this node is a cross-community bridge._
 - **What connects `eslintConfig`, `next`, `react` to the rest of the system?**
   _84 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `API Authentication` be split into smaller, more focused modules?**
