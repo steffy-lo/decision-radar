@@ -26,7 +26,8 @@ apps/web/                                # Next.js App Router (React + TypeScrip
 services/radar/                          # Python Core Backend (FastAPI + Worker)
   api/
     main.py                              # FastAPI entrypoint, middleware, CORS
-    deps.py                              # Base auth/dep stubs
+    deps.py                              # Firebase auth and project-membership dependencies
+    routes/projects.py                   # Protected project membership endpoint
     routes/health.py                     # GET /health & GET /api/v1/health
   domain/models.py                       # Pydantic domain models
   adapters/firestore.py                  # Firestore async client wrapper
@@ -63,6 +64,16 @@ cd apps/web
 npm install
 ```
 
+### 2a. Configure Firebase
+
+- Copy `apps/web/.env.example` to `apps/web/.env.local` and supply the Firebase
+  web app values. For local emulators, retain the Auth emulator URL.
+- Copy `services/radar/.env.example` to `services/radar/.env`. This is where the
+  API reads `FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099` and
+  `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080` for local emulators.
+- Production uses Application Default Credentials or its configured service
+  account to verify Firebase ID tokens.
+
 ### 3. Run Services Locally
 
 #### Start Firebase Emulators
@@ -70,6 +81,9 @@ npm install
 npm run emulators
 # UI available at http://localhost:4000
 ```
+
+The command starts all emulators with the `decision-radar` project ID,
+which must match `FIREBASE_PROJECT_ID` and `NEXT_PUBLIC_FIREBASE_PROJECT_ID`.
 
 #### Start FastAPI API Backend
 ```bash

@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { checkBackendHealth, HealthResponse } from "@/lib/api/client";
+import {
+  checkBackendHealth,
+  HealthResponse,
+} from "@/lib/api/client";
+import { AuthGate } from "@/components/auth/auth-gate";
 
 export default function Home() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -23,6 +27,7 @@ export default function Home() {
   }, []);
 
   return (
+    <AuthGate>
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6">
       <main className="max-w-2xl w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl space-y-6">
         <div className="flex items-center space-x-3 border-b border-slate-800 pb-4">
@@ -91,5 +96,6 @@ export default function Home() {
         </div>
       </main>
     </div>
+    </AuthGate>
   );
 }
