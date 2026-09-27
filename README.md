@@ -4,7 +4,7 @@ Decision Radar is an organisational-memory and decision-intelligence product for
 - [High-level design](docs/HLD.md): product scope, architecture, Google services, tradeoffs, success criteria, and delivery plan.
 - [Low-level design (Full Vision)](docs/LLD.md): full production-grade entities, APIs, processing steps, comparison rules, review states, reliability, and validation.
 - [Low-level design (MVP Prototype)](docs/LLD_MVP.md): streamlined implementation contract tailored to the 14 active sprint tasks and competition demo.
-- [Original design attachments](docs/reference/README.md): unchanged HLD and LLD v0.4 PDFs supplied for project context.
+- Original design attachments: [HLD v0.4](docs/reference/archive/2026-09-21/HLD-v0.4.pdf) and [LLD v0.4](docs/reference/archive/2026-09-21/LLD-v0.4.pdf).
 - [AI Builder Cup submission notes](docs/AI_BUILDER_CUP.md): official deadline, prototype requirements, and judging weights.
 - [Vendor-delay demo fixture](fixtures/README.md): shared Python/TypeScript contract and synthetic evidence path.
 
@@ -13,6 +13,7 @@ Decision Radar is an organisational-memory and decision-intelligence product for
 - [KAN Jira board](https://geminimaxxing.atlassian.net/jira/software/projects/KAN/boards/1): implementation tickets, acceptance criteria, dependencies, and the `back-burner` backlog.
 - [Decision Radar project hub](https://geminimaxxing.atlassian.net/wiki/spaces/GeminiMaxx/overview): product overview, MVP architecture, trust principles, and prototype completion criteria.
 - [MVP scope, delivery plan & backlog](https://geminimaxxing.atlassian.net/wiki/spaces/GeminiMaxx/pages/163960/MVP+Scope+Delivery+Plan+Backlog): two-person milestones, ownership, MVP boundaries, and deferred work.
+- [Graphify guide](graphify-out/README.md): how to query, update, and share the repository knowledge graph.
 
 ---
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { isDemoProject } from "@/lib/demo/use-project-data";
 
 const items = [
   { slug: "decisions", label: "Decisions", icon: "◈" },
@@ -20,6 +21,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const base = `/projects/${encodeURIComponent(projectId)}`;
+  const demo = isDemoProject(projectId);
 
   return (
     <div className="app-shell">
@@ -28,15 +30,6 @@ export function AppShell({
           <span className="brand__mark" aria-hidden="true"><span /></span>
           <span className="brand__wordmark">Decision<span>Radar</span></span>
         </Link>
-
-        <div className="workspace-switcher">
-          <span className="workspace-switcher__avatar" aria-hidden="true">DR</span>
-          <span>
-            <small>WORKSPACE</small>
-            <strong>Launch readiness</strong>
-          </span>
-          <span className="workspace-switcher__chevron" aria-hidden="true">⌄</span>
-        </div>
 
         <div className="sidebar__section-label">WORKSPACE</div>
         <nav className="sidebar__nav" aria-label="Primary">
@@ -65,17 +58,17 @@ export function AppShell({
           </div>
           <div className="sidebar__footer">
             <span className="sidebar__footer-avatar" aria-hidden="true">D</span>
-            <span><strong>Demo workspace</strong><small>Synthetic project data</small></span>
+            <span><strong>{demo ? "Demo workspace" : "Project workspace"}</strong><small>{demo ? "Synthetic project data" : "Live data pending"}</small></span>
           </div>
         </div>
       </aside>
 
       <div className="app-shell__main">
         <header className="topbar">
-          <div className="topbar__crumbs"><span>Workspace</span><span aria-hidden="true">/</span><strong>Launch readiness</strong></div>
+          <div className="topbar__crumbs"><span>Workspace</span><span aria-hidden="true">/</span><strong>{demo ? "Launch readiness" : "Project workspace"}</strong></div>
           <div className="topbar__right">
-            <span className="demo-badge"><span aria-hidden="true" /> Fixture mode</span>
-            <span className="topbar__avatar" aria-label="Demo user">D</span>
+            {demo && <span className="demo-badge"><span aria-hidden="true" /> Fixture mode</span>}
+            <span className="topbar__avatar" aria-label={demo ? "Demo user" : "Signed-in user"}>D</span>
           </div>
         </header>
         <nav className="mobile-nav" aria-label="Mobile project navigation">
