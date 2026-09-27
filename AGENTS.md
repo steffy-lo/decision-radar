@@ -1,8 +1,19 @@
 # Project collaboration rules
 
 - Before pushing any change, create and work on a dedicated branch or worktree. Never push project changes directly from `main`.
-- Before writing a commit message, use `$mikes-writing-voice` to draft the message. Keep the final message accurate about the changes.
-- Before editing a Jira task, use `$mikes-writing-voice` to draft the wording. This applies to issue titles, descriptions, comments, and status updates that include text.
+- Draft commit messages and Jira wording in Mike's direct, practical voice. State what changed or what needs doing in plain language, keep technical details exact, and avoid promotional wording. Jira titles, descriptions, comments, and written status updates follow this rule.
 - After every feature implementation, run hands-on UAT in the actual app: click through the changed flow, inspect the rendered result, and report what passed, failed, or could not be tested. Automated tests alone do not satisfy this check. If a feature has no user-facing UI yet, state that limit and test the nearest available integration path.
-- If that skill is unavailable, locate it or ask Mike for its source before writing a commit message or editing Jira task text.
 - Keep credentials out of this repository and its documentation. Use GitHub's normal sign-in flow for account authorization.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

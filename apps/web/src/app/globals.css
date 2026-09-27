@@ -29,12 +29,8 @@ button { cursor: pointer; }
 .brand__mark::before { content: ""; position: absolute; width: 18px; height: 18px; border: 1.5px solid #42c5ba; border-radius: 50%; }
 .brand__mark::after { content: ""; position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #0c9187; right: -2px; top: 1px; box-shadow: 0 0 0 3px #fff; }
 .brand__mark span { width: 6px; height: 6px; border-radius: 50%; background: #0d9188; }
-.workspace-switcher { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 11px; margin: 42px 3px 31px; padding: 10px 9px; box-shadow: 0 2px 8px rgba(18, 36, 49, .025); }
-.workspace-switcher__avatar { width: 32px; height: 32px; background: #e7f4f2; color: var(--teal-dark); border-radius: 8px; display: grid; place-items: center; font-size: 11px; font-weight: 800; }
-.workspace-switcher small, .sidebar__footer small { display: block; font-size: 9px; font-weight: 800; letter-spacing: 1px; color: #9aa7b0; }
-.workspace-switcher strong { display: block; font-size: 11px; margin-top: 3px; white-space: nowrap; }
-.workspace-switcher__chevron { margin-left: auto; color: #9aa7b0; }
-.sidebar__section-label { color: #a2abb4; padding: 0 16px; font-size: 10px; font-weight: 800; letter-spacing: 1.4px; margin-bottom: 13px; }
+.sidebar__section-label { color: #a2abb4; padding: 0 16px; font-size: 10px; font-weight: 800; letter-spacing: 1.4px; margin: 49px 0 13px; }
+.sidebar__footer small { display: block; font-size: 9px; font-weight: 800; letter-spacing: 1px; color: #9aa7b0; }
 .sidebar__nav { display: grid; gap: 5px; }
 .nav-link { display: flex; align-items: center; gap: 12px; color: #677583; border-radius: 9px; padding: 11px 14px; font-size: 13px; font-weight: 650; transition: background .15s, color .15s; }
 .nav-link:hover { background: #f3f7f7; color: var(--navy); }
