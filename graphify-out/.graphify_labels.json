@@ -1,5 +1,5 @@
 {
-  "0": "Extractor",
+  "0": "test_assessment_store.py",
   "1": "Decision Radar High-Level Design",
   "2": "web/package.json",
   "3": "compilerOptions",
@@ -9,7 +9,7 @@
   "7": "package.json",
   "8": "Repository Graphify Instructions",
   "9": "client.ts",
-  "10": "deps.py",
+  "10": "authenticate_bearer",
   "11": "Decision Radar",
   "12": "Decision Radar Low-Level Design",
   "13": "Next.js Web Project",
@@ -26,14 +26,18 @@
   "24": "python-dotenv",
   "25": "config.py",
   "26": "decision-register.tsx",
-  "27": "vendor-delay.json",
+  "27": "assessment_store.py",
   "28": "test_contract.mjs",
   "29": "loading.tsx",
   "30": "AI_BUILDER_CUP.md",
   "31": "KAN16_EXTRACTION.md",
   "32": "pipeline/__init__.py",
   "33": "assessment.py",
-  "34": "Assumption",
-  "35": "AssessmentTests",
-  "36": "apps_web_node_modules_typescript_lib_typescript"
+  "34": "FakeSnapshot",
+  "35": "test_assessment_api.py",
+  "36": "apps_web_node_modules_typescript_lib_typescript",
+  "37": "main.py",
+  "38": "deps.py",
+  "39": "firebase_auth.py",
+  "40": "AssessmentRouteTests"
 }
