@@ -28,8 +28,14 @@ yarn-error.log*
 Thumbs.db
 .idea/
 .vscode/*
+.codex/*
 !.vscode/settings.json
 
 # Logs
 firebase-debug.log*
 firestore-debug.log*
+
+# Graphify: share graph/report/labels plus portable cache and manifest.
+/graphify-out/cost.json
+/graphify-out/.*
+!/graphify-out/.graphify_labels.json
