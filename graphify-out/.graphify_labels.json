@@ -3,7 +3,7 @@
   "1": "Decision Radar High-Level Design",
   "2": "web/package.json",
   "3": "compilerOptions",
-  "4": "extraction.py",
+  "4": "models.py",
   "5": "[...path]/route.ts",
   "6": "models.ts",
   "7": "package.json",
@@ -31,5 +31,9 @@
   "29": "loading.tsx",
   "30": "AI_BUILDER_CUP.md",
   "31": "KAN16_EXTRACTION.md",
-  "32": "pipeline/__init__.py"
+  "32": "pipeline/__init__.py",
+  "33": "assessment.py",
+  "34": "Assumption",
+  "35": "AssessmentTests",
+  "36": "apps_web_node_modules_typescript_lib_typescript"
 }
