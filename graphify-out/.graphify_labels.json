@@ -1,9 +1,9 @@
 {
-  "0": "main.py",
+  "0": "Extractor",
   "1": "Decision Radar High-Level Design",
   "2": "web/package.json",
   "3": "compilerOptions",
-  "4": "models.py",
+  "4": "extraction.py",
   "5": "[...path]/route.ts",
   "6": "models.ts",
   "7": "package.json",
@@ -20,7 +20,7 @@
   "18": "Globe Icon",
   "19": "Browser Window Icon",
   "20": "AssessmentService",
-  "21": "__init__.py",
+  "21": "radar/__init__.py",
   "22": "Google Cloud Firestore Client",
   "23": "HTTPX",
   "24": "python-dotenv",
@@ -29,5 +29,7 @@
   "27": "vendor-delay.json",
   "28": "test_contract.mjs",
   "29": "loading.tsx",
-  "30": "AI_BUILDER_CUP.md"
+  "30": "AI_BUILDER_CUP.md",
+  "31": "KAN16_EXTRACTION.md",
+  "32": "pipeline/__init__.py"
 }
