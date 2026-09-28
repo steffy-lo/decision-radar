@@ -113,20 +113,25 @@ class DecisionLifecycleTests(unittest.TestCase):
         state = service.draft(decision, evidence, DEMO.assumptions)
         self.assertEqual(state.assumptions[0].status, "draft")
         state = service.confirm(state, if_match=1)
-        self.assertEqual(state.decision.status, "active")
+        self.assertEqual((state.decision.status, state.version), ("active", 2))
         with self.assertRaises(RevisionConflict):
-            service.edit(state, if_match=0, statement="New plan", rationale="Changed", evidence=evidence,
+            service.retire(state, if_match=1)
+        with self.assertRaises(RevisionConflict):
+            service.edit(state, if_match=1, statement="New plan", rationale="Changed", evidence=evidence,
                          assumptions=[])
-        state = service.edit(state, if_match=1, statement="New plan", rationale="Changed", evidence=evidence,
+        state = service.edit(state, if_match=2, statement="New plan", rationale="Changed", evidence=evidence,
                              assumptions=[])
-        self.assertEqual((state.version, state.decision.active_revision), (2, 1))
-        state = service.confirm(state, if_match=2)
+        self.assertEqual((state.version, state.decision.active_revision), (3, 1))
+        self.assertEqual(state.decision.statement, decision.statement)
+        state = service.confirm(state, if_match=3)
         self.assertEqual(state.decision.active_revision, 2)
+        self.assertEqual((state.decision.statement, state.decision.rationale, state.version),
+                         ("New plan", "Changed", 4))
         self.assertTrue(all(item.status == "retired" for item in state.assumptions))
-        state = service.retire(state, if_match=2)
+        state = service.retire(state, if_match=4)
         self.assertEqual(state.decision.status, "retired")
         with self.assertRaises(InvalidDecisionTransition):
-            service.confirm(state, if_match=3)
+            service.confirm(state, if_match=5)
 
     def test_assumption_ids_cannot_be_reused_across_revisions(self):
         service = DecisionService()

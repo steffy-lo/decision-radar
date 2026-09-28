@@ -20,6 +20,7 @@ class DecisionState:
     revisions: tuple[DecisionRevision, ...]
     assumptions: tuple[Assumption, ...]
     version: int
+    pending_rationale: str | None = None
 
 
 def _check_version(state: DecisionState, if_match: int) -> None:
@@ -61,7 +62,7 @@ class DecisionService:
         if state.decision.status == "retired":
             raise InvalidDecisionTransition("A retired decision cannot be edited.")
         _check_assumptions(state.decision.id, assumptions, {item.id for item in state.assumptions})
-        revision_number = state.version + 1
+        revision_number = max(item.revision for item in state.revisions) + 1
         revision = DecisionRevision(
             id=f"rev_{state.decision.id}_{revision_number}",
             decision_id=state.decision.id, revision=revision_number,
@@ -69,21 +70,25 @@ class DecisionService:
         )
         retained = tuple(item for item in state.assumptions if item.status != "draft")
         drafts = tuple(item.model_copy(update={"decision_revision": revision_number, "status": "draft"}) for item in assumptions)
-        decision = state.decision.model_copy(update={"statement": statement, "rationale": rationale})
-        return DecisionState(decision, state.revisions + (revision,), retained + drafts, revision_number)
+        return DecisionState(state.decision, state.revisions + (revision,), retained + drafts,
+                             state.version + 1, rationale)
 
     def confirm(self, state: DecisionState, *, if_match: int) -> DecisionState:
         _check_version(state, if_match)
         if state.decision.status == "retired":
             raise InvalidDecisionTransition("A retired decision cannot be confirmed.")
-        if state.decision.status == "active" and state.decision.active_revision == state.version:
+        revision = max(item.revision for item in state.revisions)
+        if state.decision.status == "active" and state.decision.active_revision == revision:
             raise InvalidDecisionTransition("This revision is already confirmed.")
-        revision = state.version
+        selected = next(item for item in state.revisions if item.revision == revision)
         assumptions = tuple(item.model_copy(update={
             "status": "active" if item.decision_revision == revision else "retired",
         }) for item in state.assumptions)
-        decision = state.decision.model_copy(update={"status": "active", "active_revision": revision})
-        return DecisionState(decision, state.revisions, assumptions, revision)
+        decision = state.decision.model_copy(update={
+            "status": "active", "active_revision": revision, "statement": selected.statement,
+            "rationale": state.pending_rationale if state.pending_rationale is not None else state.decision.rationale,
+        })
+        return DecisionState(decision, state.revisions, assumptions, state.version + 1)
 
     def retire(self, state: DecisionState, *, if_match: int) -> DecisionState:
         _check_version(state, if_match)
