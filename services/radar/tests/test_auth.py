@@ -1,50 +1,28 @@
 import unittest
-from typing import Optional
 
 from fastapi import HTTPException, status
 from firebase_admin import auth
 
-from services.radar.api.deps import authenticate_bearer, require_project_member
-
-
-class FakeSnapshot:
-    def __init__(self, exists: bool, data: Optional[dict] = None):
-        self.exists = exists
-        self._data = data
-
-    def to_dict(self) -> Optional[dict]:
-        return self._data
-
-
-class FakeDocument:
-    def __init__(self, snapshot: FakeSnapshot):
-        self.snapshot = snapshot
-
-    def collection(self, _: str) -> "FakeDocument":
-        return self
-
-    def document(self, _: str) -> "FakeDocument":
-        return self
-
-    async def get(self) -> FakeSnapshot:
-        return self.snapshot
-
-
-class FakeFirestore:
-    def __init__(self, snapshot: FakeSnapshot):
-        self.snapshot = snapshot
-
-    def collection(self, _: str) -> FakeDocument:
-        return FakeDocument(self.snapshot)
+from services.radar.api.deps import (
+    authenticate_bearer,
+    require_project_admin,
+    require_project_member,
+)
+from services.radar.domain.models import AuthenticatedProjectMember
+from services.radar.tests.fakes import FakeFirestore
 
 
 class AuthenticationTests(unittest.IsolatedAsyncioTestCase):
     async def test_verified_token_resolves_the_matching_project_member(self) -> None:
-        claims = authenticate_bearer("Bearer signed-token", lambda _: {"uid": "user-123"})
+        claims = authenticate_bearer(
+            "Bearer signed-token", lambda _: {"uid": "user-123"}
+        )
         member = await require_project_member(
             project_id="project-a",
             claims=claims,
-            firestore_client=FakeFirestore(FakeSnapshot(True, {"role": "editor"})),
+            firestore_client=FakeFirestore(
+                {"projects/project-a/members/user-123": {"role": "editor"}}
+            ),
         )
 
         self.assertEqual(member.project_id, "project-a")
@@ -81,7 +59,16 @@ class AuthenticationTests(unittest.IsolatedAsyncioTestCase):
             await require_project_member(
                 project_id="project-a",
                 claims={"uid": "user-123"},
-                firestore_client=FakeFirestore(FakeSnapshot(False)),
+                firestore_client=FakeFirestore(),
             )
+
+        self.assertEqual(raised.exception.status_code, status.HTTP_403_FORBIDDEN)
+
+    async def test_editor_cannot_manage_a_drive_connection(self) -> None:
+        member = AuthenticatedProjectMember(
+            uid="user-123", role="editor", project_id="project-a"
+        )
+        with self.assertRaises(HTTPException) as raised:
+            await require_project_admin(member)
 
         self.assertEqual(raised.exception.status_code, status.HTTP_403_FORBIDDEN)

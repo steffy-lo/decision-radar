@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  checkBackendHealth,
-  HealthResponse,
-} from "@/lib/api/client";
 import { AuthGate } from "@/components/auth/auth-gate";
+import { DriveConnectionPanel } from "@/components/connections/drive-connection-panel";
+import { checkBackendHealth } from "@/lib/api/client";
+import type { HealthResponse } from "@/lib/api/client";
 
 export default function Home() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -79,6 +78,8 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        <DriveConnectionPanel />
 
         <div className="grid grid-cols-3 gap-3 pt-2 text-center text-xs">
           <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3">

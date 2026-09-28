@@ -1,0 +1,207 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+import {
+  beginDriveAuthorization,
+  disconnectDrive,
+  getConnection,
+  getCurrentProjectMembership,
+  reconnectDrive,
+} from "@/lib/api/client";
+import type { Connection, ProjectMembership } from "@/lib/api/client";
+
+function configuredProjectId(): string {
+  const projectId = process.env.NEXT_PUBLIC_DEMO_PROJECT_ID;
+  if (!projectId) {
+    throw new Error("NEXT_PUBLIC_DEMO_PROJECT_ID is not configured.");
+  }
+  return projectId;
+}
+
+export function DriveConnectionPanel() {
+  const [membership, setMembership] = useState<ProjectMembership | null>(null);
+  const [connection, setConnection] = useState<Connection | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const callbackFailure =
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("reason");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const projectId = configuredProjectId();
+      const nextMembership = await getCurrentProjectMembership(projectId);
+      setMembership(nextMembership);
+      setError(null);
+
+      if (nextMembership.role === "admin") {
+        setConnection(await getConnection(projectId));
+      } else {
+        setConnection(null);
+      }
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Unable to load Drive connection status.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Defer the request until after the effect commits to avoid a synchronous render cascade.
+    void Promise.resolve().then(load);
+  }, [load]);
+
+  const beginAuthorization = async (reconnect = false) => {
+    setActionLoading(true);
+    setError(null);
+    try {
+      const projectId = configuredProjectId();
+      const result = reconnect
+        ? await reconnectDrive(projectId)
+        : await beginDriveAuthorization(projectId);
+      window.location.assign(result.authorization_url);
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Unable to start Drive authorization.",
+      );
+      setActionLoading(false);
+    }
+  };
+
+  const disconnect = async () => {
+    if (
+      !window.confirm(
+        "Disconnect the project's Drive account? The worker will no longer be able to refresh its sources.",
+      )
+    ) {
+      return;
+    }
+
+    setActionLoading(true);
+    setError(null);
+    try {
+      await disconnectDrive(configuredProjectId());
+      await load();
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Unable to disconnect Drive.",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <section className="rounded-xl border border-slate-800 bg-slate-950 p-5 text-sm text-slate-400">
+        Loading project access…
+      </section>
+    );
+  }
+
+  if (error && !membership) {
+    return (
+      <section className="rounded-xl border border-red-800/60 bg-red-950/40 p-5 text-sm text-red-300">
+        {error}
+      </section>
+    );
+  }
+
+  if (membership?.role !== "admin") {
+    return (
+      <section className="rounded-xl border border-slate-800 bg-slate-950 p-5 text-sm text-slate-400">
+        Drive connection management is available to project administrators.
+      </section>
+    );
+  }
+
+  const isConnected = connection?.status === "active";
+  const needsReconnect = connection?.status === "needs_reconnect";
+  const connectLabel = isConnected || needsReconnect ? "Reconnect Drive" : "Connect Drive";
+
+  return (
+    <section className="space-y-4 rounded-xl border border-slate-800 bg-slate-950 p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Drive connection
+          </p>
+          <h2 className="mt-1 text-base font-semibold text-slate-100">Project evidence access</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            Connect the Google account whose Drive folder the worker will read.
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+            isConnected ? "bg-emerald-950 text-emerald-300" : "bg-amber-950 text-amber-300"
+          }`}
+        >
+          {connection?.status ?? "disconnected"}
+        </span>
+      </div>
+
+      {connection?.authorization_pending && (
+        <p className="rounded-lg border border-indigo-800/60 bg-indigo-950/30 p-3 text-sm text-indigo-200">
+          Waiting for Google authorization to finish.
+        </p>
+      )}
+
+      {needsReconnect && (
+        <p className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-3 text-sm text-amber-200">
+          Google access needs to be granted again before the worker can refresh sources.
+        </p>
+      )}
+
+      {callbackFailure === "storage_unavailable" && (
+        <p className="rounded-lg border border-red-800/60 bg-red-950/40 p-3 text-sm text-red-200">
+          Google authorization completed, but the server could not store the Drive grant. Check
+          local Application Default Credentials and Secret Manager IAM access, then try again.
+        </p>
+      )}
+
+      {callbackFailure === "authorization_failed" && (
+        <p className="rounded-lg border border-red-800/60 bg-red-950/40 p-3 text-sm text-red-200">
+          Google could not complete Drive authorization. Confirm the OAuth client and redirect URI,
+          then try again.
+        </p>
+      )}
+
+      {error && (
+        <p className="rounded-lg border border-red-800/60 bg-red-950/40 p-3 text-sm text-red-300">
+          {error}
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-3">
+        <button
+          className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={actionLoading}
+          onClick={() => void beginAuthorization(isConnected || needsReconnect)}
+        >
+          {actionLoading ? "Opening Google…" : connectLabel}
+        </button>
+        {isConnected && (
+          <button
+            className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={actionLoading}
+            onClick={() => void disconnect()}
+          >
+            Disconnect Drive
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
