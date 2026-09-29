@@ -9,7 +9,7 @@ import {
 } from "@/lib/api/client";
 import type { LiveDecision, ProjectMembership, SourceDetail, SourceSummary } from "@/lib/api/client";
 
-const inputClass = "mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 p-2 text-slate-100";
+const inputClass = "form-control";
 
 export function LiveDecisionRegister({ projectId }: { projectId: string }) {
   const [decisions, setDecisions] = useState<LiveDecision[]>([]);
@@ -78,28 +78,29 @@ export function LiveDecisionRegister({ projectId }: { projectId: string }) {
 
   return <>
     <PageHeading eyebrow="DECISION INTELLIGENCE" title="Decision register" description="Create a quote-backed decision and confirm the date you want to monitor." action={<Link className="button button--secondary" href={`/projects/${encodeURIComponent(projectId)}/reviews`}>View reviews</Link>} />
-    {error && <p role="alert" className="mb-4 rounded-lg border border-red-800 bg-red-950/40 p-3 text-sm text-red-300">{error}</p>}
-    {notice && <p role="status" className="mb-4 rounded-lg border border-emerald-800 bg-emerald-950/40 p-3 text-sm text-emerald-300">{notice}</p>}
-    <div className="space-y-4">{decisions.length === 0 ? <p className="text-slate-600">No decisions yet.</p> : decisions.map((decision) => <Panel className="space-y-2" key={decision.id}>
-      <div className="flex items-start justify-between gap-3"><h2 className="font-semibold">{decision.statement}</h2><StatusPill tone={decision.status === "active" ? "success" : "warning"}>{decision.status}</StatusPill></div>
-      <p className="text-sm text-slate-600">Owner: {decision.owner} · Revision {decision.activeRevision}</p>
+    {error && <p role="alert" className="notice notice--error">{error}</p>}
+    {notice && <p role="status" className="notice notice--success">{notice}</p>}
+    <div className="workspace-section__heading"><div><span className="overline">PROJECT RECORD</span><h2>Decisions</h2></div><span className="section-count">{decisions.length} total</span></div>
+    <div className="workspace-stack">{decisions.length === 0 ? <Panel className="empty-state"><div className="empty-state__mark" aria-hidden="true">◇</div><h2>No decisions yet</h2><p>Create a draft below to start tracking a decision and its evidence.</p></Panel> : decisions.map((decision) => <Panel className="workspace-card decision-item" key={decision.id}>
+      <div className="source-item__head"><div><span className="overline">DECISION</span><h2>{decision.statement}</h2></div><StatusPill tone={decision.status === "active" ? "success" : "warning"}>{decision.status}</StatusPill></div>
+      <p className="supporting-copy">Owner: {decision.owner} · Revision {decision.activeRevision}</p>
       {decision.status === "draft" && membership?.role !== "viewer" && <button className="button button--primary" disabled={busy} onClick={() => void confirm(decision)}>Confirm decision</button>}
     </Panel>)}</div>
-    {membership?.role !== "viewer" && <Panel className="mt-8 space-y-4"><h2 className="text-lg font-semibold">New decision draft</h2>
-      {sources.length === 0 ? <p className="text-sm text-amber-300">Refresh a Drive folder on the Sources page first.</p> : <>
-        <label className="block text-sm">Evidence source<select className={inputClass} value={sourceId} onChange={(event) => setSourceId(event.target.value)}>{sources.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
-        {source && <div className="max-h-48 overflow-auto rounded-lg bg-slate-900 p-3 text-xs whitespace-pre-wrap text-slate-200" aria-label="Source text">{source.contentSnapshot}</div>}
-        <label className="block text-sm">Exact quote from source<textarea className={inputClass} value={quote} onChange={(event) => setQuote(event.target.value)} rows={2} /></label>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-sm">Decision statement<input className={inputClass} value={statement} onChange={(event) => setStatement(event.target.value)} /></label>
-          <label className="text-sm">Owner<input className={inputClass} value={owner} onChange={(event) => setOwner(event.target.value)} /></label>
+    {membership?.role !== "viewer" && <Panel className="workspace-card workspace-card--spaced"><div className="flow-card-heading"><span className="flow-step">+</span><div className="flow-card-heading__copy"><span className="overline">NEW DECISION</span><h2>Create a decision draft</h2><p>Start with a source quote, then add the decision and the date you need to track.</p></div></div>
+      {sources.length === 0 ? <p className="notice notice--warning">Refresh a Drive folder on the Sources page first.</p> : <>
+        <label className="form-field">Evidence source<select className={inputClass} value={sourceId} onChange={(event) => setSourceId(event.target.value)}>{sources.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+        {source && <div className="source-preview" aria-label="Source text"><span className="overline">SOURCE TEXT</span><p>{source.contentSnapshot}</p></div>}
+        <label className="form-field">Exact quote from source<textarea className={inputClass} value={quote} onChange={(event) => setQuote(event.target.value)} rows={2} /></label>
+        <div className="form-grid form-grid--two">
+          <label className="form-field">Decision statement<input className={inputClass} value={statement} onChange={(event) => setStatement(event.target.value)} /></label>
+          <label className="form-field">Owner<input className={inputClass} value={owner} onChange={(event) => setOwner(event.target.value)} /></label>
         </div>
-        <label className="block text-sm">Rationale<input className={inputClass} value={rationale} onChange={(event) => setRationale(event.target.value)} /></label>
-        <label className="block text-sm">Assumption to monitor<input className={inputClass} value={assumption} onChange={(event) => setAssumption(event.target.value)} placeholder="Vendor delivers by the launch deadline" /></label>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="text-sm">Entity ID<input className={inputClass} value={entityId} onChange={(event) => setEntityId(event.target.value)} placeholder="vendor_acme" /></label>
-          <label className="text-sm">Predicate<input className={inputClass} value={predicate} onChange={(event) => setPredicate(event.target.value)} /></label>
-          <label className="text-sm">Expected by<input className={inputClass} type="date" value={expectedDate} onChange={(event) => setExpectedDate(event.target.value)} /></label>
+        <label className="form-field">Rationale<input className={inputClass} value={rationale} onChange={(event) => setRationale(event.target.value)} /></label>
+        <label className="form-field">Assumption to monitor<input className={inputClass} value={assumption} onChange={(event) => setAssumption(event.target.value)} placeholder="Vendor delivers by the launch deadline" /></label>
+        <div className="form-grid form-grid--three">
+          <label className="form-field">Entity ID<input className={inputClass} value={entityId} onChange={(event) => setEntityId(event.target.value)} placeholder="vendor_acme" /></label>
+          <label className="form-field">Predicate<input className={inputClass} value={predicate} onChange={(event) => setPredicate(event.target.value)} /></label>
+          <label className="form-field">Expected by<input className={inputClass} type="date" value={expectedDate} onChange={(event) => setExpectedDate(event.target.value)} /></label>
         </div>
         <button className="button button--primary" disabled={busy} onClick={() => void createDraft()}>{busy ? "Saving…" : "Create draft"}</button>
       </>}

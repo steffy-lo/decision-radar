@@ -9,7 +9,7 @@ import {
 import type {
   AssessmentResults, ExtractionResult, MonitoredAssumption, ProjectMembership, SourceSummary,
 } from "@/lib/api/client";
-import { PageHeading, Panel, StatusPill } from "@/components/ui";
+import { EmptyState, PageHeading, Panel, StatusPill } from "@/components/ui";
 
 function errorText(value: unknown): string {
   return value instanceof Error ? value.message : "The request failed. Please try again.";
@@ -68,38 +68,37 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
   }
 
   return <>
-    <PageHeading eyebrow="PROJECT EVIDENCE" title="Sources" description="Connect a Drive folder, refresh its files, then extract quote-backed facts." />
+    <PageHeading eyebrow="PROJECT EVIDENCE" title="Sources" description="Bring project updates into one place and turn source text into facts you can review." />
     <DriveConnectionPanel projectId={projectId} onSourcesChanged={() => void load()} />
-    {error && <p role="alert" className="mt-4 rounded-lg border border-red-800 bg-red-950/40 p-3 text-sm text-red-300">{error}</p>}
-    <Panel className="mt-6 space-y-3">
-      <h2>Extraction mapping</h2>
-      <p className="text-sm text-slate-600">Map wording in the source to a confirmed decision assumption. Only verified, confirmed facts enter assessment.</p>
-      <label className="block text-sm">Monitored assumption
-        <select className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 p-2" value={selectedAssumption} onChange={(event) => setSelectedAssumption(event.target.value)}>
+    {error && <p role="alert" className="notice notice--error">{error}</p>}
+    <Panel className="workspace-card workspace-card--spaced">
+      <div className="flow-card-heading"><span className="flow-step">2</span><div className="flow-card-heading__copy"><span className="overline">FACT EXTRACTION</span><h2>Match source wording</h2><p>Choose an assumption, then enter the words used in the source. Verified facts can then be assessed.</p></div></div>
+      <label className="form-field">Monitored assumption
+        <select className="form-control" value={selectedAssumption} onChange={(event) => setSelectedAssumption(event.target.value)}>
           {assumptions.length === 0 && <option value="">No active assumptions</option>}
           {assumptions.map((row) => <option key={row.id} value={row.id}>{row.decisionStatement}: {row.statement}</option>)}
         </select>
       </label>
-      {selected && <p className="text-xs text-slate-600">Trusted entity: {selected.entityId} · predicate: {selected.predicate}</p>}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-sm">Entity wording in source<input className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 p-2" value={entityAlias} onChange={(event) => setEntityAlias(event.target.value)} placeholder="e.g. Acme Logistics" /></label>
-        <label className="text-sm">Predicate wording in source<input className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 p-2" value={predicateAlias} onChange={(event) => setPredicateAlias(event.target.value)} placeholder="e.g. delivery date" /></label>
+      {selected && <p className="field-help">Trusted entity: {selected.entityId} · predicate: {selected.predicate}</p>}
+      <div className="form-grid form-grid--two">
+        <label className="form-field">Entity wording in source<input className="form-control" value={entityAlias} onChange={(event) => setEntityAlias(event.target.value)} placeholder="e.g. Acme Logistics" /></label>
+        <label className="form-field">Predicate wording in source<input className="form-control" value={predicateAlias} onChange={(event) => setPredicateAlias(event.target.value)} placeholder="e.g. delivery date" /></label>
       </div>
-      {assumptions.length === 0 && <p className="text-sm text-amber-300">Confirm a decision with a monitored assumption before extracting facts.</p>}
+      {assumptions.length === 0 && <p className="notice notice--warning">Confirm a decision with a monitored assumption before extracting facts.</p>}
     </Panel>
-    <div className="mt-6 space-y-4">
-      <h2 className="text-xl font-semibold">Connected sources</h2>
-      {loading ? <p>Loading sources…</p> : sources.length === 0 ? <p className="text-slate-600">No sources in the selected Drive folder yet.</p> : sources.map((source) => {
+    <div className="workspace-section">
+      <div className="workspace-section__heading"><div><span className="overline">SOURCE LIBRARY</span><h2>Connected sources</h2></div><span className="section-count">{sources.length} files</span></div>
+      {loading ? <p className="supporting-copy">Loading sources…</p> : sources.length === 0 ? <EmptyState title="No sources yet" description="Connect Drive and refresh a folder to bring its files into this project." /> : <div className="workspace-stack">{sources.map((source) => {
         const result = extractions[source.id];
-        return <Panel className="space-y-3" key={source.id}>
-          <div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold">{source.name}</h3><a href={source.native_url} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-300 underline">Open source</a></div><StatusPill tone="success">{source.status}</StatusPill></div>
+        return <Panel className="workspace-card source-item" key={source.id}>
+          <div className="source-item__head"><div><h3>{source.name}</h3><a href={source.native_url} target="_blank" rel="noopener noreferrer" className="text-link">Open source ↗</a></div><StatusPill tone="success">{source.status}</StatusPill></div>
           {membership?.role !== "viewer" && <button className="button button--primary" disabled={busySource !== null || !selected} onClick={() => void runExtraction(source.id)}>{busySource === source.id ? "Extracting…" : "Extract with Gemini"}</button>}
-          {result && <div className="space-y-3 border-t border-slate-700 pt-3"><p role="status" className="text-sm text-emerald-300">{result.publishedFactCount} verified facts published for assessment</p>
-            {result.facts.map((fact, index) => <div key={`${source.id}-${index}`} className="rounded-lg bg-slate-900 p-3 text-sm text-slate-100"><strong>{fact.entity} · {fact.predicate}</strong><span className="ml-2 text-slate-300">{fact.state}</span><blockquote className="mt-2 border-l-2 border-indigo-400 pl-3">“{fact.quote}”</blockquote>{fact.uncertainReason && <p className="mt-1 text-amber-300">{fact.uncertainReason}</p>}</div>)}
-            {result.decisions.map((decision, index) => <div key={`decision-${index}`} className="text-sm"><strong>Suggested decision:</strong> {decision.statement}{decision.uncertainReason && <span className="text-amber-300"> · {decision.uncertainReason}</span>}</div>)}
+          {result && <div className="source-item__results"><p role="status" className="notice notice--success">{result.publishedFactCount} verified facts ready for assessment</p>
+            {result.facts.map((fact, index) => <div key={`${source.id}-${index}`} className="fact-card"><div><strong>{fact.entity} · {fact.predicate}</strong><StatusPill>{fact.state}</StatusPill></div><blockquote>“{fact.quote}”</blockquote>{fact.uncertainReason && <p className="notice notice--warning">{fact.uncertainReason}</p>}</div>)}
+            {result.decisions.map((decision, index) => <div key={`decision-${index}`} className="fact-card"><strong>Suggested decision</strong><p>{decision.statement}</p>{decision.uncertainReason && <p className="notice notice--warning">{decision.uncertainReason}</p>}</div>)}
           </div>}
         </Panel>;
-      })}
+      })}</div>}
     </div>
   </>;
 }
@@ -123,16 +122,15 @@ export function LiveReviewsWorkspace({ projectId }: { projectId: string }) {
     finally { setBusy(false); }
   }
   return <>
-    <PageHeading eyebrow="REVIEW QUEUE" title="Reviews" description="Run deterministic checks against confirmed decisions and verified source facts." />
-    {membership?.role !== "viewer" && <button className="button button--primary" disabled={busy} onClick={() => void assess()}>{busy ? "Running assessment…" : "Run assessment"}</button>}
-    {error && <p role="alert" className="mt-4 text-red-300">{error}</p>}
-    {data?.latestRun && <p role="status" className="mt-4 text-sm text-slate-700">Latest run: {data.latestRun.findingCount} findings, {data.latestRun.alertCount} alerts.</p>}
-    <div className="mt-6 space-y-4">{data?.alerts.length ? data.alerts.map((alert) => {
+    <PageHeading eyebrow="REVIEW QUEUE" title="Reviews" description="Check confirmed decisions against verified source facts." action={membership?.role !== "viewer" && <button className="button button--primary" disabled={busy} onClick={() => void assess()}>{busy ? "Running assessment…" : "Run assessment"}</button>} />
+    {error && <p role="alert" className="notice notice--error">{error}</p>}
+    <div className="review-summary workspace-card"><div><span className="overline">LATEST ASSESSMENT</span><h2>{data?.latestRun ? `${data.latestRun.alertCount} ${data.latestRun.alertCount === 1 ? "alert" : "alerts"} to review` : "Ready to assess"}</h2><p>{data?.latestRun ? `${data.latestRun.findingCount} ${data.latestRun.findingCount === 1 ? "finding" : "findings"} checked in the latest run.` : "Run an assessment after you confirm decisions and extract source facts."}</p></div><span className="review-summary__symbol" aria-hidden="true">◇</span></div>
+    <div className="workspace-section workspace-stack">{data?.alerts.length ? data.alerts.map((alert) => {
       const finding = data.findings.find((row) => row.id === alert.findingId);
-      return <Panel key={alert.id} className="space-y-3"><div className="flex justify-between"><h2 className="font-semibold">Decision needs review</h2><StatusPill tone="warning">{alert.severity}</StatusPill></div>
-        <p className="text-sm">{finding?.reasonCode} {finding?.deltaDays != null && `· ${finding.deltaDays} days later`}</p>
-        {finding && <div className="grid gap-3 sm:grid-cols-2"><blockquote className="border-l-2 border-slate-500 pl-3 text-sm">“{finding.baselineEvidence.quote}”</blockquote><blockquote className="border-l-2 border-amber-400 pl-3 text-sm">“{finding.updateEvidence.quote}”</blockquote></div>}
+      return <Panel key={alert.id} className="workspace-card review-item"><div className="source-item__head"><div><span className="overline">DECISION ALERT</span><h2>Decision needs review</h2></div><StatusPill tone="warning">{alert.severity}</StatusPill></div>
+        <div className="review-delta"><strong>{finding?.reasonCode === "DATE_AFTER_REQUIRED_BY" ? "Date moved past the target" : finding?.reasonCode?.replaceAll("_", " ") ?? "Source update"}</strong>{finding?.deltaDays != null && <span>{finding.deltaDays} days later</span>}</div>
+        {finding && <div className="review-evidence"><div><span className="overline">ORIGINAL EVIDENCE</span><blockquote>“{finding.baselineEvidence.quote}”</blockquote></div><div><span className="overline">NEW EVIDENCE</span><blockquote>“{finding.updateEvidence.quote}”</blockquote></div></div>}
       </Panel>;
-    }) : <p className="text-slate-600">No alerts yet. Run an assessment after extracting source facts.</p>}</div>
+    }) : <EmptyState title="No alerts to review" description="Run an assessment after extracting facts from your connected sources." />}</div>
   </>;
 }
