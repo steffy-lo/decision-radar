@@ -1,3 +1,10 @@
+# Project collaboration rules
+
+- Before pushing any change, create and work on a dedicated branch or worktree. Never push project changes directly from `main`.
+- Draft commit messages and Jira wording in Mike's direct, practical voice. State what changed or what needs doing in plain language, keep technical details exact, and avoid promotional wording. Jira titles, descriptions, comments, and written status updates follow this rule.
+- After every feature implementation, run hands-on UAT in the actual app: click through the changed flow, inspect the rendered result, and report what passed, failed, or could not be tested. Automated tests alone do not satisfy this check. If a feature has no user-facing UI yet, state that limit and test the nearest available integration path.
+- Keep credentials out of this repository and its documentation. Use GitHub's normal sign-in flow for account authorization.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
