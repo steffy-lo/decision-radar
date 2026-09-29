@@ -19,6 +19,10 @@ class FirestoreSourceStore:
     async def put(self, project_id: str, source_id: str, record: dict[str, Any]) -> None:
         await self._ref(project_id, source_id).set(record)
 
+    async def list(self, project_id: str) -> list[dict[str, Any]]:
+        collection = self.client.collection("projects").document(project_id).collection("sources")
+        return [snapshot.to_dict() or {} async for snapshot in collection.stream()]
+
 
 def get_source_store() -> FirestoreSourceStore:
     return FirestoreSourceStore(get_firestore_client())

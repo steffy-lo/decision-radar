@@ -64,6 +64,7 @@ async def get_connection(
         project_id=connection.project_id,
         status=connection.status,
         account_email=connection.account_email,
+        selected_folder_id=connection.selected_folder_id,
         error_code=connection.error_code,
         authorization_pending=connection.authorization_pending,
         updated_at=connection.updated_at,

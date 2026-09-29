@@ -7,9 +7,11 @@ import {
   disconnectDrive,
   getConnection,
   getCurrentProjectMembership,
+  listSources,
   reconnectDrive,
+  refreshDriveFolder,
 } from "@/lib/api/client";
-import type { Connection, ProjectMembership } from "@/lib/api/client";
+import type { Connection, FolderRefreshResult, ProjectMembership, SourceSummary } from "@/lib/api/client";
 
 function configuredProjectId(): string {
   const projectId = process.env.NEXT_PUBLIC_DEMO_PROJECT_ID;
@@ -22,6 +24,9 @@ function configuredProjectId(): string {
 export function DriveConnectionPanel() {
   const [membership, setMembership] = useState<ProjectMembership | null>(null);
   const [connection, setConnection] = useState<Connection | null>(null);
+  const [folderId, setFolderId] = useState("");
+  const [sources, setSources] = useState<SourceSummary[]>([]);
+  const [refreshResult, setRefreshResult] = useState<FolderRefreshResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,9 +44,13 @@ export function DriveConnectionPanel() {
       setError(null);
 
       if (nextMembership.role === "admin") {
-        setConnection(await getConnection(projectId));
+        const nextConnection = await getConnection(projectId);
+        setConnection(nextConnection);
+        setFolderId(nextConnection.selected_folder_id ?? "");
+        setSources(nextConnection.selected_folder_id ? await listSources(projectId) : []);
       } else {
         setConnection(null);
+        setSources([]);
       }
     } catch (loadError) {
       setError(
@@ -98,6 +107,28 @@ export function DriveConnectionPanel() {
           ? actionError.message
           : "Unable to disconnect Drive.",
       );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const refreshFolder = async () => {
+    const selected = folderId.trim();
+    if (!selected) {
+      setError("Enter the folder ID from its Google Drive URL.");
+      return;
+    }
+    setActionLoading(true);
+    setError(null);
+    setRefreshResult(null);
+    try {
+      const projectId = configuredProjectId();
+      const result = await refreshDriveFolder(projectId, selected);
+      setRefreshResult(result);
+      setConnection(await getConnection(projectId));
+      setSources(await listSources(projectId));
+    } catch (refreshError) {
+      setError(refreshError instanceof Error ? refreshError.message : "Folder refresh failed.");
     } finally {
       setActionLoading(false);
     }
@@ -202,6 +233,52 @@ export function DriveConnectionPanel() {
           </button>
         )}
       </div>
+
+      {isConnected && (
+        <div className="space-y-3 border-t border-slate-800 pt-4">
+          <label htmlFor="drive-folder-id" className="block text-sm font-medium text-slate-200">
+            Google Drive folder ID
+          </label>
+          <p className="text-xs text-slate-400">Copy the ID after /folders/ in the folder URL. Refresh reads this folder and one level of subfolders.</p>
+          <div className="flex flex-wrap gap-3">
+            <input
+              id="drive-folder-id"
+              value={folderId}
+              onChange={(event) => setFolderId(event.target.value)}
+              placeholder="Folder ID"
+              className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+              disabled={actionLoading}
+            />
+            <button
+              className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              disabled={actionLoading}
+              onClick={() => void refreshFolder()}
+            >
+              {actionLoading ? "Refreshing…" : "Refresh folder"}
+            </button>
+          </div>
+          {refreshResult && (
+            <p role="status" className="text-sm text-emerald-300">
+              Scanned {refreshResult.scanned} files: {refreshResult.created} new, {refreshResult.updated} updated, {refreshResult.unchanged} unchanged.
+              {refreshResult.unsupported.length > 0 && ` Unsupported: ${refreshResult.unsupported.join(", ")}.`}
+            </p>
+          )}
+          {sources.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-slate-200">Connected sources</h3>
+              <ul className="mt-2 space-y-1 text-sm">
+                {sources.map((source) => (
+                  <li key={source.id}>
+                    <a className="text-indigo-300 hover:underline" href={source.native_url} target="_blank" rel="noopener noreferrer">
+                      {source.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
