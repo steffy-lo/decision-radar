@@ -13,15 +13,7 @@ import {
 } from "@/lib/api/client";
 import type { Connection, FolderRefreshResult, ProjectMembership, SourceSummary } from "@/lib/api/client";
 
-function configuredProjectId(): string {
-  const projectId = process.env.NEXT_PUBLIC_DEMO_PROJECT_ID;
-  if (!projectId) {
-    throw new Error("NEXT_PUBLIC_DEMO_PROJECT_ID is not configured.");
-  }
-  return projectId;
-}
-
-export function DriveConnectionPanel() {
+export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectId: string; onSourcesChanged?: () => void }) {
   const [membership, setMembership] = useState<ProjectMembership | null>(null);
   const [connection, setConnection] = useState<Connection | null>(null);
   const [folderId, setFolderId] = useState("");
@@ -38,7 +30,6 @@ export function DriveConnectionPanel() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const projectId = configuredProjectId();
       const nextMembership = await getCurrentProjectMembership(projectId);
       setMembership(nextMembership);
       setError(null);
@@ -61,7 +52,7 @@ export function DriveConnectionPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     // Defer the request until after the effect commits to avoid a synchronous render cascade.
@@ -72,7 +63,6 @@ export function DriveConnectionPanel() {
     setActionLoading(true);
     setError(null);
     try {
-      const projectId = configuredProjectId();
       const result = reconnect
         ? await reconnectDrive(projectId)
         : await beginDriveAuthorization(projectId);
@@ -99,7 +89,7 @@ export function DriveConnectionPanel() {
     setActionLoading(true);
     setError(null);
     try {
-      await disconnectDrive(configuredProjectId());
+      await disconnectDrive(projectId);
       await load();
     } catch (actionError) {
       setError(
@@ -122,11 +112,11 @@ export function DriveConnectionPanel() {
     setError(null);
     setRefreshResult(null);
     try {
-      const projectId = configuredProjectId();
       const result = await refreshDriveFolder(projectId, selected);
       setRefreshResult(result);
       setConnection(await getConnection(projectId));
       setSources(await listSources(projectId));
+      onSourcesChanged?.();
     } catch (refreshError) {
       setError(refreshError instanceof Error ? refreshError.message : "Folder refresh failed.");
     } finally {

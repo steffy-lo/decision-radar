@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from hashlib import sha256
 from typing import Any
 
 from google.cloud import firestore
@@ -43,16 +44,43 @@ def _entities(rows: list[dict[str, Any]]) -> dict[str, str]:
     return {row["id"]: row["entityId"] for row in rows if isinstance(row.get("entityId"), str)}
 
 
+def _decisions(rows: list[dict[str, Any]]) -> tuple[Decision, ...]:
+    return tuple(Decision.model_validate({key: value for key, value in row.items()
+                                          if key not in ("version", "pendingRationale")})
+                 for row in rows)
+
+
+async def _current_facts(project: Any, transaction: Any = None) -> tuple[Fact, ...]:
+    rows = await _read_collection(project.collection("facts"), transaction)
+    extractions = {
+        row["sourceId"]: row for row in
+        await _read_collection(project.collection("sourceExtractions"), transaction)
+        if isinstance(row.get("sourceId"), str)
+    }
+    sources = {
+        row["id"]: row for row in await _read_collection(project.collection("sources"), transaction)
+    }
+    current = []
+    for row in rows:
+        extraction = extractions.get(row.get("sourceId"))
+        if extraction:
+            source = sources.get(row.get("sourceId"))
+            if not source or sha256(source.get("contentSnapshot", "").encode()).hexdigest() != extraction.get("snapshotHash"):
+                continue
+        current.append(Fact.model_validate(row))
+    return tuple(current)
+
+
 class FirestoreAssessmentStore:
     def __init__(self, client: firestore.AsyncClient):
         self.client = client
 
     async def load(self, project_id: str) -> AssessmentInputs:
         project = self.client.collection("projects").document(project_id)
-        decisions = tuple(Decision.model_validate(row) for row in await _read_collection(project.collection("decisions")))
+        decisions = _decisions(await _read_collection(project.collection("decisions")))
         assumption_rows = await _read_collection(project.collection("assumptions"))
         assumptions = _assumptions(assumption_rows)
-        facts = tuple(Fact.model_validate(row) for row in await _read_collection(project.collection("facts")))
+        facts = await _current_facts(project)
         alerts = tuple(Alert.model_validate(row) for row in await _read_collection(project.collection("alerts")))
         return AssessmentInputs(
             decisions, assumptions, facts,
@@ -86,11 +114,10 @@ class FirestoreAssessmentStore:
             # records as well as edits and deletes before publication.
             decision_rows = await _read_collection(project.collection("decisions"), tx)
             assumption_rows = await _read_collection(project.collection("assumptions"), tx)
-            fact_rows = await _read_collection(project.collection("facts"), tx)
             current = AssessmentInputs(
-                tuple(Decision.model_validate(row) for row in decision_rows),
+                _decisions(decision_rows),
                 _assumptions(assumption_rows),
-                tuple(Fact.model_validate(row) for row in fact_rows),
+                await _current_facts(project, tx),
                 _entities(assumption_rows), (),
             )
             if (sorted(current.decisions, key=lambda row: row.id) != sorted(inputs.decisions, key=lambda row: row.id) or
@@ -113,6 +140,8 @@ class FirestoreAssessmentStore:
                 response = {
                     "runId": run_id, "status": "completed",
                     "findingCount": len(result.findings), "alertCount": len(result.alerts),
+                    "findingIds": [row.id for row in result.findings],
+                    "alertIds": [row.id for row in result.alerts],
                     "coverage": [row.__dict__ for row in result.coverage],
                     "createdAt": datetime.now(timezone.utc),
                 }

@@ -1,4 +1,5 @@
 import asyncio
+from hashlib import sha256
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -128,6 +129,23 @@ class AssessmentStoreTests(unittest.TestCase):
             with self.assertRaises(AssessmentConflict):
                 asyncio.run(run())
         self.assertFalse(any(f"{self.project}/assessmentRuns/" in path for path in self.client.data))
+
+    def test_confirmed_decision_metadata_and_changed_source(self):
+        decision = DEMO.decisions[0]
+        stored = self.client.data[f"{self.project}/decisions/{decision.id}"]
+        stored["version"] = 2
+        stored["pendingRationale"] = None
+        fact = DEMO.facts[0]
+        self.client.data[f"{self.project}/sources/{fact.source_id}"] = {
+            "id": fact.source_id, "contentSnapshot": "new source text",
+        }
+        self.client.data[f"{self.project}/sourceExtractions/{fact.source_id}"] = {
+            "sourceId": fact.source_id,
+            "snapshotHash": sha256(b"old source text").hexdigest(),
+        }
+        inputs = asyncio.run(self.store.load(DEMO.project_id))
+        self.assertEqual(len(inputs.decisions), len(DEMO.decisions))
+        self.assertNotIn(fact.id, {row.id for row in inputs.facts})
 
 
 if __name__ == "__main__":

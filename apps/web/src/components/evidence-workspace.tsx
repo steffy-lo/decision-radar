@@ -4,12 +4,17 @@ import { useMemo } from "react";
 import { EmptyState, PageHeading, Panel, StatusPill } from "@/components/ui";
 import { isDemoProject, useProjectData } from "@/lib/demo/use-project-data";
 import { createWorkspaceView } from "@/lib/demo/workspace-view";
+import { LiveReviewsWorkspace, LiveSourcesWorkspace } from "@/components/live-evidence-workspace";
 
 function EvidenceLoading() {
   return <div className="route-loading" aria-busy="true" aria-label="Loading evidence"><div className="route-loading__panel" /></div>;
 }
 
 export function SourcesWorkspace({ projectId }: { projectId: string }) {
+  return isDemoProject(projectId) ? <FixtureSourcesWorkspace projectId={projectId} /> : <LiveSourcesWorkspace projectId={projectId} />;
+}
+
+function FixtureSourcesWorkspace({ projectId }: { projectId: string }) {
   const { status, data, error, retry } = useProjectData(projectId);
   const workspace = useMemo(() => data ? createWorkspaceView(data) : null, [data]);
   return <>
@@ -26,6 +31,10 @@ export function SourcesWorkspace({ projectId }: { projectId: string }) {
 }
 
 export function ReviewsWorkspace({ projectId }: { projectId: string }) {
+  return isDemoProject(projectId) ? <FixtureReviewsWorkspace projectId={projectId} /> : <LiveReviewsWorkspace projectId={projectId} />;
+}
+
+function FixtureReviewsWorkspace({ projectId }: { projectId: string }) {
   const { status, data, error, retry } = useProjectData(projectId);
   const workspace = useMemo(() => data ? createWorkspaceView(data) : null, [data]);
   const open = workspace?.openReviews ?? [];

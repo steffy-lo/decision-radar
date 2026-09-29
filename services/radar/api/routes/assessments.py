@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 from uuid import UUID
+from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path
 from pydantic import Field
@@ -9,11 +10,31 @@ from pydantic import Field
 from services.radar.adapters.assessment_store import (
     AssessmentConflict, FirestoreAssessmentStore, get_assessment_store,
 )
+from services.radar.adapters.firestore import get_firestore_client
 from services.radar.api.deps import require_project_member
 from services.radar.domain.assessment import AssessmentService
 from services.radar.domain.models import AuthenticatedProjectMember, RadarModel
 
 router = APIRouter(prefix="/projects/{project_id}/assessments", tags=["Assessments"])
+
+
+@router.get("/results")
+async def assessment_results(
+    project_id: str,
+    _: AuthenticatedProjectMember = Depends(require_project_member),
+    client: Any = Depends(get_firestore_client),
+) -> dict[str, Any]:
+    project = client.collection("projects").document(project_id)
+    runs = [row.to_dict() or {} async for row in project.collection("assessmentRuns").stream()]
+    findings = [row.to_dict() or {} async for row in project.collection("findings").stream()]
+    alerts = [row.to_dict() or {} async for row in project.collection("alerts").stream()]
+    latest = max(runs, key=lambda row: str(row.get("createdAt", "")), default=None)
+    if latest and "findingIds" in latest and "alertIds" in latest:
+        current_findings = set(latest["findingIds"])
+        current_alerts = set(latest["alertIds"])
+        findings = [row for row in findings if row.get("id") in current_findings]
+        alerts = [row for row in alerts if row.get("id") in current_alerts]
+    return {"latestRun": latest, "findings": findings, "alerts": alerts}
 
 
 class AssessmentRequest(RadarModel):

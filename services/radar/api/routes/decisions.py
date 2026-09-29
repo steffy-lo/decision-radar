@@ -8,18 +8,61 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Response
 from pydantic import Field
 from typing import Literal
+from typing import Any
 
 from services.radar.adapters.decision_store import (
     DecisionNotFound, DecisionRequestConflict, FirestoreDecisionStore,
     UnverifiedEvidence, get_decision_store,
 )
 from services.radar.api.deps import require_project_member
+from services.radar.adapters.firestore import get_firestore_client
 from services.radar.domain.decisions import DecisionService, InvalidDecisionTransition, RevisionConflict
 from services.radar.domain.models import (
     Assumption, AuthenticatedProjectMember, Decision, EvidenceRef, Id, RadarModel, TypedValue,
 )
 
 router = APIRouter(prefix="/projects/{project_id}/decisions", tags=["Decisions"])
+
+
+@router.get("")
+async def list_decisions(
+    project_id: str,
+    _: AuthenticatedProjectMember = Depends(require_project_member),
+    client: Any = Depends(get_firestore_client),
+) -> list[dict[str, Any]]:
+    project = client.collection("projects").document(project_id)
+    return sorted(
+        [row.to_dict() or {} async for row in project.collection("decisions").stream()],
+        key=lambda item: item.get("statement", "").casefold(),
+    )
+
+
+@router.get("/monitored")
+async def list_monitored_decisions(
+    project_id: str,
+    _: AuthenticatedProjectMember = Depends(require_project_member),
+    client: Any = Depends(get_firestore_client),
+) -> list[dict[str, Any]]:
+    project = client.collection("projects").document(project_id)
+    decisions = {
+        row.id: row.to_dict() or {}
+        async for row in project.collection("decisions").stream()
+    }
+    result = []
+    async for row in project.collection("assumptions").stream():
+        assumption = row.to_dict() or {}
+        decision = decisions.get(assumption.get("decisionId"), {})
+        if (assumption.get("status") == "active" and decision.get("status") == "active"
+                and assumption.get("decisionRevision") == decision.get("activeRevision")
+                and isinstance(assumption.get("entityId"), str)):
+            result.append({
+                "id": row.id, "statement": assumption.get("statement", ""),
+                "predicate": assumption.get("predicate", ""),
+                "entityId": assumption["entityId"],
+                "decisionId": assumption["decisionId"],
+                "decisionStatement": decision.get("statement", ""),
+            })
+    return sorted(result, key=lambda item: (item["decisionStatement"], item["statement"]))
 
 
 class AssumptionInput(RadarModel):

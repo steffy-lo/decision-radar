@@ -32,6 +32,127 @@ export interface SourceSummary {
   status: string;
 }
 
+export interface MonitoredAssumption {
+  id: string;
+  statement: string;
+  predicate: string;
+  entityId: string;
+  decisionId: string;
+  decisionStatement: string;
+}
+
+export interface ExtractionResult {
+  sourceId: string;
+  assumptionId: string;
+  createdAt: string;
+  publishedFactCount: number;
+  decisions: { statement: string; quote: string; uncertainReason: string | null }[];
+  facts: { entity: string; predicate: string; value: { type: string; value: string }; quote: string; state: string; uncertainReason: string | null }[];
+}
+
+export interface AssessmentResults {
+  latestRun: { runId: string; findingCount: number; alertCount: number; coverage: { assumption_id: string; state: string; reason: string }[] } | null;
+  findings: { id: string; classification: string; reasonCode: string; deltaDays: number | null; baselineEvidence: { quote: string }; updateEvidence: { quote: string } }[];
+  alerts: { id: string; findingId: string; decisionId: string; severity: string; reviewState: string }[];
+}
+
+export interface LiveDecision {
+  id: string;
+  statement: string;
+  owner: string;
+  rationale: string;
+  status: "draft" | "active" | "retired";
+  version: number;
+  activeRevision: number;
+}
+
+export interface SourceDetail {
+  id: string;
+  name: string;
+  nativeUrl: string;
+  contentSnapshot: string;
+  status: string;
+}
+
+export async function listLiveDecisions(projectId: string): Promise<LiveDecision[]> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/decisions`);
+  if (!response.ok) throw new Error(`Decision list failed with status ${response.status}.`);
+  return response.json();
+}
+
+export async function getSourceDetail(projectId: string, sourceId: string): Promise<SourceDetail> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}`);
+  if (!response.ok) throw new Error(`Source lookup failed with status ${response.status}.`);
+  return response.json();
+}
+
+export async function createLiveDecision(projectId: string, body: unknown): Promise<LiveDecision> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/decisions`, {
+    method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const payload: { detail?: string } = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Decision draft failed with status ${response.status}.`);
+  }
+  const result: { decision: LiveDecision } = await response.json();
+  return result.decision;
+}
+
+export async function confirmLiveDecision(projectId: string, decision: LiveDecision): Promise<LiveDecision> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/decisions/${encodeURIComponent(decision.id)}/confirm`, {
+    method: "POST", headers: { "Idempotency-Key": crypto.randomUUID(), "If-Match": `"${decision.version}"` },
+  });
+  if (!response.ok) {
+    const payload: { detail?: string } = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Decision confirmation failed with status ${response.status}.`);
+  }
+  const result: { decision: LiveDecision } = await response.json();
+  return result.decision;
+}
+
+export async function listMonitoredAssumptions(projectId: string): Promise<MonitoredAssumption[]> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/decisions/monitored`);
+  if (!response.ok) throw new Error(`Monitored decisions failed with status ${response.status}.`);
+  return response.json();
+}
+
+export async function extractSource(projectId: string, sourceId: string, assumptionId: string, entityAlias: string, predicateAlias: string): Promise<ExtractionResult> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/extract`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ assumption_id: assumptionId, entity_alias: entityAlias, predicate_alias: predicateAlias }),
+  });
+  if (!response.ok) {
+    const payload: { detail?: string } = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Extraction failed with status ${response.status}.`);
+  }
+  return response.json();
+}
+
+export async function getExtraction(projectId: string, sourceId: string): Promise<ExtractionResult | null> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/extraction`);
+  if (response.status === 404 || response.status === 409) return null;
+  if (!response.ok) throw new Error(`Extraction lookup failed with status ${response.status}.`);
+  return response.json();
+}
+
+export async function getAssessmentResults(projectId: string): Promise<AssessmentResults> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/assessments/results`);
+  if (!response.ok) throw new Error(`Assessment results failed with status ${response.status}.`);
+  return response.json();
+}
+
+export async function runAssessment(projectId: string): Promise<void> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/assessments`, {
+    method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+    body: JSON.stringify({ reason: "Manual project review" }),
+  });
+  if (!response.ok) {
+    const payload: { detail?: string } = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Assessment failed with status ${response.status}.`);
+  }
+}
+
 export interface FolderRefreshResult {
   scanned: number;
   created: number;
