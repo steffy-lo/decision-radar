@@ -10,7 +10,7 @@ export interface HealthResponse {
 export interface ProjectMembership {
   uid: string;
   role: "admin" | "editor" | "viewer";
-  project_id: string;
+  projectId: string;
 }
 
 export class AuthenticationRequiredError extends Error {

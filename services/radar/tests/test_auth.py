@@ -50,6 +50,7 @@ class AuthenticationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(member.project_id, "project-a")
         self.assertEqual(member.uid, "user-123")
         self.assertEqual(member.role, "editor")
+        self.assertEqual(member.model_dump(by_alias=True)["projectId"], "project-a")
 
     async def test_missing_token_returns_unauthorized(self) -> None:
         with self.assertRaises(HTTPException) as raised:

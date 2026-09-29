@@ -1,0 +1,244 @@
+{
+  "projectId": "proj_demo_2026",
+  "sources": [
+    {
+      "id": "src_launch_prd",
+      "projectId": "proj_demo_2026",
+      "name": "Product Launch PRD v1",
+      "mimeType": "application/vnd.google-apps.document",
+      "contentSnapshot": "Launch target: October 20, 2026. Core API vendor integration is committed on or before October 10, 2026. Vendor fee cap is USD 5000. Complete integration testing before launch. Approve production go-live after integration testing.",
+      "status": "ready"
+    },
+    {
+      "id": "src_vendor_notes",
+      "projectId": "proj_demo_2026",
+      "name": "Vendor Sync & Status Notes",
+      "mimeType": "application/vnd.google-apps.document",
+      "contentSnapshot": "Confirmed: Due to chip shortage, vendor delivery is pushed back to October 24, 2026. Confirmed vendor fee is USD 4500. Tentative: an expedited shipment may arrive October 18, 2026. The vendor did not cancel the contract.",
+      "status": "ready"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "dec_launch_readiness",
+      "projectId": "proj_demo_2026",
+      "statement": "Launch on October 20, 2026",
+      "owner": "Project Manager",
+      "rationale": "The launch plan assumes vendor delivery by October 10.",
+      "status": "active",
+      "activeRevision": 1
+    },
+    {
+      "id": "dec_integration_testing",
+      "projectId": "proj_demo_2026",
+      "statement": "Complete integration testing before launch",
+      "owner": "Engineering Lead",
+      "rationale": "Testing depends on the vendor adapters.",
+      "status": "active",
+      "activeRevision": 1
+    },
+    {
+      "id": "dec_production_go_live",
+      "projectId": "proj_demo_2026",
+      "statement": "Approve production go-live after integration testing",
+      "owner": "Release Manager",
+      "rationale": "Production release requires test signoff.",
+      "status": "active",
+      "activeRevision": 1
+    }
+  ],
+  "revisions": [
+    {
+      "id": "rev_launch_1",
+      "decisionId": "dec_launch_readiness",
+      "revision": 1,
+      "statement": "Launch on October 20, 2026",
+      "evidence": {
+        "sourceId": "src_launch_prd",
+        "sourceTitle": "Product Launch PRD v1",
+        "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+        "quote": "Launch target: October 20, 2026."
+      }
+    },
+    {
+      "id": "rev_testing_1",
+      "decisionId": "dec_integration_testing",
+      "revision": 1,
+      "statement": "Complete integration testing before launch",
+      "evidence": {
+        "sourceId": "src_launch_prd",
+        "sourceTitle": "Product Launch PRD v1",
+        "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+        "quote": "Complete integration testing before launch."
+      }
+    },
+    {
+      "id": "rev_go_live_1",
+      "decisionId": "dec_production_go_live",
+      "revision": 1,
+      "statement": "Approve production go-live after integration testing",
+      "evidence": {
+        "sourceId": "src_launch_prd",
+        "sourceTitle": "Product Launch PRD v1",
+        "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+        "quote": "Approve production go-live after integration testing."
+      }
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "asm_vendor_delivery",
+      "decisionId": "dec_launch_readiness",
+      "decisionRevision": 1,
+      "statement": "Vendor delivers core API adapters by October 10, 2026",
+      "predicate": "delivery_date",
+      "operator": "on_or_before",
+      "expectedValue": {"type": "date", "value": "2026-10-10"},
+      "criticality": "high",
+      "evidence": {
+        "sourceId": "src_launch_prd",
+        "sourceTitle": "Product Launch PRD v1",
+        "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+        "quote": "Core API vendor integration is committed on or before October 10, 2026."
+      },
+      "status": "active"
+    },
+    {
+      "id": "asm_vendor_fee",
+      "decisionId": "dec_launch_readiness",
+      "decisionRevision": 1,
+      "statement": "Vendor fee stays at or below USD 5000",
+      "predicate": "vendor_fee",
+      "operator": "at_most",
+      "expectedValue": {"type": "decimal", "value": "5000", "unit": "USD"},
+      "criticality": "medium",
+      "evidence": {
+        "sourceId": "src_launch_prd",
+        "sourceTitle": "Product Launch PRD v1",
+        "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+        "quote": "Vendor fee cap is USD 5000."
+      },
+      "status": "active"
+    }
+  ],
+  "facts": [
+    {
+      "id": "fact_vendor_fee",
+      "projectId": "proj_demo_2026",
+      "sourceId": "src_vendor_notes",
+      "entityId": "vendor_acme",
+      "predicate": "vendor_fee",
+      "value": {"type": "decimal", "value": "4500", "unit": "USD"},
+      "modality": "confirmed",
+      "evidence": {
+        "sourceId": "src_vendor_notes",
+        "sourceTitle": "Vendor Sync & Status Notes",
+        "nativeUrl": "https://docs.google.com/document/d/demo-vendor-notes/edit",
+        "quote": "Confirmed vendor fee is USD 4500."
+      }
+    },
+    {
+      "id": "fact_vendor_delivery_24",
+      "projectId": "proj_demo_2026",
+      "sourceId": "src_vendor_notes",
+      "entityId": "vendor_acme",
+      "predicate": "delivery_date",
+      "value": {"type": "date", "value": "2026-10-24"},
+      "modality": "confirmed",
+      "evidence": {
+        "sourceId": "src_vendor_notes",
+        "sourceTitle": "Vendor Sync & Status Notes",
+        "nativeUrl": "https://docs.google.com/document/d/demo-vendor-notes/edit",
+        "quote": "Due to chip shortage, vendor delivery is pushed back to October 24, 2026."
+      }
+    },
+    {
+      "id": "fact_vendor_delivery_tentative",
+      "projectId": "proj_demo_2026",
+      "sourceId": "src_vendor_notes",
+      "entityId": "vendor_acme",
+      "predicate": "delivery_date",
+      "value": {"type": "date", "value": "2026-10-18"},
+      "modality": "tentative",
+      "evidence": {
+        "sourceId": "src_vendor_notes",
+        "sourceTitle": "Vendor Sync & Status Notes",
+        "nativeUrl": "https://docs.google.com/document/d/demo-vendor-notes/edit",
+        "quote": "Tentative: an expedited shipment may arrive October 18, 2026."
+      }
+    },
+    {
+      "id": "fact_vendor_cancellation_negated",
+      "projectId": "proj_demo_2026",
+      "sourceId": "src_vendor_notes",
+      "entityId": "vendor_acme",
+      "predicate": "contract_status",
+      "value": {"type": "enum", "value": "cancelled"},
+      "modality": "negated",
+      "evidence": {
+        "sourceId": "src_vendor_notes",
+        "sourceTitle": "Vendor Sync & Status Notes",
+        "nativeUrl": "https://docs.google.com/document/d/demo-vendor-notes/edit",
+        "quote": "The vendor did not cancel the contract."
+      }
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "dep_launch_testing",
+      "projectId": "proj_demo_2026",
+      "fromDecisionId": "dec_launch_readiness",
+      "toDecisionId": "dec_integration_testing",
+      "relationType": "enables",
+      "impactDescription": "Late adapters delay automated integration testing."
+    },
+    {
+      "id": "dep_testing_go_live",
+      "projectId": "proj_demo_2026",
+      "fromDecisionId": "dec_integration_testing",
+      "toDecisionId": "dec_production_go_live",
+      "relationType": "enables",
+      "impactDescription": "Delayed testing postpones production signoff."
+    }
+  ],
+  "findings": [
+    {
+      "id": "fnd_delivery_delayed",
+      "projectId": "proj_demo_2026",
+      "assumptionId": "asm_vendor_delivery",
+      "factId": "fact_vendor_delivery_24",
+      "classification": "contradicts",
+      "reasonCode": "DATE_AFTER_REQUIRED_BY",
+      "baselineValue": {"type": "date", "value": "2026-10-10"},
+      "extractedValue": {"type": "date", "value": "2026-10-24"},
+      "deltaDays": 14,
+      "baselineEvidence": {
+        "sourceId": "src_launch_prd",
+        "sourceTitle": "Product Launch PRD v1",
+        "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+        "quote": "Core API vendor integration is committed on or before October 10, 2026."
+      },
+      "updateEvidence": {
+        "sourceId": "src_vendor_notes",
+        "sourceTitle": "Vendor Sync & Status Notes",
+        "nativeUrl": "https://docs.google.com/document/d/demo-vendor-notes/edit",
+        "quote": "Due to chip shortage, vendor delivery is pushed back to October 24, 2026."
+      }
+    }
+  ],
+  "alerts": [
+    {
+      "id": "alt_delivery_delayed",
+      "projectId": "proj_demo_2026",
+      "findingId": "fnd_delivery_delayed",
+      "decisionId": "dec_launch_readiness",
+      "decisionRevision": 1,
+      "severity": "high",
+      "reviewState": "open",
+      "createdAt": "2026-09-25T01:00:00Z"
+    }
+  ],
+  "reviews": [],
+  "briefs": [],
+  "exports": []
+}
