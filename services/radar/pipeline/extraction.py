@@ -147,6 +147,12 @@ def _entity_id(name: str, known_entities: dict[str, Id]) -> str | None:
     return {key.strip().casefold(): value for key, value in known_entities.items()}.get(name.strip().casefold())
 
 
+def _predicate_id(name: str, known_predicates: dict[str, str] | None) -> str | None:
+    if known_predicates is None:
+        return name
+    return {key.strip().casefold(): value for key, value in known_predicates.items()}.get(name.strip().casefold())
+
+
 def _value_visible(value: TypedValue, quote: str) -> bool:
     if isinstance(value, DateValue):
         day = value.value.day
@@ -170,15 +176,20 @@ class Extractor:
     """Validate one source's Gemini candidates before handing facts to KAN-17.
 
     `known_entities` maps source wording to trusted project entity IDs. A missing
-    alias leaves a fact uncertain. `native_url` comes from source metadata, not
-    from the model response.
+    alias leaves a fact uncertain. `known_predicates` maps model wording to
+    monitored predicate IDs; callers publishing facts should supply it so an
+    unmapped predicate stays uncertain. `native_url` comes from source metadata,
+    not from the model response.
     """
 
     def __init__(self, generator: CandidateGenerator, validator: EvidenceValidator | None = None):
         self.generator = generator
         self.validator = validator or EvidenceValidator()
 
-    def extract(self, source: Source, known_entities: dict[str, Id], native_url: str) -> ExtractionResult:
+    def extract(
+        self, source: Source, known_entities: dict[str, Id], native_url: str,
+        known_predicates: dict[str, str] | None = None,
+    ) -> ExtractionResult:
         if source.status != "ready" or not source.content_snapshot.strip():
             raise ExtractionError("source is not ready for extraction")
         try:
@@ -212,9 +223,12 @@ class Extractor:
             evidence = self.validator.verify(source, candidate.quote, native_url)
             value = _typed_value(candidate.value)
             entity_id = _entity_id(candidate.entity, known_entities)
+            predicate_id = _predicate_id(candidate.predicate, known_predicates)
             uncertain = None
             if entity_id is None:
                 uncertain = "entity is unresolved"
+            elif predicate_id is None:
+                uncertain = "predicate is unresolved"
             elif not candidate.context_complete:
                 uncertain = "source context is incomplete"
             elif not _value_visible(value, candidate.quote):
@@ -225,11 +239,11 @@ class Extractor:
                 uncertain = "source wording may be negated"
             state = "uncertain" if uncertain else "negated" if candidate.modality == "negated" else "ready"
             fact = None
-            if entity_id is not None:
-                fact_hash = sha256(f"{evidence.span_id}:{candidate.predicate}:{value}".encode()).hexdigest()[:20]
+            if entity_id is not None and predicate_id is not None:
+                fact_hash = sha256(f"{evidence.span_id}:{predicate_id}:{value}".encode()).hexdigest()[:20]
                 fact = Fact(
                     id=f"fact_{fact_hash}", project_id=source.project_id, source_id=source.id,
-                    entity_id=entity_id, predicate=candidate.predicate, value=value,
+                    entity_id=entity_id, predicate=predicate_id, value=value,
                     modality=candidate.modality, evidence=evidence.ref,
                 )
             facts.append(ExtractedFact(candidate, value, evidence, entity_id, state, uncertain, fact))
