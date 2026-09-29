@@ -184,7 +184,10 @@ class SourceService:
                 raise DriveIngestionError(f"Google Drive did not return a modification time for {file.name}.")
             sid = source_id(file.id)
             prior = await self.store.get(project_id, sid)
-            if prior and prior.get("lastModified") == file.modified_time and prior.get("status") == "ready":
+            if (prior and prior.get("lastModified") == file.modified_time
+                    and prior.get("rootFolderId") == folder_id
+                    and prior.get("parentFolderId") == file.parent_id
+                    and prior.get("status") == "ready"):
                 unchanged += 1
                 continue
             content = await self.drive.read_text(file)
@@ -192,6 +195,7 @@ class SourceService:
                 "id": sid, "projectId": project_id, "nativeId": file.id,
                 "name": file.name, "mimeType": file.mime_type,
                 "parentFolderId": file.parent_id, "folderDepth": depth,
+                "rootFolderId": folder_id,
                 "lastModified": file.modified_time, "nativeUrl": file.native_url,
                 "contentSnapshot": content, "status": "ready",
                 "updatedAt": datetime.now(timezone.utc).isoformat(),
