@@ -68,7 +68,7 @@ button { cursor: pointer; }
 .page-content { max-width: 1260px; margin: auto; padding: 42px 48px 80px; }
 .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; margin-bottom: 32px; }
 .eyebrow { display: block; color: #6156cf; font-size: 11px; font-weight: 780; letter-spacing: 1.25px; }
-.page-heading h1 { margin: 9px 0 11px; font-size: clamp(32px, 3vw, 42px); letter-spacing: -1.7px; line-height: 1.12; font-weight: 760; }
+.page-heading h1 { margin: 9px 0 11px; font-size: clamp(34px, 3.2vw, 44px); letter-spacing: -1.7px; line-height: 1.12; font-weight: 760; }
 .page-heading p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
 .page-heading__action { flex: none; }
 .button { display: inline-flex; justify-content: center; align-items: center; gap: 12px; min-height: 42px; padding: 0 18px; border: 1px solid transparent; border-radius: 10px; font-size: 13px; font-weight: 700; white-space: nowrap; transition: transform .15s, background .15s, box-shadow .15s; }
@@ -85,9 +85,9 @@ button { cursor: pointer; }
 .workspace-card--spaced .flow-card-heading { margin-bottom: 0; }
 .flow-step { width: 34px; height: 34px; border-radius: 10px; flex: none; display: grid; place-items: center; background: #efedff; color: #5d51d0; font-size: 16px; font-weight: 800; }
 .flow-card-heading__copy { flex: 1; min-width: 0; }
-.flow-card-heading h2, .workspace-section__heading h2, .review-summary h2 { margin: 4px 0 6px; font-size: 20px; letter-spacing: -.5px; line-height: 1.25; }
+.flow-card-heading h2, .workspace-section__heading h2, .review-summary h2 { margin: 4px 0 6px; font-size: 23px; letter-spacing: -.6px; line-height: 1.25; }
 .flow-card-heading p, .review-summary p, .supporting-copy { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
-.overline { color: #7770ab; font-size: 10px; font-weight: 800; letter-spacing: 1.15px; }
+.section-kicker { color: #7770ab; font-size: 10px; font-weight: 800; letter-spacing: 1.15px; text-decoration: none; }
 .connection-card .status-pill { align-self: flex-start; text-transform: capitalize; }
 .flow-actions, .field-action-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .button--quiet { color: #62667a; background: transparent; }
@@ -121,7 +121,7 @@ textarea.form-control { resize: vertical; min-height: 76px; }
 .workspace-stack { display: grid; gap: 14px; }
 .source-item, .decision-item, .review-item { display: grid; gap: 17px; }
 .source-item__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; }
-.source-item__head h2, .source-item__head h3 { margin: 3px 0 5px; font-size: 16px; line-height: 1.35; letter-spacing: -.2px; }
+.source-item__head h2, .source-item__head h3 { margin: 3px 0 5px; font-size: 18px; line-height: 1.35; letter-spacing: -.3px; }
 .text-link { color: #5d51ca; font-size: 12px; font-weight: 700; }
 .source-item .button, .decision-item .button { justify-self: start; }
 .source-item__results { display: grid; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
@@ -133,7 +133,7 @@ textarea.form-control { resize: vertical; min-height: 76px; }
 .review-summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; background: #f3f1ff; border-color: #e6e1ff; }
 .review-summary__symbol { color: #8e83e5; font-size: 42px; line-height: 1; }
 .review-item .review-delta { justify-content: space-between; margin: 0; }
-.review-evidence .overline { color: #7770ab; }
+.review-evidence .section-kicker { color: #7770ab; }
 .source-preview { max-height: 170px; overflow: auto; border: 1px solid #e7e7ef; background: #f8f9fc; border-radius: 10px; padding: 15px 17px; }
 .source-preview p { margin: 9px 0 0; color: #525969; font-size: 12px; line-height: 1.6; white-space: pre-wrap; }
 .overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
@@ -267,7 +267,7 @@ textarea.form-control { resize: vertical; min-height: 76px; }
   .mobile-nav a[aria-current="page"] { color: var(--teal-dark); border-bottom-color: var(--teal); }
   .page-content { padding: 28px 18px 55px; }
   .page-heading { align-items: flex-start; flex-direction: column; gap: 17px; }
-  .page-heading h1 { font-size: 31px; }
+  .page-heading h1 { font-size: 34px; }
   .overview-grid { gap: 9px; }
   .metric-card { padding: 14px; min-height: 137px; }
   .metric-card strong { font-size: 24px; }

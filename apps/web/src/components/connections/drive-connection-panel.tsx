@@ -145,7 +145,7 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
       <div className="flow-card-heading">
         <span className="flow-step">1</span>
         <div className="flow-card-heading__copy">
-          <span className="overline">CONNECTION</span>
+          <span className="section-kicker">CONNECTION</span>
           <h2>Connect your evidence</h2>
           <p>Choose the Google account and folder that hold the project updates.</p>
         </div>

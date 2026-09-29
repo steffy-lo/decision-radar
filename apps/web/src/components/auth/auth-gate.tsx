@@ -19,7 +19,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <main className="auth-page">
         <section className="auth-page__card">
-          <span className="overline">DECISION RADAR</span>
+          <span className="section-kicker">DECISION RADAR</span>
           <h1>Sign in to your workspace</h1>
           <p>Use your workspace account to access project decisions and evidence.</p>
           <button

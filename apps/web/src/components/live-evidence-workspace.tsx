@@ -72,7 +72,7 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
     <DriveConnectionPanel projectId={projectId} onSourcesChanged={() => void load()} />
     {error && <p role="alert" className="notice notice--error">{error}</p>}
     <Panel className="workspace-card workspace-card--spaced">
-      <div className="flow-card-heading"><span className="flow-step">2</span><div className="flow-card-heading__copy"><span className="overline">FACT EXTRACTION</span><h2>Match source wording</h2><p>Choose an assumption, then enter the words used in the source. Verified facts can then be assessed.</p></div></div>
+      <div className="flow-card-heading"><span className="flow-step">2</span><div className="flow-card-heading__copy"><span className="section-kicker">FACT EXTRACTION</span><h2>Match source wording</h2><p>Choose an assumption, then enter the words used in the source. Verified facts can then be assessed.</p></div></div>
       <label className="form-field">Monitored assumption
         <select className="form-control" value={selectedAssumption} onChange={(event) => setSelectedAssumption(event.target.value)}>
           {assumptions.length === 0 && <option value="">No active assumptions</option>}
@@ -87,7 +87,7 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
       {assumptions.length === 0 && <p className="notice notice--warning">Confirm a decision with a monitored assumption before extracting facts.</p>}
     </Panel>
     <div className="workspace-section">
-      <div className="workspace-section__heading"><div><span className="overline">SOURCE LIBRARY</span><h2>Connected sources</h2></div><span className="section-count">{sources.length} files</span></div>
+      <div className="workspace-section__heading"><div><span className="section-kicker">SOURCE LIBRARY</span><h2>Connected sources</h2></div><span className="section-count">{sources.length} files</span></div>
       {loading ? <p className="supporting-copy">Loading sources…</p> : sources.length === 0 ? <EmptyState title="No sources yet" description="Connect Drive and refresh a folder to bring its files into this project." /> : <div className="workspace-stack">{sources.map((source) => {
         const result = extractions[source.id];
         return <Panel className="workspace-card source-item" key={source.id}>
@@ -124,12 +124,12 @@ export function LiveReviewsWorkspace({ projectId }: { projectId: string }) {
   return <>
     <PageHeading eyebrow="REVIEW QUEUE" title="Reviews" description="Check confirmed decisions against verified source facts." action={membership?.role !== "viewer" && <button className="button button--primary" disabled={busy} onClick={() => void assess()}>{busy ? "Running assessment…" : "Run assessment"}</button>} />
     {error && <p role="alert" className="notice notice--error">{error}</p>}
-    <div className="review-summary workspace-card"><div><span className="overline">LATEST ASSESSMENT</span><h2>{data?.latestRun ? `${data.latestRun.alertCount} ${data.latestRun.alertCount === 1 ? "alert" : "alerts"} to review` : "Ready to assess"}</h2><p>{data?.latestRun ? `${data.latestRun.findingCount} ${data.latestRun.findingCount === 1 ? "finding" : "findings"} checked in the latest run.` : "Run an assessment after you confirm decisions and extract source facts."}</p></div><span className="review-summary__symbol" aria-hidden="true">◇</span></div>
+    <div className="review-summary workspace-card"><div><span className="section-kicker">LATEST ASSESSMENT</span><h2>{data?.latestRun ? `${data.latestRun.alertCount} ${data.latestRun.alertCount === 1 ? "alert" : "alerts"} to review` : "Ready to assess"}</h2><p>{data?.latestRun ? `${data.latestRun.findingCount} ${data.latestRun.findingCount === 1 ? "finding" : "findings"} checked in the latest run.` : "Run an assessment after you confirm decisions and extract source facts."}</p></div><span className="review-summary__symbol" aria-hidden="true">◇</span></div>
     <div className="workspace-section workspace-stack">{data?.alerts.length ? data.alerts.map((alert) => {
       const finding = data.findings.find((row) => row.id === alert.findingId);
-      return <Panel key={alert.id} className="workspace-card review-item"><div className="source-item__head"><div><span className="overline">DECISION ALERT</span><h2>Decision needs review</h2></div><StatusPill tone="warning">{alert.severity}</StatusPill></div>
+      return <Panel key={alert.id} className="workspace-card review-item"><div className="source-item__head"><div><span className="section-kicker">DECISION ALERT</span><h2>Decision needs review</h2></div><StatusPill tone="warning">{alert.severity}</StatusPill></div>
         <div className="review-delta"><strong>{finding?.reasonCode === "DATE_AFTER_REQUIRED_BY" ? "Date moved past the target" : finding?.reasonCode?.replaceAll("_", " ") ?? "Source update"}</strong>{finding?.deltaDays != null && <span>{finding.deltaDays} days later</span>}</div>
-        {finding && <div className="review-evidence"><div><span className="overline">ORIGINAL EVIDENCE</span><blockquote>“{finding.baselineEvidence.quote}”</blockquote></div><div><span className="overline">NEW EVIDENCE</span><blockquote>“{finding.updateEvidence.quote}”</blockquote></div></div>}
+        {finding && <div className="review-evidence"><div><span className="section-kicker">ORIGINAL EVIDENCE</span><blockquote>“{finding.baselineEvidence.quote}”</blockquote></div><div><span className="section-kicker">NEW EVIDENCE</span><blockquote>“{finding.updateEvidence.quote}”</blockquote></div></div>}
       </Panel>;
     }) : <EmptyState title="No alerts to review" description="Run an assessment after extracting facts from your connected sources." />}</div>
   </>;

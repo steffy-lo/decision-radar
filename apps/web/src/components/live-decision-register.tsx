@@ -80,16 +80,16 @@ export function LiveDecisionRegister({ projectId }: { projectId: string }) {
     <PageHeading eyebrow="DECISION INTELLIGENCE" title="Decision register" description="Create a quote-backed decision and confirm the date you want to monitor." action={<Link className="button button--secondary" href={`/projects/${encodeURIComponent(projectId)}/reviews`}>View reviews</Link>} />
     {error && <p role="alert" className="notice notice--error">{error}</p>}
     {notice && <p role="status" className="notice notice--success">{notice}</p>}
-    <div className="workspace-section__heading"><div><span className="overline">PROJECT RECORD</span><h2>Decisions</h2></div><span className="section-count">{decisions.length} total</span></div>
+    <div className="workspace-section__heading"><div><span className="section-kicker">PROJECT RECORD</span><h2>Decisions</h2></div><span className="section-count">{decisions.length} total</span></div>
     <div className="workspace-stack">{decisions.length === 0 ? <Panel className="empty-state"><div className="empty-state__mark" aria-hidden="true">◇</div><h2>No decisions yet</h2><p>Create a draft below to start tracking a decision and its evidence.</p></Panel> : decisions.map((decision) => <Panel className="workspace-card decision-item" key={decision.id}>
-      <div className="source-item__head"><div><span className="overline">DECISION</span><h2>{decision.statement}</h2></div><StatusPill tone={decision.status === "active" ? "success" : "warning"}>{decision.status}</StatusPill></div>
+      <div className="source-item__head"><div><span className="section-kicker">DECISION</span><h2>{decision.statement}</h2></div><StatusPill tone={decision.status === "active" ? "success" : "warning"}>{decision.status}</StatusPill></div>
       <p className="supporting-copy">Owner: {decision.owner} · Revision {decision.activeRevision}</p>
       {decision.status === "draft" && membership?.role !== "viewer" && <button className="button button--primary" disabled={busy} onClick={() => void confirm(decision)}>Confirm decision</button>}
     </Panel>)}</div>
-    {membership?.role !== "viewer" && <Panel className="workspace-card workspace-card--spaced"><div className="flow-card-heading"><span className="flow-step">+</span><div className="flow-card-heading__copy"><span className="overline">NEW DECISION</span><h2>Create a decision draft</h2><p>Start with a source quote, then add the decision and the date you need to track.</p></div></div>
+    {membership?.role !== "viewer" && <Panel className="workspace-card workspace-card--spaced"><div className="flow-card-heading"><span className="flow-step">+</span><div className="flow-card-heading__copy"><span className="section-kicker">NEW DECISION</span><h2>Create a decision draft</h2><p>Start with a source quote, then add the decision and the date you need to track.</p></div></div>
       {sources.length === 0 ? <p className="notice notice--warning">Refresh a Drive folder on the Sources page first.</p> : <>
         <label className="form-field">Evidence source<select className={inputClass} value={sourceId} onChange={(event) => setSourceId(event.target.value)}>{sources.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
-        {source && <div className="source-preview" aria-label="Source text"><span className="overline">SOURCE TEXT</span><p>{source.contentSnapshot}</p></div>}
+        {source && <div className="source-preview" aria-label="Source text"><span className="section-kicker">SOURCE TEXT</span><p>{source.contentSnapshot}</p></div>}
         <label className="form-field">Exact quote from source<textarea className={inputClass} value={quote} onChange={(event) => setQuote(event.target.value)} rows={2} /></label>
         <div className="form-grid form-grid--two">
           <label className="form-field">Decision statement<input className={inputClass} value={statement} onChange={(event) => setStatement(event.target.value)} /></label>
