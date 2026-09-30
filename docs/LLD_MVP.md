@@ -132,7 +132,7 @@ All project resources are isolated under `projects/{projectId}/`. Global connect
 ```text
 projects/{projectId}/
 ├── members/{uid}                        # Role: admin | editor | viewer
-├── connections/default                  # Folder ID, refresh status, account email
+├── connections/google-drive             # Folder ID, refresh status, account email
 ├── sources/{sourceId}                   # Ingested Docs/Transcripts & raw content
 ├── decisions/{decisionId}               # Confirmed decisions & active revisions
 ├── assumptions/{assumptionId}           # Typed assertions linked to decisions
@@ -361,7 +361,10 @@ All routes are served under `/api/v1/projects/{projectId}/`:
 
 | Method | Endpoint | Purpose | Key Payload / Query |
 |---|---|---|---|
-| `POST` | `/connections` | Connect Drive folder | `{ "folderId": "0B123...", "accountEmail": "demo@example.com" }` |
+| `POST` | `/connections/google-drive/authorize` | Start a server-side Drive OAuth grant | Returns `{ "authorization_url": "..." }`; project admin only. |
+| `GET` | `/connections/google-drive` | Read safe Drive connection status | Refresh token and Secret Manager reference are never returned. |
+| `POST` | `/connections/google-drive/reconnect` | Start re-authorisation after revocation or expiry | Returns `{ "authorization_url": "..." }`; project admin only. |
+| `DELETE` | `/connections/google-drive` | Revoke and disconnect the Drive grant | Removes the stored refresh-token secret and marks the connection disconnected. |
 | `POST` | `/sources/sync` | Trigger manual folder refresh | Empty body $\to$ returns `{ "taskId": "task-123", "status": "queued" }` |
 | `GET` | `/sources` | List ingested files & status | Returns `[{ "id": "...", "name": "...", "status": "ready" }]` |
 | `GET` | `/decisions` | List decision register | Query `?status=active` |

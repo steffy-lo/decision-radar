@@ -12,7 +12,7 @@ const FORWARDED_REQUEST_HEADERS = [
   "idempotency-key",
   "if-match",
 ] as const;
-const FORWARDED_RESPONSE_HEADERS = ["content-type", "retry-after", "www-authenticate"] as const;
+const FORWARDED_RESPONSE_HEADERS = ["content-type", "retry-after", "set-cookie", "www-authenticate"] as const;
 
 /**
  * Proxies private same-origin API requests to the FastAPI service.

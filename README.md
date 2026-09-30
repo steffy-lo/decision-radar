@@ -4,6 +4,9 @@ Decision Radar is an organisational-memory and decision-intelligence product for
 - [High-level design](docs/HLD.md): product scope, architecture, Google services, tradeoffs, success criteria, and delivery plan.
 - [Low-level design (Full Vision)](docs/LLD.md): full production-grade entities, APIs, processing steps, comparison rules, review states, reliability, and validation.
 - [Low-level design (MVP Prototype)](docs/LLD_MVP.md): streamlined implementation contract tailored to the 14 active sprint tasks and competition demo.
+- Original design attachments: [HLD v0.4](docs/reference/archive/2026-09-21/HLD-v0.4.pdf) and [LLD v0.4](docs/reference/archive/2026-09-21/LLD-v0.4.pdf).
+- [AI Builder Cup submission notes](docs/AI_BUILDER_CUP.md): official deadline, prototype requirements, and judging weights.
+- [Vendor-delay demo fixture](fixtures/README.md): shared Python/TypeScript contract and synthetic evidence path.
 
 ## Project Tracking
 
@@ -20,7 +23,9 @@ Decision Radar is an organisational-memory and decision-intelligence product for
 apps/web/                                # Next.js App Router (React + TypeScript)
   src/app/
     api/v1/[...path]/route.ts            # Node.js proxy route forwarding to FastAPI
-    page.tsx                             # Home page & API health status UI
+    page.tsx                             # Prototype welcome page
+    projects/[id]/                       # Decision register, sources, reviews, briefs
+    api/v1/projects/[id]/fixture/route.ts # Validated synthetic project API
   src/lib/
     api/client.ts                        # Typed API client calling /api/v1
 
@@ -47,7 +52,7 @@ infra/                                   # Infrastructure & Firebase Emulator co
 
 ### Prerequisites
 - Python 3.10+
-- Node.js 18+ and npm
+- Node.js 20.9+ and npm
 - Firebase CLI (`npm i -g firebase-tools`)
 
 ### 1. Set Up Python Virtual Environment & Install Dependencies
@@ -68,12 +73,21 @@ npm install
 ### 2a. Configure Firebase
 
 - Copy `apps/web/.env.example` to `apps/web/.env.local` and supply the Firebase
-  web app values. For local emulators, retain the Auth emulator URL.
+  web app values and `NEXT_PUBLIC_DEMO_PROJECT_ID`. For local emulators, retain
+  the Auth emulator URL.
 - Copy `services/radar/.env.example` to `services/radar/.env`. This is where the
   API reads `FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099` and
   `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080` for local emulators.
 - Production uses Application Default Credentials or its configured service
   account to verify Firebase ID tokens.
+- To enable the Drive connection lifecycle, configure `GOOGLE_OAUTH_CLIENT_ID`,
+  `GOOGLE_OAUTH_CLIENT_SECRET`, and `GOOGLE_OAUTH_REDIRECT_URI` in
+  `services/radar/.env`. Register the redirect URI as
+  `http://localhost:3000/oauth/google/callback` for local development. The API
+  service account needs permission to create, add, access, and delete the
+  project refresh-token secret in Google Secret Manager. Set
+  `GOOGLE_SECRET_MANAGER_PROJECT_ID` only when local emulators use a different
+  `FIREBASE_PROJECT_ID` from the real GCP project that hosts Secret Manager.
 
 ### 3. Run Services Locally
 
