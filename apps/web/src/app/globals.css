@@ -130,6 +130,7 @@ textarea.form-control { resize: vertical; min-height: 76px; }
 .fact-card > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .fact-card blockquote { margin: 12px 0 0; padding-left: 12px; border-left: 3px solid #a9a0ef; color: #52596a; line-height: 1.6; }
 .fact-card p { margin: 8px 0 0; }
+.fact-card .fact-card__actions { justify-content: flex-start; flex-wrap: wrap; margin-top: 10px; }
 .review-summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; background: #f3f1ff; border-color: #e6e1ff; }
 .review-summary__symbol { color: #8e83e5; font-size: 42px; line-height: 1; }
 .review-item .review-delta { justify-content: space-between; margin: 0; }

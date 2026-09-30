@@ -72,7 +72,7 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
     <DriveConnectionPanel projectId={projectId} onSourcesChanged={() => void load()} />
     {error && <p role="alert" className="notice notice--error">{error}</p>}
     <Panel className="workspace-card workspace-card--spaced">
-      <div className="flow-card-heading"><span className="flow-step">2</span><div className="flow-card-heading__copy"><span className="section-kicker">FACT EXTRACTION</span><h2>Match source wording</h2><p>Choose an assumption, then enter the words used in the source. Verified facts can then be assessed.</p></div></div>
+      <div className="flow-card-heading"><span className="flow-step">2</span><div className="flow-card-heading__copy"><span className="section-kicker">FACT EXTRACTION</span><h2>Match source wording</h2><p>Choose an assumption and enter how Gemini should identify its entity and predicate. If a candidate stays unresolved, check that it refers to this assumption before using Gemini’s wording.</p></div></div>
       <label className="form-field">Monitored assumption
         <select className="form-control" value={selectedAssumption} onChange={(event) => setSelectedAssumption(event.target.value)}>
           {assumptions.length === 0 && <option value="">No active assumptions</option>}
@@ -81,8 +81,8 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
       </label>
       {selected && <p className="field-help">Trusted entity: {selected.entityId} · predicate: {selected.predicate}</p>}
       <div className="form-grid form-grid--two">
-        <label className="form-field">Entity wording in source<input className="form-control" value={entityAlias} onChange={(event) => setEntityAlias(event.target.value)} placeholder="e.g. Acme Logistics" /></label>
-        <label className="form-field">Predicate wording in source<input className="form-control" value={predicateAlias} onChange={(event) => setPredicateAlias(event.target.value)} placeholder="e.g. delivery date" /></label>
+        <label className="form-field">Entity wording Gemini uses<input className="form-control" value={entityAlias} onChange={(event) => setEntityAlias(event.target.value)} placeholder="e.g. Acme Logistics" /></label>
+        <label className="form-field">Predicate wording Gemini uses<input className="form-control" value={predicateAlias} onChange={(event) => setPredicateAlias(event.target.value)} placeholder="e.g. delivery date" /></label>
       </div>
       {assumptions.length === 0 && <p className="notice notice--warning">Confirm a decision with a monitored assumption before extracting facts.</p>}
     </Panel>
@@ -93,8 +93,8 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
         return <Panel className="workspace-card source-item" key={source.id}>
           <div className="source-item__head"><div><h3>{source.name}</h3><a href={source.native_url} target="_blank" rel="noopener noreferrer" className="text-link">Open source ↗</a></div><StatusPill tone="success">{source.status}</StatusPill></div>
           {membership?.role !== "viewer" && <button className="button button--primary" disabled={busySource !== null || !selected} onClick={() => void runExtraction(source.id)}>{busySource === source.id ? "Extracting…" : "Extract with Gemini"}</button>}
-          {result && <div className="source-item__results"><p role="status" className="notice notice--success">{result.publishedFactCount} verified facts ready for assessment</p>
-            {result.facts.map((fact, index) => <div key={`${source.id}-${index}`} className="fact-card"><div><strong>{fact.entity} · {fact.predicate}</strong><StatusPill>{fact.state}</StatusPill></div><blockquote>“{fact.quote}”</blockquote>{fact.uncertainReason && <p className="notice notice--warning">{fact.uncertainReason}</p>}</div>)}
+          {result && <div className="source-item__results"><p role="status" className={`notice ${result.publishedFactCount ? "notice--success" : "notice--warning"}`}>{result.publishedFactCount} verified facts ready for assessment</p>
+            {result.facts.map((fact, index) => <div key={`${source.id}-${index}`} className="fact-card"><div><strong>{fact.entity} · {fact.predicate}</strong><StatusPill>{fact.state}</StatusPill></div><blockquote>“{fact.quote}”</blockquote>{fact.uncertainReason && <p className="notice notice--warning">{fact.uncertainReason}</p>}{fact.uncertainReason?.includes("unresolved") && membership?.role !== "viewer" && <div className="fact-card__actions"><button className="button button--secondary" type="button" onClick={() => setEntityAlias(fact.entity)}>Use entity wording</button><button className="button button--secondary" type="button" onClick={() => setPredicateAlias(fact.predicate)}>Use predicate wording</button></div>}</div>)}
             {result.decisions.map((decision, index) => <div key={`decision-${index}`} className="fact-card"><strong>Suggested decision</strong><p>{decision.statement}</p>{decision.uncertainReason && <p className="notice notice--warning">{decision.uncertainReason}</p>}</div>)}
           </div>}
         </Panel>;
