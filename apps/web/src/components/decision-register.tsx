@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { EmptyState, Eyebrow, PageHeading, Panel, StatusPill } from "@/components/ui";
 import { isDemoProject, useProjectData } from "@/lib/demo/use-project-data";
 import { createWorkspaceView, type DecisionView } from "@/lib/demo/workspace-view";
+import { LiveDecisionRegister } from "@/components/live-decision-register";
 
 function displayDate(value: string) {
   const date = new Date(`${value}T00:00:00Z`);
@@ -12,6 +13,10 @@ function displayDate(value: string) {
 }
 
 export function DecisionRegister({ projectId }: { projectId: string }) {
+  return isDemoProject(projectId) ? <DemoDecisionRegister projectId={projectId} /> : <LiveDecisionRegister projectId={projectId} />;
+}
+
+function DemoDecisionRegister({ projectId }: { projectId: string }) {
   const { status, data, error, retry } = useProjectData(projectId);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "draft">("all");

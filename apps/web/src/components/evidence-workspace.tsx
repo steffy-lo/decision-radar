@@ -1,21 +1,24 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { EmptyState, PageHeading, Panel, StatusPill } from "@/components/ui";
 import { isDemoProject, useProjectData } from "@/lib/demo/use-project-data";
 import { createWorkspaceView } from "@/lib/demo/workspace-view";
+import { LiveReviewsWorkspace, LiveSourcesWorkspace } from "@/components/live-evidence-workspace";
 
 function EvidenceLoading() {
   return <div className="route-loading" aria-busy="true" aria-label="Loading evidence"><div className="route-loading__panel" /></div>;
 }
 
-export function SourcesWorkspace({ projectId, connectionControl }: { projectId: string; connectionControl?: ReactNode }) {
+export function SourcesWorkspace({ projectId }: { projectId: string }) {
+  return isDemoProject(projectId) ? <FixtureSourcesWorkspace projectId={projectId} /> : <LiveSourcesWorkspace projectId={projectId} />;
+}
+
+function FixtureSourcesWorkspace({ projectId }: { projectId: string }) {
   const { status, data, error, retry } = useProjectData(projectId);
   const workspace = useMemo(() => data ? createWorkspaceView(data) : null, [data]);
   return <>
     <PageHeading eyebrow="PROJECT EVIDENCE" title="Sources" description="The documents and meeting notes that ground your decisions." />
-    {connectionControl}
     {status === "loading" ? <EvidenceLoading /> : status === "error" ?
       <EmptyState title="Sources could not be loaded" description={error ?? "Could not load project data."} action={<button className="button button--secondary" type="button" onClick={retry}>Try again</button>} /> :
       workspace?.sources.length === 0 ? <EmptyState title="No sources yet" description="Connected documents will appear here." /> :
@@ -28,6 +31,10 @@ export function SourcesWorkspace({ projectId, connectionControl }: { projectId: 
 }
 
 export function ReviewsWorkspace({ projectId }: { projectId: string }) {
+  return isDemoProject(projectId) ? <FixtureReviewsWorkspace projectId={projectId} /> : <LiveReviewsWorkspace projectId={projectId} />;
+}
+
+function FixtureReviewsWorkspace({ projectId }: { projectId: string }) {
   const { status, data, error, retry } = useProjectData(projectId);
   const workspace = useMemo(() => data ? createWorkspaceView(data) : null, [data]);
   const open = workspace?.openReviews ?? [];

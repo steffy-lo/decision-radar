@@ -7,13 +7,18 @@ import {
   disconnectDrive,
   getConnection,
   getCurrentProjectMembership,
+  listSources,
   reconnectDrive,
+  refreshDriveFolder,
 } from "@/lib/api/client";
-import type { Connection, ProjectMembership } from "@/lib/api/client";
+import type { Connection, FolderRefreshResult, ProjectMembership, SourceSummary } from "@/lib/api/client";
 
-export function DriveConnectionPanel({ projectId }: { projectId: string }) {
+export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectId: string; onSourcesChanged?: () => void }) {
   const [membership, setMembership] = useState<ProjectMembership | null>(null);
   const [connection, setConnection] = useState<Connection | null>(null);
+  const [folderId, setFolderId] = useState("");
+  const [sources, setSources] = useState<SourceSummary[]>([]);
+  const [refreshResult, setRefreshResult] = useState<FolderRefreshResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,9 +35,13 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
       setError(null);
 
       if (nextMembership.role === "admin") {
-        setConnection(await getConnection(projectId));
+        const nextConnection = await getConnection(projectId);
+        setConnection(nextConnection);
+        setFolderId(nextConnection.selected_folder_id ?? "");
+        setSources(nextConnection.selected_folder_id ? await listSources(projectId) : []);
       } else {
         setConnection(null);
+        setSources([]);
       }
     } catch (loadError) {
       setError(
@@ -93,28 +102,38 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
     }
   };
 
+  const refreshFolder = async () => {
+    const selected = folderId.trim();
+    if (!selected) {
+      setError("Enter the folder ID from its Google Drive URL.");
+      return;
+    }
+    setActionLoading(true);
+    setError(null);
+    setRefreshResult(null);
+    try {
+      const result = await refreshDriveFolder(projectId, selected);
+      setRefreshResult(result);
+      setConnection(await getConnection(projectId));
+      setSources(await listSources(projectId));
+      onSourcesChanged?.();
+    } catch (refreshError) {
+      setError(refreshError instanceof Error ? refreshError.message : "Folder refresh failed.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) {
-    return (
-      <section className="panel mb-6 p-6 text-sm text-slate-600">
-        Loading project access…
-      </section>
-    );
+    return <section className="workspace-card connection-card" aria-busy="true">Loading Drive connection…</section>;
   }
 
   if (error && !membership) {
-    return (
-      <section className="panel mb-6 border-red-200 bg-red-50 p-6 text-sm text-red-700">
-        {error}
-      </section>
-    );
+    return <section className="workspace-card connection-card"><p className="notice notice--error" role="alert">{error}</p></section>;
   }
 
   if (membership?.role !== "admin") {
-    return (
-      <section className="panel mb-6 p-6 text-sm text-slate-600">
-        Drive connection management is available to project administrators.
-      </section>
-    );
+    return <section className="workspace-card connection-card"><h2>Drive connection</h2><p className="supporting-copy">Project administrators manage the Drive connection.</p></section>;
   }
 
   const isConnected = connection?.status === "active";
@@ -122,61 +141,46 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
   const connectLabel = isConnected || needsReconnect ? "Reconnect Drive" : "Connect Drive";
 
   return (
-    <section className="panel mb-6 space-y-4 p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="eyebrow">
-            Drive connection
-          </p>
-          <h2 className="mt-2 text-lg font-semibold">Project evidence access</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Connect the Google account whose Drive folder the worker will read.
-          </p>
+    <section className="workspace-card connection-card">
+      <div className="flow-card-heading">
+        <span className="flow-step">1</span>
+        <div className="flow-card-heading__copy">
+          <span className="section-kicker">CONNECTION</span>
+          <h2>Connect your evidence</h2>
+          <p>Choose the Google account and folder that hold the project updates.</p>
         </div>
-        <span
-          className={`status-pill ${
-            isConnected ? "status-pill--success" : "status-pill--warning"
-          }`}
-        >
-          {connection?.status ?? "disconnected"}
-        </span>
+        <span className={`status-pill status-pill--${isConnected ? "success" : "warning"}`}>{connection?.status?.replaceAll("_", " ") ?? "disconnected"}</span>
       </div>
 
       {connection?.authorization_pending && (
-        <p className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-700">
-          Waiting for Google authorization to finish.
-        </p>
+        <p className="notice notice--info">Waiting for Google authorization to finish.</p>
       )}
 
       {needsReconnect && (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-          Google access needs to be granted again before the worker can refresh sources.
-        </p>
+        <p className="notice notice--warning">Reconnect Google Drive before refreshing the folder.</p>
       )}
 
       {callbackFailure === "storage_unavailable" && (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p className="notice notice--error">
           Google authorization completed, but the server could not store the Drive grant. Check
           local Application Default Credentials and Secret Manager IAM access, then try again.
         </p>
       )}
 
       {callbackFailure === "authorization_failed" && (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p className="notice notice--error">
           Google could not complete Drive authorization. Confirm the OAuth client and redirect URI,
           then try again.
         </p>
       )}
 
       {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <p role="alert" className="notice notice--error">{error}</p>
       )}
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flow-actions">
         <button
-          className="button button--primary"
+          className="button button--secondary"
           disabled={actionLoading}
           onClick={() => void beginAuthorization(isConnected || needsReconnect)}
         >
@@ -184,7 +188,7 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
         </button>
         {isConnected && (
           <button
-            className="button button--secondary"
+            className="button button--quiet"
             disabled={actionLoading}
             onClick={() => void disconnect()}
           >
@@ -192,6 +196,50 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
           </button>
         )}
       </div>
+
+      {isConnected && (
+        <div className="connection-folder">
+          <label htmlFor="drive-folder-id" className="field-label">Google Drive folder ID</label>
+          <p className="field-help">Copy the ID after <code>/folders/</code> in the Drive URL. We read this folder and one level of subfolders.</p>
+          <div className="field-action-row">
+            <input
+              id="drive-folder-id"
+              value={folderId}
+              onChange={(event) => setFolderId(event.target.value)}
+              placeholder="Folder ID"
+              className="form-control"
+              disabled={actionLoading}
+            />
+            <button
+              className="button button--primary"
+              disabled={actionLoading}
+              onClick={() => void refreshFolder()}
+            >
+              {actionLoading ? "Refreshing…" : "Refresh folder"}
+            </button>
+          </div>
+          {refreshResult && (
+            <p role="status" className="notice notice--success">
+              Scanned {refreshResult.scanned} files: {refreshResult.created} new, {refreshResult.updated} updated, {refreshResult.unchanged} unchanged.
+              {refreshResult.unsupported.length > 0 && ` Unsupported: ${refreshResult.unsupported.join(", ")}.`}
+            </p>
+          )}
+          {sources.length > 0 && (
+            <div className="connected-summary">
+              <h3>{sources.length} connected {sources.length === 1 ? "source" : "sources"}</h3>
+              <ul>
+                {sources.map((source) => (
+                  <li key={source.id}>
+                    <a href={source.native_url} target="_blank" rel="noopener noreferrer">
+                      {source.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }

@@ -43,6 +43,7 @@ class Connection(BaseModel):
     status: ConnectionStatus
     secret_name: Optional[str] = None
     account_email: Optional[str] = None
+    selected_folder_id: Optional[str] = None
     error_code: Optional[str] = None
     connected_by_uid: Optional[str] = None
     authorization_pending: bool = False
@@ -57,6 +58,7 @@ class ConnectionStatusResponse(BaseModel):
     project_id: str
     status: ConnectionStatus
     account_email: Optional[str] = None
+    selected_folder_id: Optional[str] = None
     error_code: Optional[str] = None
     authorization_pending: bool = False
     updated_at: Optional[datetime] = None
@@ -76,6 +78,8 @@ class AuthorizeConnectionResponse(BaseModel):
 class AccessToken(BaseModel):
     token: str
     expires_in: Optional[int] = None
+
+
 class EvidenceRef(RadarModel):
     source_id: Id
     source_title: str
