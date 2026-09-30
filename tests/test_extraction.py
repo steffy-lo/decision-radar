@@ -118,6 +118,22 @@ class ExtractionTests(unittest.TestCase):
         self.assertEqual(result.facts[0].uncertain_reason, "source context is incomplete")
         self.assertEqual(result.alert_eligible_facts, ())
 
+    def test_trusted_predicate_map_controls_alert_eligible_facts(self):
+        payload = {"decisions": [], "facts": [
+            fact("Due to chip shortage, vendor delivery is pushed back to October 24, 2026.",
+                 {"type": "date", "value": "2026-10-24"}, predicate="delivery date"),
+            fact("Confirmed vendor fee is USD 4500.",
+                 {"type": "decimal", "value": "4500", "unit": "USD"}, predicate="fee"),
+        ]}
+        aliases = {"delivery date": "delivery_date"}
+        result = Extractor(FakeGenerator(payload)).extract(
+            NOTES, {"vendor": "vendor_acme"}, NOTES_URL, known_predicates=aliases,
+        )
+        self.assertEqual([item.state for item in result.facts], ["ready", "uncertain"])
+        self.assertEqual(result.alert_eligible_facts[0].predicate, "delivery_date")
+        self.assertEqual(result.facts[1].uncertain_reason, "predicate is unresolved")
+        self.assertIsNone(result.facts[1].fact)
+
     def test_hallucinated_date_with_real_quote_cannot_alert(self):
         payload = {"decisions": [], "facts": [fact(
             "Confirmed vendor fee is USD 4500.",
