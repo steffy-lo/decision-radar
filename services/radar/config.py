@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     FIRESTORE_EMULATOR_HOST: Optional[str] = None
     FIREBASE_AUTH_EMULATOR_HOST: Optional[str] = None
     FIREBASE_PROJECT_ID: str = "decision-radar"
+    GOOGLE_OAUTH_CLIENT_ID: Optional[str] = None
+    GOOGLE_OAUTH_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_OAUTH_REDIRECT_URI: Optional[str] = None
+    GOOGLE_OAUTH_STATE_TTL_SECONDS: int = 600
+    GOOGLE_SECRET_MANAGER_PROJECT_ID: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parent / ".env",
@@ -28,6 +33,10 @@ class Settings(BaseSettings):
             raise ValueError("Firebase emulators cannot be configured in production.")
         return self
 
+    @property
+    def secret_manager_project_id(self) -> str:
+        """Use the Firebase project unless secrets are intentionally centralized elsewhere."""
+        return self.GOOGLE_SECRET_MANAGER_PROJECT_ID or self.FIREBASE_PROJECT_ID
 
 def get_settings() -> Settings:
     try:

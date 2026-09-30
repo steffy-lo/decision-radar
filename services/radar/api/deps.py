@@ -84,3 +84,15 @@ async def require_project_member(
             detail="Your project membership is not authorized.",
         ) from exc
     return AuthenticatedProjectMember(project_id=project_id, **member.model_dump())
+
+
+async def require_project_admin(
+    member: AuthenticatedProjectMember = Depends(require_project_member),
+) -> AuthenticatedProjectMember:
+    """Restrict connection lifecycle changes to project administrators."""
+    if member.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only project administrators can manage Drive connections.",
+        )
+    return member

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GoogleAuthProvider, User, onAuthStateChanged, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, User, onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
 
 import { getFirebaseAuth } from "@/lib/auth/firebase";
 
@@ -40,5 +40,26 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <div className="fixed right-4 top-4 z-10 flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900/95 px-3 py-2 text-xs shadow-lg">
+        <span className="max-w-48 truncate text-slate-400">{user.email ?? "Signed-in user"}</span>
+        <button
+          className="font-semibold text-slate-200 hover:text-white"
+          onClick={async () => {
+            try {
+              await signOut(getFirebaseAuth());
+              setError(null);
+            } catch (signOutError) {
+              setError(signOutError instanceof Error ? signOutError.message : "Sign-out failed.");
+            }
+          }}
+        >
+          Sign out
+        </button>
+      </div>
+      {error && <p className="fixed right-4 top-16 z-10 max-w-sm rounded-lg bg-red-950 p-3 text-sm text-red-300">{error}</p>}
+      {children}
+    </>
+  );
 }
