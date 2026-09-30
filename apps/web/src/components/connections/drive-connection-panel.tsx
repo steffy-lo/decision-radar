@@ -112,7 +112,6 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
     setError(null);
     setRefreshResult(null);
     try {
-      const projectId = configuredProjectId();
       const result = await refreshDriveFolder(projectId, selected);
       setRefreshResult(result);
       setConnection(await getConnection(projectId));
