@@ -211,6 +211,16 @@ textarea.form-control { resize: vertical; min-height: 76px; }
 .review-evidence > div { border: 1px solid var(--line); border-radius: 9px; padding: 18px; }
 .review-evidence blockquote { margin: 12px 0; color: #34434e; font-size: 13px; line-height: 1.55; }
 .review-evidence small { color: #8998a4; font-size: 10px; }
+.evidence-reference { border: 1px solid var(--line); border-radius: 9px; padding: 18px; background: #fff; }
+.review-evidence .evidence-reference { margin: 0; }
+.evidence-reference--unavailable { background: #f7f8fa; }
+.evidence-reference--unavailable strong { display: block; margin-top: 12px; font-size: 14px; }
+.evidence-reference--unavailable p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.evidence-reference__footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; color: var(--muted); font-size: 12px; }
+.coverage-panel { margin-top: 18px; }
+.coverage-panel h2 { margin: 7px 0 14px; font-size: 18px; }
+.coverage-list { display: grid; gap: 10px; }
+.coverage-list__row { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
 .review-impact { border-top: 1px solid var(--line); padding-top: 16px; font-size: 12px; }
 .review-impact p { color: #758591; margin: 7px 0 0; }
 .review-card__note { margin: 20px 0 0; }

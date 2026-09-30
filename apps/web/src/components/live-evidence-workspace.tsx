@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { DriveConnectionPanel } from "@/components/connections/drive-connection-panel";
+import { EvidenceReference } from "@/components/evidence-reference";
 import {
   extractSource, getAssessmentResults, getCurrentProjectMembership, getExtraction,
   listMonitoredAssumptions, listSources, runAssessment,
@@ -105,13 +106,14 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
 
 export function LiveReviewsWorkspace({ projectId }: { projectId: string }) {
   const [data, setData] = useState<AssessmentResults | null>(null);
+  const [sources, setSources] = useState<SourceSummary[]>([]);
   const [membership, setMembership] = useState<ProjectMembership | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
     try {
-      const [next, member] = await Promise.all([getAssessmentResults(projectId), getCurrentProjectMembership(projectId)]);
-      setData(next); setMembership(member); setError(null);
+      const [next, member, sourceRows] = await Promise.all([getAssessmentResults(projectId), getCurrentProjectMembership(projectId), listSources(projectId)]);
+      setData(next); setMembership(member); setSources(sourceRows); setError(null);
     } catch (value) { setError(errorText(value)); }
   }, [projectId]);
   useEffect(() => { void Promise.resolve().then(load); }, [load]);
@@ -121,16 +123,20 @@ export function LiveReviewsWorkspace({ projectId }: { projectId: string }) {
     catch (value) { setError(errorText(value)); }
     finally { setBusy(false); }
   }
+  const coverage = data?.latestRun?.coverage ?? [];
+  const uncertainCount = coverage.filter((row) => row.state !== "assessed").length;
+  const reviewState = data?.alerts.length ? "Needs review" : !data?.latestRun ? "Ready to assess" : uncertainCount ? "Evidence unclear" : "No detected issue in assessed sources";
   return <>
     <PageHeading eyebrow="REVIEW QUEUE" title="Reviews" description="Check confirmed decisions against verified source facts." action={membership?.role !== "viewer" && <button className="button button--primary" disabled={busy} onClick={() => void assess()}>{busy ? "Running assessment…" : "Run assessment"}</button>} />
     {error && <p role="alert" className="notice notice--error">{error}</p>}
-    <div className="review-summary workspace-card"><div><span className="section-kicker">LATEST ASSESSMENT</span><h2>{data?.latestRun ? `${data.latestRun.alertCount} ${data.latestRun.alertCount === 1 ? "alert" : "alerts"} to review` : "Ready to assess"}</h2><p>{data?.latestRun ? `${data.latestRun.findingCount} ${data.latestRun.findingCount === 1 ? "finding" : "findings"} checked in the latest run.` : "Run an assessment after you confirm decisions and extract source facts."}</p></div><span className="review-summary__symbol" aria-hidden="true">◇</span></div>
+    <div className="review-summary workspace-card"><div><span className="section-kicker">LATEST ASSESSMENT</span><h2>{reviewState}</h2><p>{data?.latestRun ? `${data.latestRun.findingCount} ${data.latestRun.findingCount === 1 ? "finding" : "findings"} checked · ${data.latestRun.alertCount} ${data.latestRun.alertCount === 1 ? "alert" : "alerts"} · ${uncertainCount} ${uncertainCount === 1 ? "assumption" : "assumptions"} with incomplete coverage.` : "Run an assessment after you confirm decisions and extract source facts."}</p></div><span className="review-summary__symbol" aria-hidden="true">◇</span></div>
+    {coverage.length > 0 && <Panel className="workspace-card coverage-panel"><span className="section-kicker">COVERAGE</span><h2>What the assessment checked</h2><div className="coverage-list">{coverage.map((row) => <div key={row.assumption_id} className="coverage-list__row"><StatusPill tone={row.state === "assessed" ? "success" : "warning"}>{row.state === "assessed" ? "Assessed" : "Evidence unclear"}</StatusPill><span>{row.reason}</span></div>)}</div></Panel>}
     <div className="workspace-section workspace-stack">{data?.alerts.length ? data.alerts.map((alert) => {
       const finding = data.findings.find((row) => row.id === alert.findingId);
       return <Panel key={alert.id} className="workspace-card review-item"><div className="source-item__head"><div><span className="section-kicker">DECISION ALERT</span><h2>Decision needs review</h2></div><StatusPill tone="warning">{alert.severity}</StatusPill></div>
         <div className="review-delta"><strong>{finding?.reasonCode === "DATE_AFTER_REQUIRED_BY" ? "Date moved past the target" : finding?.reasonCode?.replaceAll("_", " ") ?? "Source update"}</strong>{finding?.deltaDays != null && <span>{finding.deltaDays} days later</span>}</div>
-        {finding && <div className="review-evidence"><div><span className="section-kicker">ORIGINAL EVIDENCE</span><blockquote>“{finding.baselineEvidence.quote}”</blockquote></div><div><span className="section-kicker">NEW EVIDENCE</span><blockquote>“{finding.updateEvidence.quote}”</blockquote></div></div>}
+        {finding && <div className="review-evidence">{[finding.baselineEvidence, finding.updateEvidence].map((evidence, index) => { const source = sources.find((row) => row.id === evidence.sourceId); return <EvidenceReference key={`${alert.id}-${index}`} evidence={evidence} label={index === 0 ? "ORIGINAL EVIDENCE" : "NEW EVIDENCE"} available={!source || source.status === "ready"} sourceType={source?.mime_type} />; })}</div>}
       </Panel>;
-    }) : <EmptyState title="No alerts to review" description="Run an assessment after extracting facts from your connected sources." />}</div>
+    }) : <EmptyState title={reviewState} description={data?.latestRun ? uncertainCount ? "Some assumptions could not be assessed from the available evidence. Check coverage above before drawing a conclusion." : "The assessed sources did not contradict a monitored assumption in the latest run." : "Run an assessment after extracting facts from your connected sources."} />}</div>
   </>;
 }

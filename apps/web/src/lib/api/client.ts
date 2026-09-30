@@ -1,4 +1,5 @@
 import { getFirebaseAuth } from "@/lib/auth/firebase";
+import type { EvidenceRef } from "@/lib/domain/models";
 
 export interface HealthResponse {
   status: string;
@@ -52,7 +53,7 @@ export interface ExtractionResult {
 
 export interface AssessmentResults {
   latestRun: { runId: string; findingCount: number; alertCount: number; coverage: { assumption_id: string; state: string; reason: string }[] } | null;
-  findings: { id: string; classification: string; reasonCode: string; deltaDays: number | null; baselineEvidence: { quote: string }; updateEvidence: { quote: string } }[];
+  findings: { id: string; classification: string; reasonCode: string; deltaDays: number | null; baselineEvidence: EvidenceRef; updateEvidence: EvidenceRef }[];
   alerts: { id: string; findingId: string; decisionId: string; severity: string; reviewState: string }[];
 }
 
