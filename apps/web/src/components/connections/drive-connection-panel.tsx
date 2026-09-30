@@ -11,15 +11,7 @@ import {
 } from "@/lib/api/client";
 import type { Connection, ProjectMembership } from "@/lib/api/client";
 
-function configuredProjectId(): string {
-  const projectId = process.env.NEXT_PUBLIC_DEMO_PROJECT_ID;
-  if (!projectId) {
-    throw new Error("NEXT_PUBLIC_DEMO_PROJECT_ID is not configured.");
-  }
-  return projectId;
-}
-
-export function DriveConnectionPanel() {
+export function DriveConnectionPanel({ projectId }: { projectId: string }) {
   const [membership, setMembership] = useState<ProjectMembership | null>(null);
   const [connection, setConnection] = useState<Connection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +25,6 @@ export function DriveConnectionPanel() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const projectId = configuredProjectId();
       const nextMembership = await getCurrentProjectMembership(projectId);
       setMembership(nextMembership);
       setError(null);
@@ -52,7 +43,7 @@ export function DriveConnectionPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     // Defer the request until after the effect commits to avoid a synchronous render cascade.
@@ -63,7 +54,6 @@ export function DriveConnectionPanel() {
     setActionLoading(true);
     setError(null);
     try {
-      const projectId = configuredProjectId();
       const result = reconnect
         ? await reconnectDrive(projectId)
         : await beginDriveAuthorization(projectId);
@@ -90,7 +80,7 @@ export function DriveConnectionPanel() {
     setActionLoading(true);
     setError(null);
     try {
-      await disconnectDrive(configuredProjectId());
+      await disconnectDrive(projectId);
       await load();
     } catch (actionError) {
       setError(
@@ -105,7 +95,7 @@ export function DriveConnectionPanel() {
 
   if (loading) {
     return (
-      <section className="rounded-xl border border-slate-800 bg-slate-950 p-5 text-sm text-slate-400">
+      <section className="panel mb-6 p-6 text-sm text-slate-600">
         Loading project access…
       </section>
     );
@@ -113,7 +103,7 @@ export function DriveConnectionPanel() {
 
   if (error && !membership) {
     return (
-      <section className="rounded-xl border border-red-800/60 bg-red-950/40 p-5 text-sm text-red-300">
+      <section className="panel mb-6 border-red-200 bg-red-50 p-6 text-sm text-red-700">
         {error}
       </section>
     );
@@ -121,7 +111,7 @@ export function DriveConnectionPanel() {
 
   if (membership?.role !== "admin") {
     return (
-      <section className="rounded-xl border border-slate-800 bg-slate-950 p-5 text-sm text-slate-400">
+      <section className="panel mb-6 p-6 text-sm text-slate-600">
         Drive connection management is available to project administrators.
       </section>
     );
@@ -132,20 +122,20 @@ export function DriveConnectionPanel() {
   const connectLabel = isConnected || needsReconnect ? "Reconnect Drive" : "Connect Drive";
 
   return (
-    <section className="space-y-4 rounded-xl border border-slate-800 bg-slate-950 p-5">
+    <section className="panel mb-6 space-y-4 p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <p className="eyebrow">
             Drive connection
           </p>
-          <h2 className="mt-1 text-base font-semibold text-slate-100">Project evidence access</h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <h2 className="mt-2 text-lg font-semibold">Project evidence access</h2>
+          <p className="mt-1 text-sm text-slate-600">
             Connect the Google account whose Drive folder the worker will read.
           </p>
         </div>
         <span
-          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-            isConnected ? "bg-emerald-950 text-emerald-300" : "bg-amber-950 text-amber-300"
+          className={`status-pill ${
+            isConnected ? "status-pill--success" : "status-pill--warning"
           }`}
         >
           {connection?.status ?? "disconnected"}
@@ -153,40 +143,40 @@ export function DriveConnectionPanel() {
       </div>
 
       {connection?.authorization_pending && (
-        <p className="rounded-lg border border-indigo-800/60 bg-indigo-950/30 p-3 text-sm text-indigo-200">
+        <p className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-700">
           Waiting for Google authorization to finish.
         </p>
       )}
 
       {needsReconnect && (
-        <p className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-3 text-sm text-amber-200">
+        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
           Google access needs to be granted again before the worker can refresh sources.
         </p>
       )}
 
       {callbackFailure === "storage_unavailable" && (
-        <p className="rounded-lg border border-red-800/60 bg-red-950/40 p-3 text-sm text-red-200">
+        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           Google authorization completed, but the server could not store the Drive grant. Check
           local Application Default Credentials and Secret Manager IAM access, then try again.
         </p>
       )}
 
       {callbackFailure === "authorization_failed" && (
-        <p className="rounded-lg border border-red-800/60 bg-red-950/40 p-3 text-sm text-red-200">
+        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           Google could not complete Drive authorization. Confirm the OAuth client and redirect URI,
           then try again.
         </p>
       )}
 
       {error && (
-        <p className="rounded-lg border border-red-800/60 bg-red-950/40 p-3 text-sm text-red-300">
+        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
           {error}
         </p>
       )}
 
       <div className="flex flex-wrap gap-3">
         <button
-          className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
+          className="button button--primary"
           disabled={actionLoading}
           onClick={() => void beginAuthorization(isConnected || needsReconnect)}
         >
@@ -194,7 +184,7 @@ export function DriveConnectionPanel() {
         </button>
         {isConnected && (
           <button
-            className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+            className="button button--secondary"
             disabled={actionLoading}
             onClick={() => void disconnect()}
           >

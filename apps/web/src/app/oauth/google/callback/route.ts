@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const result = (await response.json()) as { project_id: string };
     return callbackRedirect(
       request,
-      `/?connection=active&project=${encodeURIComponent(result.project_id)}`,
+      `/projects/${encodeURIComponent(result.project_id)}/sources?connection=active`,
     );
   } catch {
     return callbackRedirect(request, "/?connection=failed");
