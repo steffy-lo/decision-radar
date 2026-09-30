@@ -53,7 +53,7 @@ export interface ExtractionResult {
 
 export interface AssessmentResults {
   latestRun: { runId: string; findingCount: number; alertCount: number; coverage: { assumption_id: string; state: string; reason: string }[] } | null;
-  findings: { id: string; classification: string; reasonCode: string; deltaDays: number | null; baselineEvidence: EvidenceRef; updateEvidence: EvidenceRef }[];
+  findings: { id: string; assumptionId: string; classification: string; reasonCode: string; deltaDays: number | null; baselineEvidence: EvidenceRef; updateEvidence: EvidenceRef }[];
   alerts: { id: string; findingId: string; decisionId: string; severity: string; reviewState: string }[];
 }
 

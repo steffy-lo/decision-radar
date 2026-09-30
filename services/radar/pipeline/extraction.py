@@ -121,7 +121,10 @@ class EvidenceValidator:
         snapshot_hash = sha256(source.content_snapshot.encode("utf-8")).hexdigest()
         span_hash = sha256(f"{source.id}:{snapshot_hash}:{start}:{end}".encode()).hexdigest()[:20]
         return VerifiedEvidence(
-            ref=EvidenceRef(source_id=source.id, source_title=source.name, native_url=native_url, quote=quote),
+            ref=EvidenceRef(
+                source_id=source.id, source_title=source.name, native_url=native_url,
+                quote=quote, locator=f"Snapshot characters {start + 1}–{end}",
+            ),
             span_id=f"span_{span_hash}", start_offset=start, end_offset=end,
         )
 

@@ -1,6 +1,6 @@
 /** JSON contract shared with services/radar/domain/models.py. */
 export type Id = string;
-export type EvidenceRef = { sourceId: Id; sourceTitle: string; nativeUrl: string; quote: string };
+export type EvidenceRef = { sourceId: Id; sourceTitle: string; nativeUrl: string; quote: string; locator?: string | null };
 export type TypedValue =
   | { type: "date"; value: string }
   | { type: "decimal"; value: string | number; unit: string }
@@ -108,7 +108,13 @@ const decimal: Check = (value) => {
       !/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(String(value)) ||
       !Number.isFinite(Number(value))) fail("invalid decimal");
 };
-const evidence = shape({ sourceId: id, sourceTitle: nonempty, nativeUrl: nonempty, quote: nonempty });
+const evidence: Check = (value) => {
+  const row = object(value);
+  for (const name of ["sourceId", "sourceTitle", "nativeUrl", "quote"]) if (!(name in row)) fail(`missing ${name}`);
+  id(row.sourceId); nonempty(row.sourceTitle); nonempty(row.nativeUrl); nonempty(row.quote);
+  if ("locator" in row) optional(nonempty)(row.locator);
+  for (const name of Object.keys(row)) if (!["sourceId", "sourceTitle", "nativeUrl", "quote", "locator"].includes(name)) fail(`unexpected ${name}`);
+};
 const typedValue: Check = (value) => {
   const kind = object(value).type;
   if (kind === "date") shape({ type: choice("date"), value: isoDate })(value);

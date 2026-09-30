@@ -9,11 +9,12 @@ function safeSourceUrl(value: string): string | null {
   }
 }
 
-export function EvidenceReference({ evidence, label, available = true, sourceType }: {
+export function EvidenceReference({ evidence, label, available = true, sourceType, locator }: {
   evidence: EvidenceRef;
   label: string;
   available?: boolean;
   sourceType?: string;
+  locator?: string;
 }) {
   if (!available) {
     return <div className="evidence-reference evidence-reference--unavailable">
@@ -27,6 +28,7 @@ export function EvidenceReference({ evidence, label, available = true, sourceTyp
   return <div className="evidence-reference">
     <span className="section-kicker">{label}</span>
     <blockquote>“{evidence.quote}”</blockquote>
+    <p className="evidence-reference__locator">{locator ?? evidence.locator ?? "Locator unavailable for this snapshot"}</p>
     <div className="evidence-reference__footer">
       <span>{evidence.sourceTitle}{sourceType ? ` · ${sourceType.includes("google-apps.document") ? "Google Doc" : sourceType.startsWith("text/") ? "Text file" : "Source file"}` : ""}</span>
       {href && <a className="text-link" href={href} target="_blank" rel="noopener noreferrer" aria-label={`Open ${evidence.sourceTitle} in Google Drive`}>Open source ↗</a>}

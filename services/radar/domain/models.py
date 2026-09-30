@@ -85,6 +85,7 @@ class EvidenceRef(RadarModel):
     source_title: str
     native_url: str
     quote: Quote
+    locator: str | None = None
 
 
 class DateValue(RadarModel):
