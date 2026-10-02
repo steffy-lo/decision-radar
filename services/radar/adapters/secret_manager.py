@@ -77,9 +77,19 @@ class SecretManagerRefreshTokenStore:
         return response.payload.data.decode("utf-8")
 
     def delete(self, secret_name: str) -> None:
+        from google.api_core.exceptions import NotFound
         from google.cloud import secretmanager
 
         client = self._client()
-        for version in client.list_secret_versions(request={"parent": secret_name}):
-            if version.state != secretmanager.SecretVersion.State.DESTROYED:
+        try:
+            versions = list(client.list_secret_versions(request={"parent": secret_name}))
+        except NotFound:
+            return
+        for version in versions:
+            if version.state == secretmanager.SecretVersion.State.DESTROYED:
+                continue
+            try:
                 client.destroy_secret_version(request={"name": version.name})
+            except NotFound:
+                # Another disconnect attempt already destroyed this version.
+                pass

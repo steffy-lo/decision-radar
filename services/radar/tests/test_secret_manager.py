@@ -55,6 +55,25 @@ class SecretManagerRefreshTokenStoreTests(unittest.TestCase):
         self.assertEqual(self.client.destroy_secret_version.call_count, 2)
         self.client.delete_secret.assert_not_called()
 
+    def test_disconnect_handles_a_version_destroyed_by_another_attempt(self):
+        self.client.list_secret_versions.return_value = [
+            SimpleNamespace(
+                name=f"{self.secret_name}/versions/1",
+                state=secretmanager.SecretVersion.State.ENABLED,
+            )
+        ]
+        self.client.destroy_secret_version.side_effect = NotFound("already destroyed")
+
+        self.store.delete(self.secret_name)
+
+        self.client.delete_secret.assert_not_called()
+
+    def test_disconnect_reports_permission_failure(self):
+        self.client.list_secret_versions.side_effect = PermissionError("denied")
+
+        with self.assertRaises(PermissionError):
+            self.store.delete(self.secret_name)
+
 
 if __name__ == "__main__":
     unittest.main()
