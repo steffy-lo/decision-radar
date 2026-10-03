@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from services.radar.config import settings
-from services.radar.api.routes import connections, health, projects, sources
+from services.radar.api.routes import connections, health, impact, projects, sources
 
 app = FastAPI(
     title="Decision Radar API",
@@ -34,6 +34,7 @@ app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(projects.router, prefix="/api/v1")
 app.include_router(connections.router, prefix="/api/v1")
 app.include_router(sources.router, prefix="/api/v1")
+app.include_router(impact.router, prefix="/api/v1")
 
 
 @app.middleware("http")
