@@ -89,7 +89,7 @@ class AssessmentStoreTests(unittest.TestCase):
                 self.client.data[f"{self.project}/{collection}/{row.id}"] = data
         self.store = FirestoreAssessmentStore(self.client)
 
-    def run_assessment(self, key=KEY):
+    def run_assessment(self, key=KEY, transactional=None):
         async def run():
             inputs = await self.store.load(DEMO.project_id)
             result = AssessmentService().assess(
@@ -98,7 +98,7 @@ class AssessmentStoreTests(unittest.TestCase):
                 prior_alerts=inputs.prior_alerts,
             )
             return await self.store.publish(DEMO.project_id, key, "Manual check", inputs, result)
-        with patch.object(firestore, "async_transactional", lambda fn: fn):
+        with patch.object(firestore, "async_transactional", transactional or (lambda fn: fn)):
             return asyncio.run(run())
 
     def test_publication_is_idempotent_and_keeps_alert(self):
@@ -128,6 +128,55 @@ class AssessmentStoreTests(unittest.TestCase):
             with self.assertRaises(AssessmentConflict):
                 asyncio.run(run())
         self.assertFalse(any(f"{self.project}/assessmentRuns/" in path for path in self.client.data))
+
+    def test_decision_storage_metadata_does_not_break_assessment(self):
+        for path, row in self.client.data.items():
+            if f"{self.project}/decisions/" in path:
+                row["version"] = 2
+                row["pendingRationale"] = None
+        result = self.run_assessment()
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["alertCount"], 1)
+
+    def test_large_assessment_publishes_in_resumable_chunks(self):
+        for index in range(200):
+            fact = DEMO.facts[1].model_copy(update={"id": f"fact_vendor_delivery_extra_{index}"})
+            self.client.data[f"{self.project}/facts/{fact.id}"] = fact.model_dump(mode="json", by_alias=True)
+        with patch.object(firestore, "async_transactional", lambda fn: fn):
+            first = self.run_assessment()
+            second = self.run_assessment()
+        self.assertEqual((first["findingCount"], first["alertCount"]), (202, 201))
+        self.assertEqual(first, second)
+        self.assertEqual(first["status"], "completed")
+        markers = [path for path in self.client.data if f"{self.project}/assessmentRuns/" in path and "/batches/" in path]
+        self.assertEqual(len(markers), 3)
+        self.assertEqual(len([path for path in self.client.data if f"{self.project}/findings/" in path]), 202)
+        self.assertEqual(len([path for path in self.client.data if f"{self.project}/alerts/" in path]), 201)
+
+    def test_interrupted_large_publication_resumes_with_same_request_key(self):
+        for index in range(200):
+            fact = DEMO.facts[1].model_copy(update={"id": f"fact_vendor_delivery_extra_{index}"})
+            self.client.data[f"{self.project}/facts/{fact.id}"] = fact.model_dump(mode="json", by_alias=True)
+        calls = 0
+
+        def interrupt_second_chunk(fn):
+            async def run(tx):
+                nonlocal calls
+                if fn.__name__ == "publish_chunk":
+                    calls += 1
+                    if calls == 2:
+                        raise RuntimeError("worker interrupted")
+                return await fn(tx)
+            return run
+
+        with self.assertRaisesRegex(RuntimeError, "worker interrupted"):
+            self.run_assessment(transactional=interrupt_second_chunk)
+        runs = [row for path, row in self.client.data.items()
+                if f"{self.project}/assessmentRuns/" in path and "/batches/" not in path]
+        self.assertEqual(len(runs), 1)
+        self.assertEqual(runs[0]["status"], "publishing")
+        result = self.run_assessment()
+        self.assertEqual((result["status"], result["alertCount"]), ("completed", 201))
 
 
 if __name__ == "__main__":
