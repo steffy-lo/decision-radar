@@ -57,6 +57,35 @@ export interface AssessmentResults {
   alerts: { id: string; findingId: string; decisionId: string; severity: string; reviewState: string }[];
 }
 
+export type ReviewAction = "keep" | "revise" | "retire" | "dismiss" | "request_clarification";
+
+export interface ReviewHistory {
+  decision: LiveDecision;
+  revisions: { id: string; revision: number; statement: string }[];
+  reviews: { id: string; action: ReviewAction; rationale: string; actorId: string; beforeRevision: number | null; afterRevision: number | null; createdAt: string }[];
+}
+
+export async function getReviewHistory(projectId: string, alertId: string): Promise<ReviewHistory> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/alerts/${encodeURIComponent(alertId)}/reviews`);
+  if (!response.ok) throw new Error(`Review history failed with status ${response.status}.`);
+  return response.json();
+}
+
+export async function submitAlertReview(
+  projectId: string, alertId: string, version: number,
+  action: ReviewAction, rationale: string, revisedStatement?: string,
+): Promise<void> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/alerts/${encodeURIComponent(alertId)}/reviews`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID(), "If-Match": `"${version}"` },
+    body: JSON.stringify({ action, rationale, revisedStatement: action === "revise" ? revisedStatement : null }),
+  });
+  if (!response.ok) {
+    const payload: { detail?: string } = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Review failed with status ${response.status}.`);
+  }
+}
+
 export interface LiveDecision {
   id: string;
   statement: string;

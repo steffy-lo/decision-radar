@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { DriveConnectionPanel } from "@/components/connections/drive-connection-panel";
 import { EvidenceReference } from "@/components/evidence-reference";
+import { ReviewActionPanel } from "@/components/review-action-panel";
 import {
   extractSource, getAssessmentResults, getCurrentProjectMembership, getExtraction,
   listMonitoredAssumptions, listSources, runAssessment,
@@ -139,6 +140,7 @@ export function LiveReviewsWorkspace({ projectId }: { projectId: string }) {
         <div className="review-delta"><strong>{finding?.reasonCode === "DATE_AFTER_REQUIRED_BY" ? "Date moved past the target" : finding?.reasonCode?.replaceAll("_", " ") ?? "Source update"}</strong>{finding?.deltaDays != null && <span>{finding.deltaDays} days later</span>}</div>
         {finding && <p className="review-card__meta">Classification: {finding.classification} · {evidenceUnavailable ? "Evidence unclear: source access unavailable" : "Evidence: exact quote verified"} · Coverage: {coverageState ?? "unknown"}</p>}
         {finding && <div className="review-evidence">{[finding.baselineEvidence, finding.updateEvidence].map((evidence, index) => { const source = sources.find((row) => row.id === evidence.sourceId); return <EvidenceReference key={`${alert.id}-${index}`} evidence={evidence} label={index === 0 ? "ORIGINAL EVIDENCE" : "NEW EVIDENCE"} available={!source || source.status === "ready"} sourceType={source?.mime_type} />; })}</div>}
+        <ReviewActionPanel projectId={projectId} alertId={alert.id} reviewState={alert.reviewState} canReview={membership?.role === "admin" || membership?.role === "editor"} onSubmitted={load} />
       </Panel>;
     }) : <EmptyState title={reviewState} description={data?.latestRun ? uncertainCount ? "Some assumptions could not be assessed from the available evidence. Check coverage above before drawing a conclusion." : "The assessed sources did not contradict a monitored assumption in the latest run." : "Run an assessment after extracting facts from your connected sources."} />}</div>
   </>;

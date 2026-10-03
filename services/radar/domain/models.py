@@ -198,17 +198,19 @@ class Alert(RadarModel):
     decision_id: Id
     decision_revision: int = Field(ge=1)
     severity: Literal["low", "medium", "high"]
-    review_state: Literal["open", "kept", "revised", "retired", "dismissed"]
+    review_state: Literal["open", "kept", "revised", "retired", "dismissed", "clarification_requested"]
     created_at: datetime
 
 
 class Review(RadarModel):
     id: Id
     alert_id: Id
-    action: Literal["keep", "revise", "retire", "dismiss"]
+    action: Literal["keep", "revise", "retire", "dismiss", "request_clarification"]
     rationale: str
-    actor_id: Id
+    actor_id: NonEmpty
     decision_revision: int = Field(ge=1)
+    before_revision: int | None = None
+    after_revision: int | None = None
     created_at: datetime
 
 

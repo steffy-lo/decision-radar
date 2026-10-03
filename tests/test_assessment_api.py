@@ -7,6 +7,7 @@ from google.cloud import firestore
 
 from services.radar.adapters.assessment_store import AssessmentConflict, AssessmentInputs, FirestoreAssessmentStore, get_assessment_store
 from services.radar.adapters.decision_store import FirestoreDecisionStore, get_decision_store
+from services.radar.adapters.firestore import get_firestore_client
 from services.radar.api.deps import require_project_member
 from services.radar.api.main import app
 from services.radar.domain.models import AuthenticatedProjectMember, DemoFixture
@@ -81,6 +82,26 @@ class AssessmentRouteTests(unittest.TestCase):
     def test_changed_inputs_return_conflict(self):
         self.store.conflict = True
         self.assertEqual(self.post().status_code, 409)
+
+    def test_results_hide_incomplete_publication(self):
+        db = Client()
+        root = f"projects/{DEMO.project_id}"
+        db.data[f"{root}/assessmentRuns/run_old"] = {
+            "runId": "run_old", "status": "completed", "createdAt": "2026-09-28T00:00:00Z",
+            "findingIds": ["finding_old"], "alertIds": ["alert_old"],
+        }
+        db.data[f"{root}/assessmentRuns/run_new"] = {
+            "runId": "run_new", "status": "publishing", "createdAt": "2026-09-29T00:00:00Z",
+            "findingIds": ["finding_new"], "alertIds": ["alert_new"],
+        }
+        for kind in ("findings", "alerts"):
+            for suffix in ("old", "new"):
+                db.data[f"{root}/{kind}/{kind[:-1]}_{suffix}"] = {"id": f"{kind[:-1]}_{suffix}"}
+        app.dependency_overrides[get_firestore_client] = lambda: db
+        response = self.client.get(f"/api/v1/projects/{DEMO.project_id}/assessments/results")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["latestRun"]["runId"], "run_old")
+        self.assertEqual([row["id"] for row in response.json()["alerts"]], ["alert_old"])
 
     def test_confirmed_decision_can_be_assessed_through_api(self):
         db = Client()
