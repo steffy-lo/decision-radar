@@ -180,6 +180,47 @@ class ExtractionTests(unittest.TestCase):
         self.assertEqual(result.facts[0].uncertain_reason, "typed value is not visible in evidence quote")
         self.assertEqual(result.alert_eligible_facts, ())
 
+    def test_unsupported_enum_and_mismatched_amount_cannot_alert(self):
+        quote = "Confirmed vendor fee is USD 4500."
+        payload = {"decisions": [], "facts": [
+            fact(quote, {"type": "enum", "value": "cancelled"}, predicate="contract_status"),
+            fact(quote, {"type": "decimal", "value": "4500", "unit": "EUR"}, predicate="vendor_fee"),
+            fact(quote, {"type": "decimal", "value": "-4500", "unit": "USD"}, predicate="vendor_fee"),
+        ]}
+        result = Extractor(FakeGenerator(payload)).extract(NOTES, {"vendor": "vendor_acme"}, NOTES_URL)
+        self.assertEqual([item.state for item in result.facts], ["uncertain"] * 3)
+        self.assertEqual(result.alert_eligible_facts, ())
+
+    def test_signed_amount_matches_only_the_same_sign_and_unit(self):
+        quote = "Refund approved: USD -4,500."
+        source = NOTES.model_copy(update={"content_snapshot": quote})
+        payload = {"decisions": [], "facts": [
+            fact(quote, {"type": "decimal", "value": "-4500", "unit": "USD"}, predicate="vendor_fee"),
+            fact(quote, {"type": "decimal", "value": "4500", "unit": "USD"}, predicate="vendor_fee"),
+        ]}
+        result = Extractor(FakeGenerator(payload)).extract(source, {"vendor": "vendor_acme"}, NOTES_URL)
+        self.assertEqual([item.state for item in result.facts], ["ready", "uncertain"])
+
+    def test_short_quote_keeps_negation_from_source_sentence(self):
+        snapshot = "The vendor will not deliver on October 24, 2026. The next milestone is confirmed."
+        quote = "deliver on October 24, 2026"
+        source = NOTES.model_copy(update={"content_snapshot": snapshot})
+        payload = {"decisions": [], "facts": [fact(quote, {"type": "date", "value": "2026-10-24"})]}
+        result = Extractor(FakeGenerator(payload)).extract(source, {"vendor": "vendor_acme"}, NOTES_URL)
+        self.assertEqual(result.facts[0].uncertain_reason, "source wording may be negated")
+        self.assertEqual(result.alert_eligible_facts, ())
+
+    def test_fact_id_includes_entity_identity(self):
+        quote = "Confirmed vendor fee is USD 4500."
+        payload = {"decisions": [], "facts": [
+            fact(quote, {"type": "decimal", "value": "4500", "unit": "USD"}, entity="Acme", predicate="vendor_fee"),
+            fact(quote, {"type": "decimal", "value": "4500", "unit": "USD"}, entity="Beta", predicate="vendor_fee"),
+        ]}
+        result = Extractor(FakeGenerator(payload)).extract(
+            NOTES, {"Acme": "vendor_acme", "Beta": "vendor_beta"}, NOTES_URL,
+        )
+        self.assertNotEqual(result.facts[0].fact.id, result.facts[1].fact.id)
+
     def test_vertex_adapter_requests_structured_json_without_live_call(self):
         response = MagicMock()
         response.parsed = {"decisions": [], "facts": []}

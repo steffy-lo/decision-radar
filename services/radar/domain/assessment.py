@@ -106,18 +106,23 @@ class AssessmentService:
         )
 
         prior_by_id = {row.id: row for row in prior_alerts if row.project_id == project_id}
+        facts_by_id = {row.id: row for row in usable_facts}
+        planned: dict[str, list[ComparisonBatch]] = {}
+        for batch in self.plan_batches(monitored, usable_facts):
+            planned.setdefault(batch.assumption_ids[0], []).append(batch)
         findings: list[Finding] = []
         alerts: list[Alert] = []
         coverage: list[Coverage] = []
         for assumption in monitored:
             entity_id = assumption_entities.get(assumption.id)
-            candidates = tuple(row for row in usable_facts if row.predicate == assumption.predicate)
-            if not candidates:
+            batches = planned.get(assumption.id, ())
+            if not batches:
                 coverage.append(Coverage(assumption.id, "unassessed", "No fact has the monitored predicate."))
                 continue
             assessed = False
             uncertain = False
-            for fact in candidates:
+            for fact_id in (fact_id for batch in batches for fact_id in batch.fact_ids):
+                fact = facts_by_id[fact_id]
                 comparison = Comparator.compare(assumption, fact, entity_id=entity_id)
                 if comparison.classification == "uncertain":
                     uncertain = True

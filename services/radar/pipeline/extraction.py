@@ -9,7 +9,7 @@ from decimal import Decimal
 
 from pydantic import Field, TypeAdapter, ValidationError
 
-from services.radar.domain.models import DateValue, DecimalValue, EvidenceRef, Fact, Id, RadarModel, Source, TypedValue
+from services.radar.domain.models import DateValue, DecimalValue, EnumValue, EvidenceRef, Fact, Id, RadarModel, Source, TypedValue
 
 
 class ExtractionError(ValueError):
@@ -196,9 +196,28 @@ def _value_visible(value: TypedValue, quote: str) -> bool:
         )
         return any(form.casefold() in quote.casefold() for form in forms)
     if isinstance(value, DecimalValue):
-        numbers = re.findall(r"(?<!\w)(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?!\w)", quote)
-        return any(Decimal(number.replace(",", "")) == value.value for number in numbers)
-    return True
+        number = r"[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+        unit = re.escape(value.unit)
+        patterns = (
+            rf"(?<![\w.-]){unit}\s+({number})(?!\w)",
+            rf"(?<![\w.-])({number})\s+{unit}(?!\w)",
+        )
+        return any(
+            Decimal(match.group(1).replace(",", "")) == value.value
+            for pattern in patterns for match in re.finditer(pattern, quote, re.I)
+        )
+    if isinstance(value, EnumValue):
+        words = re.split(r"[\s_-]+", value.value.strip())
+        phrase = r"[\s_-]+".join(re.escape(word) for word in words)
+        return re.search(rf"(?<!\w){phrase}(?!\w)", quote, re.I) is not None
+    return False
+
+
+def _source_context(snapshot: str, start: int, end: int) -> str:
+    """Keep qualifiers in the sentence even when Gemini quotes only a fragment."""
+    left = max((snapshot.rfind(mark, 0, start) for mark in ".!?\n"), default=-1) + 1
+    right = min((position for mark in ".!?\n" if (position := snapshot.find(mark, end - 1)) >= 0), default=len(snapshot))
+    return snapshot[left:right]
 
 
 class Extractor:
@@ -259,16 +278,20 @@ class Extractor:
                 uncertain = "predicate is unresolved"
             elif not candidate.context_complete:
                 uncertain = "source context is incomplete"
-            elif not _value_visible(value, candidate.quote):
+            elif candidate.modality != "negated" and not _value_visible(value, candidate.quote):
                 uncertain = "typed value is not visible in evidence quote"
-            elif candidate.modality == "tentative" or _TENTATIVE.search(candidate.quote):
+            elif candidate.modality == "tentative" or _TENTATIVE.search(_source_context(
+                source.content_snapshot, evidence.start_offset, evidence.end_offset,
+            )):
                 uncertain = "source wording is tentative"
-            elif candidate.modality == "confirmed" and _NEGATED.search(candidate.quote):
+            elif candidate.modality == "confirmed" and _NEGATED.search(_source_context(
+                source.content_snapshot, evidence.start_offset, evidence.end_offset,
+            )):
                 uncertain = "source wording may be negated"
             state = "uncertain" if uncertain else "negated" if candidate.modality == "negated" else "ready"
             fact = None
             if entity_id is not None and predicate_id is not None:
-                fact_hash = sha256(f"{evidence.span_id}:{predicate_id}:{value}".encode()).hexdigest()[:20]
+                fact_hash = sha256(f"{evidence.span_id}:{entity_id}:{predicate_id}:{value}".encode()).hexdigest()[:20]
                 fact = Fact(
                     id=f"fact_{fact_hash}", project_id=source.project_id, source_id=source.id,
                     entity_id=entity_id, predicate=predicate_id, value=value,
