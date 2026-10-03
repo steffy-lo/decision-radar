@@ -237,6 +237,12 @@ class ConnectionService:
             )
         return AccessToken(token=token, expires_in=payload.get("expires_in"))
 
+    async def select_folder(self, project_id: str, folder_id: str) -> None:
+        await self._connection_ref(project_id).set(
+            {"selected_folder_id": folder_id, "updated_at": datetime.now(timezone.utc)},
+            merge=True,
+        )
+
     async def disconnect(self, project_id: str) -> None:
         connection = await self.get_connection(project_id)
         if connection.secret_name:
