@@ -13,6 +13,30 @@ import {
 } from "@/lib/api/client";
 import type { Connection, FolderRefreshResult, ProjectMembership, SourceSummary } from "@/lib/api/client";
 
+function SourceList({ sources }: { sources: SourceSummary[] }) {
+  return (
+    <section className="panel mb-6 p-6">
+      <h2 className="text-lg font-semibold text-slate-900">Connected sources</h2>
+      {sources.length === 0 ? (
+        <p className="mt-2 text-sm text-slate-600">No sources have been found in the selected folder.</p>
+      ) : (
+        <ul className="mt-3 space-y-2 text-sm">
+          {sources.map((source) => (
+            <li key={source.id} className="flex items-center justify-between gap-3">
+              <a className="font-medium text-indigo-700 hover:underline" href={source.native_url} target="_blank" rel="noopener noreferrer">
+                {source.name}
+              </a>
+              <span className={source.status === "ready" ? "text-emerald-700" : "text-amber-800"}>
+                {source.failure_reason === "removed_from_folder" ? "Removed from folder" : source.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export function DriveConnectionPanel({ projectId }: { projectId: string }) {
   const [membership, setMembership] = useState<ProjectMembership | null>(null);
   const [connection, setConnection] = useState<Connection | null>(null);
@@ -38,10 +62,10 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
         const nextConnection = await getConnection(projectId);
         setConnection(nextConnection);
         setFolderId(nextConnection.selected_folder_id ?? "");
-        setSources(nextConnection.selected_folder_id ? await listSources(projectId) : []);
+        setSources(await listSources(projectId));
       } else {
         setConnection(null);
-        setSources([]);
+        setSources(await listSources(projectId));
       }
     } catch (loadError) {
       setError(
@@ -141,9 +165,12 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
 
   if (membership?.role !== "admin") {
     return (
-      <section className="panel mb-6 p-6 text-sm text-slate-600">
-        Drive connection management is available to project administrators.
-      </section>
+      <>
+        <section className="panel mb-6 p-6 text-sm text-slate-600">
+          Drive connection management is available to project administrators.
+        </section>
+        <SourceList sources={sources} />
+      </>
     );
   }
 
@@ -152,6 +179,7 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
   const connectLabel = isConnected || needsReconnect ? "Reconnect Drive" : "Connect Drive";
 
   return (
+    <>
     <section className="panel mb-6 space-y-4 p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -224,18 +252,18 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
       </div>
 
       {isConnected && (
-        <div className="space-y-3 border-t border-slate-800 pt-4">
-          <label htmlFor="drive-folder-id" className="block text-sm font-medium text-slate-200">
+        <div className="space-y-3 border-t border-slate-200 pt-4">
+          <label htmlFor="drive-folder-id" className="block text-sm font-medium text-slate-900">
             Google Drive folder ID
           </label>
-          <p className="text-xs text-slate-400">Copy the ID after /folders/ in the folder URL. Refresh reads this folder and one level of subfolders.</p>
+          <p className="text-xs text-slate-600">Copy the ID after /folders/ in the folder URL. Refresh reads this folder and one level of subfolders.</p>
           <div className="flex flex-wrap gap-3">
             <input
               id="drive-folder-id"
               value={folderId}
               onChange={(event) => setFolderId(event.target.value)}
               placeholder="Folder ID"
-              className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+              className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
               disabled={actionLoading}
             />
             <button
@@ -247,27 +275,16 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
             </button>
           </div>
           {refreshResult && (
-            <p role="status" className="text-sm text-emerald-300">
+            <p role="status" className="text-sm text-emerald-800">
               Scanned {refreshResult.scanned} files: {refreshResult.created} new, {refreshResult.updated} updated, {refreshResult.unchanged} unchanged.
+              {refreshResult.removed > 0 && ` ${refreshResult.removed} removed from the folder.`}
               {refreshResult.unsupported.length > 0 && ` Unsupported: ${refreshResult.unsupported.join(", ")}.`}
             </p>
-          )}
-          {sources.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-slate-200">Connected sources</h3>
-              <ul className="mt-2 space-y-1 text-sm">
-                {sources.map((source) => (
-                  <li key={source.id}>
-                    <a className="text-indigo-300 hover:underline" href={source.native_url} target="_blank" rel="noopener noreferrer">
-                      {source.name}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
           )}
         </div>
       )}
     </section>
+    <SourceList sources={sources} />
+    </>
   );
 }

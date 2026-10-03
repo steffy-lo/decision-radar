@@ -25,6 +25,7 @@ class RefreshResponse(BaseModel):
     created: int
     updated: int
     unchanged: int
+    removed: int
     unsupported: list[str]
 
 
@@ -34,6 +35,7 @@ class SourceSummary(BaseModel):
     mime_type: str
     native_url: str
     status: str
+    failure_reason: str | None = None
 
 
 @router.post("/refresh", response_model=RefreshResponse)
@@ -57,6 +59,7 @@ async def refresh_folder(
         created=result.created,
         updated=result.updated,
         unchanged=result.unchanged,
+        removed=result.removed,
         unsupported=list(result.unsupported),
     )
 
@@ -77,6 +80,7 @@ async def list_sources(
             SourceSummary(
                 id=row["id"], name=row["name"], mime_type=row["mimeType"],
                 native_url=row["nativeUrl"], status=row["status"],
+                failure_reason=row.get("failureReason"),
             )
             for row in records if row.get("rootFolderId") == selected
         ),

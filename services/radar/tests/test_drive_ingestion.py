@@ -5,7 +5,7 @@ import httpx
 
 from services.radar.services.drive_ingestion import (
     DOC_MIME, FOLDER_MIME, TXT_MIME, DriveFile, DriveIngestionError,
-    DrivePage, HttpDriveGateway, SourceService, source_id,
+    DrivePage, HttpDriveGateway, MAX_TEXT_BYTES, SourceService, source_id,
 )
 
 
@@ -45,6 +45,9 @@ class FakeStore:
     async def put(self, project_id, sid, record):
         self.rows[(project_id, sid)] = record
 
+    async def list(self, project_id):
+        return [record for (pid, _), record in self.rows.items() if pid == project_id]
+
 
 class DriveIngestionTests(unittest.TestCase):
     def test_refresh_reads_one_nested_level_and_reuses_changed_source_id(self):
@@ -62,6 +65,22 @@ class DriveIngestionTests(unittest.TestCase):
         third = asyncio.run(service.refresh("proj_demo", "root"))
         self.assertEqual((third.created, third.updated, third.unchanged), (0, 1, 2))
         self.assertEqual(len(store.rows), 3)
+
+    def test_removed_file_is_no_longer_ready_and_can_return(self):
+        drive, store = FakeDrive(), FakeStore()
+        service = SourceService(drive, store)
+        asyncio.run(service.refresh("proj_demo", "root"))
+        drive.pages[("root", None)] = DrivePage((file("txt", TXT_MIME),), None)
+        result = asyncio.run(service.refresh("proj_demo", "root"))
+        missing = store.rows[("proj_demo", source_id("doc"))]
+        self.assertEqual(result.removed, 2)
+        self.assertEqual(missing["status"], "failed")
+        self.assertEqual(missing["failureReason"], "removed_from_folder")
+        self.assertEqual(asyncio.run(service.refresh("proj_demo", "root")).removed, 0)
+        drive.pages[("root", None)] = DrivePage((file("doc"), file("txt", TXT_MIME)), None)
+        restored = asyncio.run(service.refresh("proj_demo", "root"))
+        self.assertEqual(restored.updated, 1)
+        self.assertEqual(store.rows[("proj_demo", source_id("doc"))]["status"], "ready")
 
     def test_file_limit_blocks_writes(self):
         drive, store = FakeDrive(), FakeStore()
@@ -109,6 +128,28 @@ class DriveIngestionTests(unittest.TestCase):
 
         with self.assertRaisesRegex(DriveIngestionError, "unavailable"):
             asyncio.run(run())
+
+    def test_download_stops_when_text_exceeds_limit(self):
+        class CountingStream(httpx.AsyncByteStream):
+            def __init__(self):
+                self.chunks = 0
+
+            async def __aiter__(self):
+                for _ in range(40):
+                    self.chunks += 1
+                    yield b"x" * 65536
+
+        stream = CountingStream()
+
+        async def run():
+            async with httpx.AsyncClient(
+                transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=stream))
+            ) as client:
+                await HttpDriveGateway("server-token", client).read_text(file("large", TXT_MIME))
+
+        with self.assertRaisesRegex(DriveIngestionError, "snapshot limit"):
+            asyncio.run(run())
+        self.assertLess(stream.chunks * 65536, MAX_TEXT_BYTES * 2)
 
 
 if __name__ == "__main__":
