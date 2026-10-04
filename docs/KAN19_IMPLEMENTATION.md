@@ -82,9 +82,13 @@ selection, and demo/live Sources navigation were also checked again in the app.
 
 ## Remaining integration
 
-KAN-18's complete source coverage/permission states and per-viewer native Workspace
-access checks are still prerequisites for live private evidence. Native document
-access could not be tested with synthetic URLs. Full KAN-3 → KAN-4 → KAN-16 → KAN-17
+Jira links KAN-19 to KAN-9 and KAN-18 as blockers. KAN-18 supplies the complete
+evidence viewer, including source type, locator, classification, confidence/coverage
+states, and a fixture-controlled access-unavailable state that hides source metadata.
+Its current MVP scope uses Firestore project roles and explicitly defers live
+file-level ACL filtering and per-evidence Drive permission queries to KAN-11.
+Those deferred permission checks are not a blocker for this PR. Native document
+links could not be tested with synthetic URLs. Full KAN-3 → KAN-4 → KAN-16 → KAN-17
 → impact flow against root Doc, TXT, nested Doc, and saved Meet transcript sources
 still needs testing after those prerequisites merge. The graph UI does not enable
 review writes or revise decisions; those remain in the review workflow ticket.

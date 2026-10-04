@@ -137,13 +137,14 @@ exhausted emulator transaction retries; bounded backoff fixed the rerun.
 2. Verify projections against findings and active revisions published by the
    merged KAN-17 implementation, including a revised/retired decision and an edited
    source. The current check deliberately rejects stale direct challenges.
-3. The main branch has project membership authorization but no per-viewer native
-   Workspace source access service. Integrate that permission check before serving
-   live private evidence through this endpoint; project membership alone does not
-   satisfy the LLD's native-source permission invariant.
+3. The current KAN-18 ticket uses Firestore project roles for MVP access and a
+   fixture-controlled access-unavailable state. Live file-level ACL filtering and
+   per-evidence Drive permission queries are deferred to KAN-11; they are not an
+   MVP integration gate for this PR.
 4. KAN-19 now consumes this projection on the same branch. Its interactive graph
    and product UI UAT are documented in [KAN19_IMPLEMENTATION.md](KAN19_IMPLEMENTATION.md).
-   Live source permissions and the full delivery sequence still need integration.
+   KAN-19's KAN-18 evidence viewer integration and the full delivery sequence remain.
 
 KAN-9 is started and its core is testable independently. It should remain open
-until the live dependency and permission checks pass.
+until the live KAN-17 dependency checks pass. Jira links KAN-9 only to KAN-17 as a
+blocker; KAN-18 blocks KAN-19, whose work is also included in this PR.
