@@ -1,6 +1,8 @@
 # KAN-9 dependency storage and impact projection
 
 Implemented on `codex/kan9-impact-api`, based on `origin/main` at `a1f6667`.
+The combined KAN-9/KAN-19 branch was rebased onto main at `61e7283` on 4 October;
+both source and impact API routes were preserved and the app was rebuilt/retested.
 KAN-17 remains a dependency for live decision confirmation and assessment output.
 This branch uses the shared models already on main and does not stack on the KAN-17 draft.
 
@@ -139,8 +141,9 @@ exhausted emulator transaction retries; bounded backoff fixed the rerun.
    Workspace source access service. Integrate that permission check before serving
    live private evidence through this endpoint; project membership alone does not
    satisfy the LLD's native-source permission invariant.
-4. KAN-19 must consume this projection contract and provide the interactive product
-   graph. KAN-19 rendering and full product UI UAT are not covered here.
+4. KAN-19 now consumes this projection on the same branch. Its interactive graph
+   and product UI UAT are documented in [KAN19_IMPLEMENTATION.md](KAN19_IMPLEMENTATION.md).
+   Live source permissions and the full delivery sequence still need integration.
 
 KAN-9 is started and its core is testable independently. It should remain open
 until the live dependency and permission checks pass.

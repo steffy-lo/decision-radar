@@ -36,6 +36,10 @@ class ImpactTests(unittest.TestCase):
         self.assertEqual(body["nodes"][0]["finding"]["updateEvidence"],
                          self.demo.findings[0].update_evidence.model_dump(by_alias=True))
 
+    def test_frontend_demo_projection_matches_the_live_projection_service(self):
+        saved = json.loads(FIXTURE.with_name("vendor-delay-impact.json").read_text())
+        self.assertEqual(saved, self.project().model_dump(mode="json", by_alias=True))
+
     def test_diamond_keeps_all_paths_without_duplicating_nodes_or_edges(self):
         shortcut = Dependency(id="dep_shortcut", project_id=self.demo.project_id,
                               from_decision_id=self.demo.decisions[0].id,
