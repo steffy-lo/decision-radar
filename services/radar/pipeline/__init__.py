@@ -1,0 +1,1 @@
+"""Quote-backed extraction pipeline."""

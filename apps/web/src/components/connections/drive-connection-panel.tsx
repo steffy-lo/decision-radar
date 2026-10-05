@@ -8,12 +8,15 @@ import {
   getConnection,
   getCurrentProjectMembership,
   reconnectDrive,
+  refreshDriveFolder,
 } from "@/lib/api/client";
-import type { Connection, ProjectMembership } from "@/lib/api/client";
+import type { Connection, FolderRefreshResult, ProjectMembership } from "@/lib/api/client";
 
-export function DriveConnectionPanel({ projectId }: { projectId: string }) {
+export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectId: string; onSourcesChanged?: () => void }) {
   const [membership, setMembership] = useState<ProjectMembership | null>(null);
   const [connection, setConnection] = useState<Connection | null>(null);
+  const [folderId, setFolderId] = useState("");
+  const [refreshResult, setRefreshResult] = useState<FolderRefreshResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +33,9 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
       setError(null);
 
       if (nextMembership.role === "admin") {
-        setConnection(await getConnection(projectId));
+        const nextConnection = await getConnection(projectId);
+        setConnection(nextConnection);
+        setFolderId(nextConnection.selected_folder_id ?? "");
       } else {
         setConnection(null);
       }
@@ -88,6 +93,27 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
           ? actionError.message
           : "Unable to disconnect Drive.",
       );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const refreshFolder = async () => {
+    const selected = folderId.trim();
+    if (!selected) {
+      setError("Enter the folder ID from its Google Drive URL.");
+      return;
+    }
+    setActionLoading(true);
+    setError(null);
+    setRefreshResult(null);
+    try {
+      const result = await refreshDriveFolder(projectId, selected);
+      setRefreshResult(result);
+      setConnection(await getConnection(projectId));
+      onSourcesChanged?.();
+    } catch (refreshError) {
+      setError(refreshError instanceof Error ? refreshError.message : "Folder refresh failed.");
     } finally {
       setActionLoading(false);
     }
@@ -192,6 +218,39 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
           </button>
         )}
       </div>
+
+      {isConnected && (
+        <div className="space-y-3 border-t border-slate-200 pt-4">
+          <label htmlFor="drive-folder-id" className="block text-sm font-medium text-slate-900">
+            Google Drive folder ID
+          </label>
+          <p className="text-xs text-slate-600">Copy the ID after /folders/ in the folder URL. Refresh reads this folder and one level of subfolders.</p>
+          <div className="flex flex-wrap gap-3">
+            <input
+              id="drive-folder-id"
+              value={folderId}
+              onChange={(event) => setFolderId(event.target.value)}
+              placeholder="Folder ID"
+              className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+              disabled={actionLoading}
+            />
+            <button
+              className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              disabled={actionLoading}
+              onClick={() => void refreshFolder()}
+            >
+              {actionLoading ? "Refreshing…" : "Refresh folder"}
+            </button>
+          </div>
+          {refreshResult && (
+            <p role="status" className="text-sm text-emerald-800">
+              Scanned {refreshResult.scanned} files: {refreshResult.created} new, {refreshResult.updated} updated, {refreshResult.unchanged} unchanged.
+              {refreshResult.removed > 0 && ` ${refreshResult.removed} removed from the folder.`}
+              {refreshResult.unsupported.length > 0 && ` Unsupported: ${refreshResult.unsupported.join(", ")}.`}
+            </p>
+          )}
+        </div>
+      )}
     </section>
   );
 }

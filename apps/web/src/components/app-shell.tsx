@@ -58,7 +58,7 @@ export function AppShell({
           </div>
           <div className="sidebar__footer">
             <span className="sidebar__footer-avatar" aria-hidden="true">D</span>
-            <span><strong>{demo ? "Demo workspace" : "Project workspace"}</strong><small>{demo ? "Synthetic project data" : "Live data pending"}</small></span>
+            <span><strong>{demo ? "Demo workspace" : "Project workspace"}</strong><small>{demo ? "Synthetic project data" : "Connected project data"}</small></span>
           </div>
         </div>
       </aside>

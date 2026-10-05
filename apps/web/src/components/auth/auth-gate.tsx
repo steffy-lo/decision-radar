@@ -12,17 +12,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => onAuthStateChanged(getFirebaseAuth(), setUser), []);
 
   if (user === undefined) {
-    return <main className="min-h-screen bg-slate-950 p-6 text-slate-300">Checking your session…</main>;
+    return <main className="auth-page">Checking your session…</main>;
   }
 
   if (!user) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-slate-100">
-        <section className="w-full max-w-sm space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-8">
-          <h1 className="text-xl font-semibold">Sign in to Decision Radar</h1>
-          <p className="text-sm text-slate-400">Use your workspace account to access project data.</p>
+      <main className="auth-page">
+        <section className="auth-page__card">
+          <span className="section-kicker">DECISION RADAR</span>
+          <h1>Sign in to your workspace</h1>
+          <p>Use your workspace account to access project decisions and evidence.</p>
           <button
-            className="w-full rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold hover:bg-indigo-400"
+            className="button button--primary"
             onClick={async () => {
               try {
                 await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider());
@@ -34,7 +35,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           >
             Continue with Google
           </button>
-          {error && <p className="text-sm text-red-300">{error}</p>}
+          {error && <p className="notice notice--error" role="alert">{error}</p>}
         </section>
       </main>
     );
@@ -42,10 +43,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="fixed right-4 top-4 z-10 flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900/95 px-3 py-2 text-xs shadow-lg">
-        <span className="max-w-48 truncate text-slate-400">{user.email ?? "Signed-in user"}</span>
+      <div className="auth-session">
+        <span className="auth-session__email">{user.email ?? "Signed-in user"}</span>
         <button
-          className="font-semibold text-slate-200 hover:text-white"
+          className="auth-session__action"
           onClick={async () => {
             try {
               await signOut(getFirebaseAuth());
@@ -58,7 +59,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           Sign out
         </button>
       </div>
-      {error && <p className="fixed right-4 top-16 z-10 max-w-sm rounded-lg bg-red-950 p-3 text-sm text-red-300">{error}</p>}
+      {error && <p className="auth-session__error notice notice--error" role="alert">{error}</p>}
       {children}
     </>
   );

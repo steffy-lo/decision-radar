@@ -1,8 +1,8 @@
 import { SourcesWorkspace } from "@/components/evidence-workspace";
-import { DriveConnectionPanel } from "@/components/connections/drive-connection-panel";
 import { JobStatusPanel } from "@/components/jobs/job-status-panel";
+import { demoFixture } from "@/lib/demo/fixture.server";
 
 export default async function SourcesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <SourcesWorkspace projectId={id} connectionControl={<><DriveConnectionPanel projectId={id} /><JobStatusPanel key={id} projectId={id} /></>} />;
+  return <><SourcesWorkspace projectId={id} />{id !== demoFixture.projectId && <JobStatusPanel key={id} projectId={id} />}</>;
 }

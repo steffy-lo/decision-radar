@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     TASK_WORKER_URL: Optional[str] = None
     TASK_WORKER_AUDIENCE: Optional[str] = None
     TASK_SERVICE_ACCOUNT_EMAIL: Optional[str] = None
+    VERTEX_PROJECT_ID: Optional[str] = None
+    VERTEX_LOCATION: str = "us-central1"
+    VERTEX_MODEL: str = "gemini-2.5-flash"
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parent / ".env",
