@@ -60,6 +60,20 @@ export type DemoFixture = {
   findings: Finding[]; alerts: Alert[]; reviews: Review[]; briefs: Brief[]; exports: Export[];
 };
 
+/** KAN-9 projection. Relationships and ordered paths come from the server. */
+export type ImpactNode =
+  | { id: Id; nodeType: "finding"; impact: "direct_challenge"; finding: Finding }
+  | { id: Id; nodeType: "decision"; impact: "direct_challenge" | "downstream_impact"; decision: Decision };
+export type ImpactEdge = {
+  id: Id; source: Id; target: Id; edgeType: "direct_challenge" | "dependency";
+  relationType: Dependency["relationType"] | null; impactDescription: string;
+};
+export type ImpactPath = { decisionId: Id; nodeIds: Id[]; edgeIds: Id[] };
+export type ImpactProjection = {
+  projectId: Id; alertId: Id; revision: number; rootId: Id; findingId: Id;
+  nodes: ImpactNode[]; edges: ImpactEdge[]; affectedPaths: ImpactPath[];
+};
+
 type Check = (value: unknown) => void;
 type Shape = Record<string, Check>;
 const fail = (message: string): never => { throw new Error(message); };
@@ -180,5 +194,58 @@ export function parseDemoFixture(value: unknown): DemoFixture {
   data.reviews.forEach((row) => { if (!alert.has(row.alertId)) fail("review alert missing"); });
   data.briefs.forEach((row) => { if (row.alertIds.some((id) => !alert.has(id))) fail("brief alert missing"); });
   data.exports.forEach((row) => { if (!brief.has(row.briefId)) fail("export brief missing"); });
+  return data;
+}
+
+/** Reject malformed/cross-project projections rather than drawing a partial story. */
+export function parseImpactProjection(value: unknown, projectId: string, alertId: string): ImpactProjection {
+  shape({ projectId: id, alertId: id, revision: integer, rootId: id, findingId: id,
+    nodes: list((value) => {
+      if (object(value).nodeType === "finding") {
+        shape({ id, nodeType: choice("finding"), impact: choice("direct_challenge"), finding: specs.findings })(value);
+      } else {
+        shape({ id, nodeType: choice("decision"), impact: choice("direct_challenge", "downstream_impact"), decision: specs.decisions })(value);
+      }
+    }),
+    edges: list(shape({ id, source: id, target: id, edgeType: choice("direct_challenge", "dependency"),
+      relationType: optional(choice("enables", "requires_review_of")), impactDescription: string })),
+    affectedPaths: list(shape({ decisionId: id, nodeIds: list(id), edgeIds: list(id) })),
+  })(value);
+  const data = value as ImpactProjection;
+  if (data.projectId !== projectId || data.alertId !== alertId || data.revision < 0 ||
+      data.nodes.length > 502 || data.edges.length > 501 || data.affectedPaths.length > 1000) fail("invalid projection scope");
+  const nodes = new Map(data.nodes.map((row) => [row.id, row]));
+  const edges = new Map(data.edges.map((row) => [row.id, row]));
+  if (nodes.size !== data.nodes.length || edges.size !== data.edges.length) fail("duplicate graph ID");
+  for (const node of data.nodes) {
+    const record = node.nodeType === "finding" ? node.finding : node.decision;
+    if (record.id !== node.id || record.projectId !== projectId) fail("cross-project graph node");
+    if (node.nodeType === "decision" && (node.decision.status !== "active" ||
+        node.impact !== (node.id === data.rootId ? "direct_challenge" : "downstream_impact"))) fail("invalid decision impact");
+  }
+  const finding = nodes.get(data.findingId);
+  if (finding?.nodeType !== "finding" || finding.finding.classification !== "contradicts" ||
+      nodes.get(data.rootId)?.nodeType !== "decision" ||
+      data.nodes.filter((node) => node.nodeType === "finding").length !== 1) fail("invalid trigger");
+  const direct = data.edges.filter((edge) => edge.edgeType === "direct_challenge");
+  if (direct.length !== 1 || direct[0].source !== data.findingId || direct[0].target !== data.rootId ||
+      direct[0].relationType !== null) fail("invalid direct challenge");
+  for (const edge of data.edges) {
+    if (!nodes.has(edge.source) || !nodes.has(edge.target) || edge.source === edge.target) fail("missing edge endpoint");
+    if (edge.edgeType === "dependency" && (!edge.relationType ||
+        nodes.get(edge.source)?.nodeType !== "decision" || nodes.get(edge.target)?.nodeType !== "decision")) fail("invalid dependency edge");
+  }
+  for (const path of data.affectedPaths) {
+    if (nodes.get(path.decisionId)?.impact !== "downstream_impact" || path.nodeIds[0] !== data.findingId ||
+        path.nodeIds[1] !== data.rootId || path.nodeIds.at(-1) !== path.decisionId ||
+        path.edgeIds.length !== path.nodeIds.length - 1 || new Set(path.nodeIds).size !== path.nodeIds.length) fail("invalid impact path");
+    path.edgeIds.forEach((id, index) => {
+      const edge = edges.get(id);
+      if (!edge || edge.source !== path.nodeIds[index] || edge.target !== path.nodeIds[index + 1]) fail("disconnected impact path");
+    });
+  }
+  const coveredNodes = new Set([data.findingId, data.rootId, ...data.affectedPaths.flatMap((path) => path.nodeIds)]);
+  const coveredEdges = new Set([direct[0].id, ...data.affectedPaths.flatMap((path) => path.edgeIds)]);
+  if (data.nodes.some((node) => !coveredNodes.has(node.id)) || data.edges.some((edge) => !coveredEdges.has(edge.id))) fail("incomplete impact paths");
   return data;
 }

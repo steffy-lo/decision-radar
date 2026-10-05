@@ -1,0 +1,141 @@
+{
+  "projectId": "proj_demo_2026",
+  "alertId": "alt_delivery_delayed",
+  "revision": 2,
+  "rootId": "dec_launch_readiness",
+  "findingId": "fnd_delivery_delayed",
+  "nodes": [
+    {
+      "id": "fnd_delivery_delayed",
+      "nodeType": "finding",
+      "impact": "direct_challenge",
+      "finding": {
+        "id": "fnd_delivery_delayed",
+        "projectId": "proj_demo_2026",
+        "assumptionId": "asm_vendor_delivery",
+        "factId": "fact_vendor_delivery_24",
+        "classification": "contradicts",
+        "reasonCode": "DATE_AFTER_REQUIRED_BY",
+        "baselineValue": {
+          "type": "date",
+          "value": "2026-10-10"
+        },
+        "extractedValue": {
+          "type": "date",
+          "value": "2026-10-24"
+        },
+        "deltaDays": 14,
+        "baselineEvidence": {
+          "sourceId": "src_launch_prd",
+          "sourceTitle": "Product Launch PRD v1",
+          "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+          "quote": "Core API vendor integration is committed on or before October 10, 2026.",
+          "locator": null
+        },
+        "updateEvidence": {
+          "sourceId": "src_vendor_notes",
+          "sourceTitle": "Vendor Sync & Status Notes",
+          "nativeUrl": "https://docs.google.com/document/d/demo-vendor-notes/edit",
+          "quote": "Due to chip shortage, vendor delivery is pushed back to October 24, 2026.",
+          "locator": null
+        }
+      }
+    },
+    {
+      "id": "dec_launch_readiness",
+      "nodeType": "decision",
+      "impact": "direct_challenge",
+      "decision": {
+        "id": "dec_launch_readiness",
+        "projectId": "proj_demo_2026",
+        "statement": "Launch on October 20, 2026",
+        "owner": "Project Manager",
+        "rationale": "The launch plan assumes vendor delivery by October 10.",
+        "status": "active",
+        "activeRevision": 1
+      }
+    },
+    {
+      "id": "dec_integration_testing",
+      "nodeType": "decision",
+      "impact": "downstream_impact",
+      "decision": {
+        "id": "dec_integration_testing",
+        "projectId": "proj_demo_2026",
+        "statement": "Complete integration testing before launch",
+        "owner": "Engineering Lead",
+        "rationale": "Testing depends on the vendor adapters.",
+        "status": "active",
+        "activeRevision": 1
+      }
+    },
+    {
+      "id": "dec_production_go_live",
+      "nodeType": "decision",
+      "impact": "downstream_impact",
+      "decision": {
+        "id": "dec_production_go_live",
+        "projectId": "proj_demo_2026",
+        "statement": "Approve production go-live after integration testing",
+        "owner": "Release Manager",
+        "rationale": "Production release requires test signoff.",
+        "status": "active",
+        "activeRevision": 1
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "challenge_fnd_delivery_delayed",
+      "source": "fnd_delivery_delayed",
+      "target": "dec_launch_readiness",
+      "edgeType": "direct_challenge",
+      "relationType": null,
+      "impactDescription": "Vendor delivers core API adapters by October 10, 2026"
+    },
+    {
+      "id": "dep_launch_testing",
+      "source": "dec_launch_readiness",
+      "target": "dec_integration_testing",
+      "edgeType": "dependency",
+      "relationType": "enables",
+      "impactDescription": "Late adapters delay automated integration testing."
+    },
+    {
+      "id": "dep_testing_go_live",
+      "source": "dec_integration_testing",
+      "target": "dec_production_go_live",
+      "edgeType": "dependency",
+      "relationType": "enables",
+      "impactDescription": "Delayed testing postpones production signoff."
+    }
+  ],
+  "affectedPaths": [
+    {
+      "decisionId": "dec_integration_testing",
+      "nodeIds": [
+        "fnd_delivery_delayed",
+        "dec_launch_readiness",
+        "dec_integration_testing"
+      ],
+      "edgeIds": [
+        "challenge_fnd_delivery_delayed",
+        "dep_launch_testing"
+      ]
+    },
+    {
+      "decisionId": "dec_production_go_live",
+      "nodeIds": [
+        "fnd_delivery_delayed",
+        "dec_launch_readiness",
+        "dec_integration_testing",
+        "dec_production_go_live"
+      ],
+      "edgeIds": [
+        "challenge_fnd_delivery_delayed",
+        "dep_launch_testing",
+        "dep_testing_go_live"
+      ]
+    }
+  ]
+}
