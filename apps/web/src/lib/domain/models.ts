@@ -1,6 +1,6 @@
 /** JSON contract shared with services/radar/domain/models.py. */
 export type Id = string;
-export type EvidenceRef = { sourceId: Id; sourceTitle: string; nativeUrl: string; quote: string };
+export type EvidenceRef = { sourceId: Id; sourceTitle: string; nativeUrl: string; quote: string; locator?: string | null };
 export type TypedValue =
   | { type: "date"; value: string }
   | { type: "decimal"; value: string | number; unit: string }
@@ -39,12 +39,13 @@ export type Finding = {
 export type Alert = {
   id: Id; projectId: Id; findingId: Id; decisionId: Id; decisionRevision: number;
   severity: "low" | "medium" | "high";
-  reviewState: "open" | "kept" | "revised" | "retired" | "dismissed";
+  reviewState: "open" | "kept" | "revised" | "retired" | "dismissed" | "clarification_requested";
   createdAt: string;
 };
 export type Review = {
-  id: Id; alertId: Id; action: "keep" | "revise" | "retire" | "dismiss";
-  rationale: string; actorId: Id; decisionRevision: number; createdAt: string;
+  id: Id; alertId: Id; action: "keep" | "revise" | "retire" | "dismiss" | "request_clarification";
+  rationale: string; actorId: string; decisionRevision: number;
+  beforeRevision?: number | null; afterRevision?: number | null; createdAt: string;
 };
 export type Brief = {
   id: Id; projectId: Id; alertIds: Id[]; content: string; createdAt: string;
@@ -122,7 +123,13 @@ const decimal: Check = (value) => {
       !/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(String(value)) ||
       !Number.isFinite(Number(value))) fail("invalid decimal");
 };
-const evidence = shape({ sourceId: id, sourceTitle: nonempty, nativeUrl: nonempty, quote: nonempty });
+const evidence: Check = (value) => {
+  const row = object(value);
+  for (const name of ["sourceId", "sourceTitle", "nativeUrl", "quote"]) if (!(name in row)) fail(`missing ${name}`);
+  id(row.sourceId); nonempty(row.sourceTitle); nonempty(row.nativeUrl); nonempty(row.quote);
+  if ("locator" in row) optional(nonempty)(row.locator);
+  for (const name of Object.keys(row)) if (!["sourceId", "sourceTitle", "nativeUrl", "quote", "locator"].includes(name)) fail(`unexpected ${name}`);
+};
 const typedValue: Check = (value) => {
   const kind = object(value).type;
   if (kind === "date") shape({ type: choice("date"), value: isoDate })(value);
@@ -138,8 +145,8 @@ const specs: Record<Exclude<keyof DemoFixture, "projectId">, Check> = {
   facts: shape({ id, projectId: id, sourceId: id, entityId: id, predicate: nonempty, value: typedValue, modality: choice("confirmed", "tentative", "negated"), evidence }),
   dependencies: shape({ id, projectId: id, fromDecisionId: id, toDecisionId: id, relationType: choice("enables", "requires_review_of"), impactDescription: nonempty }),
   findings: shape({ id, projectId: id, assumptionId: id, factId: id, classification: choice("contradicts", "supports", "uncertain"), reasonCode: nonempty, baselineValue: typedValue, extractedValue: typedValue, deltaDays: optional(integer), baselineEvidence: evidence, updateEvidence: evidence }),
-  alerts: shape({ id, projectId: id, findingId: id, decisionId: id, decisionRevision: positiveInt, severity: choice("low", "medium", "high"), reviewState: choice("open", "kept", "revised", "retired", "dismissed"), createdAt: timestamp }),
-  reviews: shape({ id, alertId: id, action: choice("keep", "revise", "retire", "dismiss"), rationale: nonempty, actorId: id, decisionRevision: positiveInt, createdAt: timestamp }),
+  alerts: shape({ id, projectId: id, findingId: id, decisionId: id, decisionRevision: positiveInt, severity: choice("low", "medium", "high"), reviewState: choice("open", "kept", "revised", "retired", "dismissed", "clarification_requested"), createdAt: timestamp }),
+  reviews: shape({ id, alertId: id, action: choice("keep", "revise", "retire", "dismiss", "request_clarification"), rationale: nonempty, actorId: nonempty, decisionRevision: positiveInt, beforeRevision: optional(positiveInt), afterRevision: optional(positiveInt), createdAt: timestamp }),
   briefs: shape({ id, projectId: id, alertIds: list(id), content: nonempty, createdAt: timestamp }),
   exports: shape({ id, briefId: id, provider: choice("google_docs"), status: choice("queued", "completed", "failed"), nativeUrl: optional(nonempty) }),
 };

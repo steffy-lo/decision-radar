@@ -121,7 +121,10 @@ class EvidenceValidator:
         snapshot_hash = sha256(source.content_snapshot.encode("utf-8")).hexdigest()
         span_hash = sha256(f"{source.id}:{snapshot_hash}:{start}:{end}".encode()).hexdigest()[:20]
         return VerifiedEvidence(
-            ref=EvidenceRef(source_id=source.id, source_title=source.name, native_url=native_url, quote=quote),
+            ref=EvidenceRef(
+                source_id=source.id, source_title=source.name, native_url=native_url,
+                quote=quote, locator=f"Snapshot characters {start + 1}–{end}",
+            ),
             span_id=f"span_{span_hash}", start_offset=start, end_offset=end,
         )
 
@@ -151,6 +154,32 @@ def _predicate_id(name: str, known_predicates: dict[str, str] | None) -> str | N
     if known_predicates is None:
         return name
     return {key.strip().casefold(): value for key, value in known_predicates.items()}.get(name.strip().casefold())
+
+
+def _fact_ids(
+    candidate: RawFact, known_entities: dict[str, Id], known_predicates: dict[str, str] | None,
+) -> tuple[str | None, str | None]:
+    entity_id = _entity_id(candidate.entity, known_entities)
+    predicate_id = _predicate_id(candidate.predicate, known_predicates)
+    if (entity_id is not None and predicate_id is not None) or known_predicates is None:
+        return entity_id, predicate_id
+
+    # Gemini may split one exact source phrase at a different word boundary.
+    # Accept the combined wording only when it appears in the quote and has
+    # one trusted entity/predicate interpretation.
+    def normalize(value: str) -> str:
+        return " ".join(value.split()).casefold()
+
+    phrase = normalize(f"{candidate.entity} {candidate.predicate}")
+    if not re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", normalize(candidate.quote)):
+        return entity_id, predicate_id
+    matches = {
+        (trusted_entity, trusted_predicate)
+        for alias, trusted_entity in known_entities.items()
+        for wording, trusted_predicate in known_predicates.items()
+        if normalize(f"{alias} {wording}") == phrase
+    }
+    return next(iter(matches)) if len(matches) == 1 else (entity_id, predicate_id)
 
 
 def _value_visible(value: TypedValue, quote: str) -> bool:
@@ -241,8 +270,7 @@ class Extractor:
         for candidate in draft.facts:
             evidence = self.validator.verify(source, candidate.quote, native_url)
             value = _typed_value(candidate.value)
-            entity_id = _entity_id(candidate.entity, known_entities)
-            predicate_id = _predicate_id(candidate.predicate, known_predicates)
+            entity_id, predicate_id = _fact_ids(candidate, known_entities, known_predicates)
             uncertain = None
             if entity_id is None:
                 uncertain = "entity is unresolved"

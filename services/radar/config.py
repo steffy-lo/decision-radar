@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     GOOGLE_OAUTH_REDIRECT_URI: Optional[str] = None
     GOOGLE_OAUTH_STATE_TTL_SECONDS: int = 600
     GOOGLE_SECRET_MANAGER_PROJECT_ID: Optional[str] = None
+    VERTEX_PROJECT_ID: Optional[str] = None
+    VERTEX_LOCATION: str = "us-central1"
+    VERTEX_MODEL: str = "gemini-2.5-flash"
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parent / ".env",
