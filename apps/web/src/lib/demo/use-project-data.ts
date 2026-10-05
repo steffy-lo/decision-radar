@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { parseDemoFixture, type DemoFixture } from "@/lib/domain/models";
 
 export const DEMO_PROJECT_ID = "proj_demo_2026";
@@ -17,18 +18,20 @@ const loading = (projectId: string): ProjectDataState => ({
   projectId, status: "loading", data: null, error: null,
 });
 
-function projectDataUrl(projectId: string): string {
+function projectDataUrl(projectId: string, scenario: string | null): string {
   const base = `/api/v1/projects/${encodeURIComponent(projectId)}`;
-  return isDemoProject(projectId) ? `${base}/fixture` : `${base}/workspace`;
+  if (!isDemoProject(projectId)) return `${base}/workspace`;
+  return `${base}/fixture${scenario && ["access-unavailable", "evidence-unclear", "no-detected-issue"].includes(scenario) ? `?scenario=${scenario}` : ""}`;
 }
 
 export function useProjectData(projectId: string) {
+  const scenario = useSearchParams().get("scenario");
   const [state, setState] = useState<ProjectDataState>(() => loading(projectId));
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(projectDataUrl(projectId), { cache: "no-store", signal: controller.signal })
+    fetch(projectDataUrl(projectId, scenario), { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(isDemoProject(projectId)
@@ -48,7 +51,7 @@ export function useProjectData(projectId: string) {
         }
       });
     return () => controller.abort();
-  }, [projectId, attempt]);
+  }, [projectId, scenario, attempt]);
 
   const retry = useCallback(() => {
     setState(loading(projectId));

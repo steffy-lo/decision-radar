@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from hashlib import sha256
 from typing import Any
 
 from google.cloud import firestore
@@ -49,6 +50,28 @@ def _decisions(rows: list[dict[str, Any]]) -> tuple[Decision, ...]:
                  for row in rows)
 
 
+async def _current_facts(project: Any, transaction: Any = None) -> tuple[Fact, ...]:
+    rows = await _read_collection(project.collection("facts"), transaction)
+    extractions = {
+        row["sourceId"]: row for row in
+        await _read_collection(project.collection("sourceExtractions"), transaction)
+        if isinstance(row.get("sourceId"), str)
+    }
+    sources = {
+        row["id"]: row for row in await _read_collection(project.collection("sources"), transaction)
+    }
+    current = []
+    for row in rows:
+        extraction = extractions.get(row.get("sourceId"))
+        if extraction:
+            source = sources.get(row.get("sourceId"))
+            if (not source or source.get("status") != "ready"
+                    or sha256(source.get("contentSnapshot", "").encode()).hexdigest() != extraction.get("snapshotHash")):
+                continue
+        current.append(Fact.model_validate(row))
+    return tuple(current)
+
+
 def _same_inputs(current: AssessmentInputs, original: AssessmentInputs) -> bool:
     return (sorted(current.decisions, key=lambda row: row.id) == sorted(original.decisions, key=lambda row: row.id) and
             sorted(current.assumptions, key=lambda row: row.id) == sorted(original.assumptions, key=lambda row: row.id) and
@@ -65,7 +88,7 @@ class FirestoreAssessmentStore:
         decisions = _decisions(await _read_collection(project.collection("decisions")))
         assumption_rows = await _read_collection(project.collection("assumptions"))
         assumptions = _assumptions(assumption_rows)
-        facts = tuple(Fact.model_validate(row) for row in await _read_collection(project.collection("facts")))
+        facts = await _current_facts(project)
         alerts = tuple(Alert.model_validate(row) for row in await _read_collection(project.collection("alerts")))
         return AssessmentInputs(
             decisions, assumptions, facts,
@@ -101,11 +124,10 @@ class FirestoreAssessmentStore:
             # records as well as edits and deletes before publication.
             decision_rows = await _read_collection(project.collection("decisions"), tx)
             assumption_rows = await _read_collection(project.collection("assumptions"), tx)
-            fact_rows = await _read_collection(project.collection("facts"), tx)
             current = AssessmentInputs(
                 _decisions(decision_rows),
                 _assumptions(assumption_rows),
-                tuple(Fact.model_validate(row) for row in fact_rows),
+                await _current_facts(project, tx),
                 _entities(assumption_rows), (),
             )
             if not _same_inputs(current, inputs):
@@ -123,6 +145,8 @@ class FirestoreAssessmentStore:
                 response = {
                     "runId": run_id, "status": "completed",
                     "findingCount": len(result.findings), "alertCount": len(result.alerts),
+                    "findingIds": [row.id for row in result.findings],
+                    "alertIds": [row.id for row in result.alerts],
                     "coverage": [row.__dict__ for row in result.coverage],
                     "createdAt": datetime.now(timezone.utc),
                 }
@@ -151,6 +175,8 @@ class FirestoreAssessmentStore:
         response = {
             "runId": run_id, "status": "completed",
             "findingCount": len(result.findings), "alertCount": len(result.alerts),
+            "findingIds": [row.id for row in result.findings],
+            "alertIds": [row.id for row in result.alerts],
             "coverage": [row.__dict__ for row in result.coverage],
         }
 
@@ -174,10 +200,9 @@ class FirestoreAssessmentStore:
 
             decision_rows = await _read_collection(project.collection("decisions"), tx)
             assumption_rows = await _read_collection(project.collection("assumptions"), tx)
-            fact_rows = await _read_collection(project.collection("facts"), tx)
             current = AssessmentInputs(
                 _decisions(decision_rows), _assumptions(assumption_rows),
-                tuple(Fact.model_validate(row) for row in fact_rows),
+                await _current_facts(project, tx),
                 _entities(assumption_rows), (),
             )
             if not _same_inputs(current, inputs):
@@ -226,10 +251,9 @@ class FirestoreAssessmentStore:
                     raise AssessmentConflict("Assessment publication is incomplete. Retry this request.")
             decision_rows = await _read_collection(project.collection("decisions"), tx)
             assumption_rows = await _read_collection(project.collection("assumptions"), tx)
-            fact_rows = await _read_collection(project.collection("facts"), tx)
             current_inputs = AssessmentInputs(
                 _decisions(decision_rows), _assumptions(assumption_rows),
-                tuple(Fact.model_validate(row) for row in fact_rows),
+                await _current_facts(project, tx),
                 _entities(assumption_rows), (),
             )
             if not _same_inputs(current_inputs, inputs):

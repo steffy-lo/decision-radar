@@ -1,4 +1,5 @@
 import asyncio
+from hashlib import sha256
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -137,6 +138,26 @@ class AssessmentStoreTests(unittest.TestCase):
         result = self.run_assessment()
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["alertCount"], 1)
+
+    def test_changed_source_excludes_stale_extracted_fact(self):
+        fact = DEMO.facts[0]
+        self.client.data[f"{self.project}/sources/{fact.source_id}"] = {
+            "id": fact.source_id, "contentSnapshot": "new source text",
+        }
+        self.client.data[f"{self.project}/sourceExtractions/{fact.source_id}"] = {
+            "sourceId": fact.source_id,
+            "snapshotHash": sha256(b"old source text").hexdigest(),
+        }
+        inputs = asyncio.run(self.store.load(DEMO.project_id))
+        self.assertNotIn(fact.id, {row.id for row in inputs.facts})
+        self.client.data[f"{self.project}/sources/{fact.source_id}"] = {
+            "id": fact.source_id, "contentSnapshot": "old source text", "status": "error",
+        }
+        inputs = asyncio.run(self.store.load(DEMO.project_id))
+        self.assertNotIn(fact.id, {row.id for row in inputs.facts})
+        self.client.data[f"{self.project}/sources/{fact.source_id}"]["status"] = "ready"
+        inputs = asyncio.run(self.store.load(DEMO.project_id))
+        self.assertIn(fact.id, {row.id for row in inputs.facts})
 
     def test_large_assessment_publishes_in_resumable_chunks(self):
         for index in range(200):

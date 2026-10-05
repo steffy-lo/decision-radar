@@ -7,41 +7,15 @@ import {
   disconnectDrive,
   getConnection,
   getCurrentProjectMembership,
-  listSources,
   reconnectDrive,
   refreshDriveFolder,
 } from "@/lib/api/client";
-import type { Connection, FolderRefreshResult, ProjectMembership, SourceSummary } from "@/lib/api/client";
+import type { Connection, FolderRefreshResult, ProjectMembership } from "@/lib/api/client";
 
-function SourceList({ sources }: { sources: SourceSummary[] }) {
-  return (
-    <section className="panel mb-6 p-6">
-      <h2 className="text-lg font-semibold text-slate-900">Connected sources</h2>
-      {sources.length === 0 ? (
-        <p className="mt-2 text-sm text-slate-600">No sources have been found in the selected folder.</p>
-      ) : (
-        <ul className="mt-3 space-y-2 text-sm">
-          {sources.map((source) => (
-            <li key={source.id} className="flex items-center justify-between gap-3">
-              <a className="font-medium text-indigo-700 hover:underline" href={source.native_url} target="_blank" rel="noopener noreferrer">
-                {source.name}
-              </a>
-              <span className={source.status === "ready" ? "text-emerald-700" : "text-amber-800"}>
-                {source.failure_reason === "removed_from_folder" ? "Removed from folder" : source.status}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-export function DriveConnectionPanel({ projectId }: { projectId: string }) {
+export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectId: string; onSourcesChanged?: () => void }) {
   const [membership, setMembership] = useState<ProjectMembership | null>(null);
   const [connection, setConnection] = useState<Connection | null>(null);
   const [folderId, setFolderId] = useState("");
-  const [sources, setSources] = useState<SourceSummary[]>([]);
   const [refreshResult, setRefreshResult] = useState<FolderRefreshResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -62,10 +36,8 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
         const nextConnection = await getConnection(projectId);
         setConnection(nextConnection);
         setFolderId(nextConnection.selected_folder_id ?? "");
-        setSources(await listSources(projectId));
       } else {
         setConnection(null);
-        setSources(await listSources(projectId));
       }
     } catch (loadError) {
       setError(
@@ -139,7 +111,7 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
       const result = await refreshDriveFolder(projectId, selected);
       setRefreshResult(result);
       setConnection(await getConnection(projectId));
-      setSources(await listSources(projectId));
+      onSourcesChanged?.();
     } catch (refreshError) {
       setError(refreshError instanceof Error ? refreshError.message : "Folder refresh failed.");
     } finally {
@@ -165,12 +137,9 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
 
   if (membership?.role !== "admin") {
     return (
-      <>
-        <section className="panel mb-6 p-6 text-sm text-slate-600">
-          Drive connection management is available to project administrators.
-        </section>
-        <SourceList sources={sources} />
-      </>
+      <section className="panel mb-6 p-6 text-sm text-slate-600">
+        Drive connection management is available to project administrators.
+      </section>
     );
   }
 
@@ -179,7 +148,6 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
   const connectLabel = isConnected || needsReconnect ? "Reconnect Drive" : "Connect Drive";
 
   return (
-    <>
     <section className="panel mb-6 space-y-4 p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -284,7 +252,5 @@ export function DriveConnectionPanel({ projectId }: { projectId: string }) {
         </div>
       )}
     </section>
-    <SourceList sources={sources} />
-    </>
   );
 }

@@ -1,15 +1,22 @@
 """Project-scoped manual Drive folder refresh and source listing."""
 
 from typing import Any
+from hashlib import sha256
+from datetime import datetime, timezone
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 from services.radar.adapters.source_store import FirestoreSourceStore, get_source_store
 from services.radar.api.deps import require_project_admin, require_project_member
 from services.radar.api.routes.connections import get_connection_service
 from services.radar.domain.models import AuthenticatedProjectMember
+from services.radar.domain.models import Source
+from services.radar.config import settings
+from services.radar.pipeline.extraction import Extractor, ExtractionError
+from services.radar.pipeline.gemini import VertexGeminiGenerator
 from services.radar.services.connections import ConnectionService
 from services.radar.services.drive_ingestion import DriveIngestionError, HttpDriveGateway, SourceService
 
@@ -36,6 +43,17 @@ class SourceSummary(BaseModel):
     native_url: str
     status: str
     failure_reason: str | None = None
+
+
+class ExtractRequest(BaseModel):
+    assumption_id: str = Field(min_length=1)
+    entity_alias: str = Field(min_length=1, max_length=120)
+    predicate_alias: str = Field(min_length=1, max_length=120)
+
+
+def get_extractor() -> Extractor:
+    project = settings.VERTEX_PROJECT_ID or settings.FIREBASE_PROJECT_ID
+    return Extractor(VertexGeminiGenerator(project, settings.VERTEX_LOCATION, settings.VERTEX_MODEL))
 
 
 @router.post("/refresh", response_model=RefreshResponse)
@@ -86,3 +104,106 @@ async def list_sources(
         ),
         key=lambda row: row.name.casefold(),
     )
+
+
+@router.get("/{source_id}/extraction")
+async def get_extraction(
+    project_id: str, source_id: str,
+    _: AuthenticatedProjectMember = Depends(require_project_member),
+    store: FirestoreSourceStore = Depends(get_source_store),
+    connection: ConnectionService = Depends(get_connection_service),
+) -> dict[str, Any]:
+    source = await store.get(project_id, source_id)
+    selected = (await connection.get_connection(project_id)).selected_folder_id
+    if not source or source.get("rootFolderId") != selected:
+        raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
+    project = store.client.collection("projects").document(project_id)
+    snapshot = await project.collection("sourceExtractions").document(source_id).get()
+    if not snapshot.exists:
+        raise HTTPException(status_code=404, detail="This source has not been extracted yet.")
+    result = snapshot.to_dict() or {}
+    if result.get("snapshotHash") != sha256(source["contentSnapshot"].encode()).hexdigest():
+        raise HTTPException(status_code=409, detail="The source changed. Run extraction again.")
+    return result
+
+
+@router.get("/{source_id}")
+async def get_source(
+    project_id: str, source_id: str,
+    _: AuthenticatedProjectMember = Depends(require_project_member),
+    store: FirestoreSourceStore = Depends(get_source_store),
+    connection: ConnectionService = Depends(get_connection_service),
+) -> dict[str, Any]:
+    source = await store.get(project_id, source_id)
+    selected = (await connection.get_connection(project_id)).selected_folder_id
+    if not source or source.get("rootFolderId") != selected:
+        raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
+    return {
+        "id": source["id"], "name": source["name"],
+        "nativeUrl": source["nativeUrl"], "contentSnapshot": source["contentSnapshot"],
+        "status": source["status"],
+    }
+
+
+@router.post("/{source_id}/extract")
+async def extract_source(
+    project_id: str, source_id: str, body: ExtractRequest,
+    member: AuthenticatedProjectMember = Depends(require_project_member),
+    store: FirestoreSourceStore = Depends(get_source_store),
+    connection: ConnectionService = Depends(get_connection_service),
+    extractor: Extractor = Depends(get_extractor),
+) -> dict[str, Any]:
+    if member.role == "viewer":
+        raise HTTPException(status_code=403, detail="Only project editors can extract sources.")
+    source = await store.get(project_id, source_id)
+    selected = (await connection.get_connection(project_id)).selected_folder_id
+    if not source or not selected or source.get("rootFolderId") != selected:
+        raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
+    project = store.client.collection("projects").document(project_id)
+    assumption_snapshot = await project.collection("assumptions").document(body.assumption_id).get()
+    if not assumption_snapshot.exists:
+        raise HTTPException(status_code=422, detail="Choose an active monitored assumption.")
+    assumption = assumption_snapshot.to_dict() or {}
+    decision_snapshot = await project.collection("decisions").document(assumption.get("decisionId", "")).get()
+    decision = decision_snapshot.to_dict() or {}
+    if (assumption.get("status") != "active" or decision.get("status") != "active"
+            or assumption.get("decisionRevision") != decision.get("activeRevision")
+            or not isinstance(assumption.get("entityId"), str)):
+        raise HTTPException(status_code=422, detail="Choose an active monitored assumption.")
+    aliases = {body.entity_alias: assumption["entityId"]}
+    predicates = {body.predicate_alias: assumption["predicate"]}
+    predicates[assumption["predicate"]] = assumption["predicate"]
+    try:
+        extracted = await run_in_threadpool(
+            extractor.extract,
+            Source(
+                id=source["id"], project_id=project_id, name=source["name"],
+                mime_type=source["mimeType"], content_snapshot=source["contentSnapshot"],
+                status=source["status"],
+            ),
+            aliases, source["nativeUrl"], predicates,
+        )
+    except (ExtractionError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    ready = [fact.model_dump(mode="json", by_alias=True) for fact in extracted.alert_eligible_facts]
+    result = {
+        "sourceId": source_id,
+        "snapshotHash": sha256(source["contentSnapshot"].encode()).hexdigest(),
+        "assumptionId": body.assumption_id,
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "decisions": [
+            {"statement": row.candidate.statement, "quote": row.evidence.ref.quote,
+             "uncertainReason": row.uncertain_reason} for row in extracted.decisions
+        ],
+        "facts": [
+            {"entity": row.candidate.entity, "predicate": row.candidate.predicate,
+             "value": row.value.model_dump(mode="json", by_alias=True),
+             "quote": row.evidence.ref.quote, "state": row.state,
+             "uncertainReason": row.uncertain_reason} for row in extracted.facts
+        ],
+        "publishedFactCount": len(ready),
+    }
+    try:
+        return await store.publish_extraction(project_id, source_id, source["contentSnapshot"], ready, result)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
