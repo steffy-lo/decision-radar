@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { DriveConnectionPanel } from "@/components/connections/drive-connection-panel";
 import { EvidenceReference } from "@/components/evidence-reference";
+import { ImpactGraph } from "@/components/graph/impact-graph";
 import { ReviewActionPanel } from "@/components/review-action-panel";
 import {
   extractSource, getAssessmentResults, getCurrentProjectMembership, getExtraction,
@@ -105,7 +106,7 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
   </>;
 }
 
-export function LiveReviewsWorkspace({ projectId }: { projectId: string }) {
+export function LiveReviewsWorkspace({ projectId, alertId }: { projectId: string; alertId?: string }) {
   const [data, setData] = useState<AssessmentResults | null>(null);
   const [sources, setSources] = useState<SourceSummary[]>([]);
   const [membership, setMembership] = useState<ProjectMembership | null>(null);
@@ -129,6 +130,7 @@ export function LiveReviewsWorkspace({ projectId }: { projectId: string }) {
   const reviewState = data?.alerts.length ? "Needs review" : !data?.latestRun ? "Ready to assess" : uncertainCount ? "Evidence unclear" : "No detected issue in assessed sources";
   return <>
     <PageHeading eyebrow="REVIEW QUEUE" title="Reviews" description="Check confirmed decisions against verified source facts." action={membership?.role !== "viewer" && <button className="button button--primary" disabled={busy} onClick={() => void assess()}>{busy ? "Running assessment…" : "Run assessment"}</button>} />
+    {alertId && <ImpactGraph key={`${projectId}/${alertId}`} projectId={projectId} alertId={alertId} />}
     {error && <p role="alert" className="notice notice--error">{error}</p>}
     <div className="review-summary workspace-card"><div><span className="section-kicker">LATEST ASSESSMENT</span><h2>{reviewState}</h2><p>{data?.latestRun ? `${data.latestRun.findingCount} ${data.latestRun.findingCount === 1 ? "finding" : "findings"} checked · ${data.latestRun.alertCount} ${data.latestRun.alertCount === 1 ? "alert" : "alerts"} · ${uncertainCount} ${uncertainCount === 1 ? "assumption" : "assumptions"} with incomplete coverage.` : "Run an assessment after you confirm decisions and extract source facts."}</p></div><span className="review-summary__symbol" aria-hidden="true">◇</span></div>
     {coverage.length > 0 && <Panel className="workspace-card coverage-panel"><span className="section-kicker">COVERAGE</span><h2>What the assessment checked</h2><div className="coverage-list">{coverage.map((row) => <div key={row.assumption_id} className="coverage-list__row"><StatusPill tone={row.state === "assessed" ? "success" : "warning"}>{row.state === "assessed" ? "Assessed" : "Evidence unclear"}</StatusPill><span>{row.reason}</span></div>)}</div></Panel>}
@@ -140,6 +142,7 @@ export function LiveReviewsWorkspace({ projectId }: { projectId: string }) {
         <div className="review-delta"><strong>{finding?.reasonCode === "DATE_AFTER_REQUIRED_BY" ? "Date moved past the target" : finding?.reasonCode?.replaceAll("_", " ") ?? "Source update"}</strong>{finding?.deltaDays != null && <span>{finding.deltaDays} days later</span>}</div>
         {finding && <p className="review-card__meta">Classification: {finding.classification} · {evidenceUnavailable ? "Evidence unclear: source access unavailable" : "Evidence: exact quote verified"} · Coverage: {coverageState ?? "unknown"}</p>}
         {finding && <div className="review-evidence">{[finding.baselineEvidence, finding.updateEvidence].map((evidence, index) => { const source = sources.find((row) => row.id === evidence.sourceId); return <EvidenceReference key={`${alert.id}-${index}`} evidence={evidence} label={index === 0 ? "ORIGINAL EVIDENCE" : "NEW EVIDENCE"} available={!source || source.status === "ready"} sourceType={source?.mime_type} />; })}</div>}
+        <a className="text-link" href={`/projects/${encodeURIComponent(projectId)}/reviews?alertId=${encodeURIComponent(alert.id)}`}>View impact graph →</a>
         <ReviewActionPanel projectId={projectId} alertId={alert.id} reviewState={alert.reviewState} canReview={membership?.role === "admin" || membership?.role === "editor"} onSubmitted={load} />
       </Panel>;
     }) : <EmptyState title={reviewState} description={data?.latestRun ? uncertainCount ? "Some assumptions could not be assessed from the available evidence. Check coverage above before drawing a conclusion." : "The assessed sources did not contradict a monitored assumption in the latest run." : "Run an assessment after extracting facts from your connected sources."} />}</div>
