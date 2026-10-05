@@ -178,6 +178,36 @@ class AssessmentStoreTests(unittest.TestCase):
         result = self.run_assessment()
         self.assertEqual((result["status"], result["alertCount"]), ("completed", 201))
 
+    def test_large_run_does_not_complete_after_decision_changes(self):
+        for index in range(200):
+            fact = DEMO.facts[1].model_copy(update={"id": f"fact_vendor_delivery_extra_{index}"})
+            self.client.data[f"{self.project}/facts/{fact.id}"] = fact.model_dump(mode="json", by_alias=True)
+
+        def retire_before_completion(fn):
+            async def run(tx):
+                if fn.__name__ == "complete":
+                    path = f"{self.project}/decisions/{DEMO.decisions[0].id}"
+                    self.client.data[path]["status"] = "retired"
+                return await fn(tx)
+            return run
+
+        with self.assertRaisesRegex(AssessmentConflict, "changed during publication"):
+            self.run_assessment(transactional=retire_before_completion)
+        runs = [row for path, row in self.client.data.items()
+                if f"{self.project}/assessmentRuns/" in path and "/batches/" not in path]
+        self.assertEqual(len(runs), 1)
+        self.assertEqual(runs[0]["status"], "publishing")
+
+    def test_completed_large_run_replays_after_inputs_change(self):
+        for index in range(200):
+            fact = DEMO.facts[1].model_copy(update={"id": f"fact_vendor_delivery_extra_{index}"})
+            self.client.data[f"{self.project}/facts/{fact.id}"] = fact.model_dump(mode="json", by_alias=True)
+        first = self.run_assessment()
+        path = f"{self.project}/facts/{DEMO.facts[1].id}"
+        self.client.data[path]["value"]["value"] = "2026-10-25"
+        self.assertEqual(first, self.run_assessment())
+        self.assertNotEqual(first["runId"], self.run_assessment("d44e2c15-906c-482e-9fd3-b52dd72f6ee4")["runId"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -160,15 +160,17 @@ class FirestoreAssessmentStore:
             stored = prior_request.to_dict() or {} if prior_request.exists else {}
             if stored and stored.get("reason") != reason:
                 raise AssessmentConflict("This idempotency key was used for a different assessment.")
-            existing = await run_ref.get(transaction=tx)
+            recorded_ref = (project.collection("assessmentRuns").document(stored["runId"])
+                            if stored else run_ref)
+            existing = await recorded_ref.get(transaction=tx)
             if stored and not existing.exists:
                 raise AssessmentConflict("The recorded assessment run is missing.")
-            if stored and stored.get("runId") != run_id:
-                raise AssessmentConflict("Assessment inputs changed. Run the assessment again.")
             if existing.exists and (existing.to_dict() or {}).get("status") == "completed":
                 if not prior_request.exists:
                     tx.create(request_ref, {"runId": run_id, "reason": reason, "createdAt": datetime.now(timezone.utc)})
                 return existing.to_dict() or {}
+            if stored and stored.get("runId") != run_id:
+                raise AssessmentConflict("Assessment inputs changed. Run the assessment again.")
 
             decision_rows = await _read_collection(project.collection("decisions"), tx)
             assumption_rows = await _read_collection(project.collection("assumptions"), tx)
@@ -222,6 +224,16 @@ class FirestoreAssessmentStore:
             for index in range(len(chunks)):
                 if not (await markers.document(str(index)).get(transaction=tx)).exists:
                     raise AssessmentConflict("Assessment publication is incomplete. Retry this request.")
+            decision_rows = await _read_collection(project.collection("decisions"), tx)
+            assumption_rows = await _read_collection(project.collection("assumptions"), tx)
+            fact_rows = await _read_collection(project.collection("facts"), tx)
+            current_inputs = AssessmentInputs(
+                _decisions(decision_rows), _assumptions(assumption_rows),
+                tuple(Fact.model_validate(row) for row in fact_rows),
+                _entities(assumption_rows), (),
+            )
+            if not _same_inputs(current_inputs, inputs):
+                raise AssessmentConflict("Assessment inputs changed during publication. Run the assessment again.")
             final = {**response, "createdAt": (current.to_dict() or {}).get("createdAt")}
             tx.set(run_ref, final)
             return final
