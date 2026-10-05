@@ -1,6 +1,6 @@
 # KAN-26 demo rehearsal
 
-Prepared 5 October 2026 from the [MVP scope](https://geminimaxxing.atlassian.net/wiki/spaces/GeminiMaxx/pages/163960/MVP+Scope+Delivery+Plan+Backlog) and the vendor-delay fixture. Run the full rehearsal after KAN-8 and KAN-9/19 are merged. Record two consecutive complete runs before marking KAN-26 done.
+Prepared 5 October 2026 from the [MVP scope](https://geminimaxxing.atlassian.net/wiki/spaces/GeminiMaxx/pages/163960/MVP+Scope+Delivery+Plan+Backlog) and the vendor-delay fixture. KAN-9/19 merged on 6 October; run the full rehearsal after KAN-8 is wired and merged. Record two consecutive complete runs before marking KAN-26 done.
 
 ## Demo path
 
@@ -19,14 +19,14 @@ The MVP scope explicitly excludes Google Docs export and durable briefs. The cur
 
 | Run | Environment | Source and decision | Alert and graph | Review and recovery | Result |
 | --- | --- | --- | --- | --- | --- |
-| Preflight, 5 Oct | Local app with synthetic API | Sources showed two files once; Decisions showed three records and the quote-backed draft form | Review showed one cited alert and assessed coverage; graph remains on draft PR #13 | A saved Keep review and one audit entry were visible; job retry was checked separately on draft PR #12 | Partial: full path waits for draft PRs |
+| Preflight, 5 Oct | Local app with synthetic API | Sources showed two files once; Decisions showed three records and the quote-backed draft form | Review showed one cited alert and assessed coverage; graph was on draft PR #13 during this check and merged the next day | A saved Keep review and one audit entry were visible; job retry was checked separately on draft PR #12 | Partial: full path waits for KAN-8 |
 | Rehearsal 1 | Pending | Pending | Pending | Pending | Pending |
 | Rehearsal 2 | Pending | Pending | Pending | Pending | Pending |
 
 ## Open dependencies
 
 - KAN-8 draft PR #12 now merges cleanly with main, but its production refresh/analysis worker handlers still need wiring and delivery testing.
-- KAN-9/19 draft PR #13 now merges cleanly with main. The synthetic graph was clicked through, including downstream node selection; it still needs the integrated end-to-end pass after Steffy's wiring.
+- KAN-9/19 PR #13 is merged into main. The synthetic graph was clicked through, including downstream node selection; the complete live end-to-end pass is still pending.
 - The preflight above used a controlled local API. It does not establish a fresh cloud Drive, Vertex, Firestore, and Cloud Tasks end-to-end pass.
 - Before a final demo, verify keyboard focus, narrow-screen layout, source recovery, and the two full repeat runs.
 
