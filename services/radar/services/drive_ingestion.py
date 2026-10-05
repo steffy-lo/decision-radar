@@ -44,6 +44,7 @@ class RefreshResult:
     created: int
     updated: int
     unchanged: int
+    removed: int
     unsupported: tuple[str, ...]
 
 
@@ -56,6 +57,7 @@ class DriveGateway(Protocol):
 class SourceStore(Protocol):
     async def get(self, project_id: str, source_id: str) -> dict[str, Any] | None: ...
     async def put(self, project_id: str, source_id: str, record: dict[str, Any]) -> None: ...
+    async def list(self, project_id: str) -> list[dict[str, Any]]: ...
 
 
 def source_id(native_id: str) -> str:
@@ -78,11 +80,15 @@ class HttpDriveGateway:
             )
         except httpx.HTTPError as exc:
             raise DriveIngestionError("Google Drive could not be reached.") from exc
+        self._check_response(response)
+        return response
+
+    @staticmethod
+    def _check_response(response: httpx.Response) -> None:
         if response.status_code in (401, 403, 404):
             raise DriveIngestionError("The selected Drive folder or file is unavailable. Reconnect or check access.")
         if response.status_code >= 400:
             raise DriveIngestionError("Google Drive could not complete the folder refresh.")
-        return response
 
     @staticmethod
     def _file(value: dict[str, Any]) -> DriveFile:
@@ -123,15 +129,29 @@ class HttpDriveGateway:
         if not file.can_download:
             raise DriveIngestionError(f"Download is disabled for {file.name}.")
         if file.mime_type == DOC_MIME:
-            response = await self._get(f"{DRIVE_URL}/{file.id}/export", {"mimeType": "text/plain"})
+            url, params = f"{DRIVE_URL}/{file.id}/export", {"mimeType": "text/plain"}
         elif file.mime_type == TXT_MIME:
-            response = await self._get(f"{DRIVE_URL}/{file.id}", {"alt": "media"})
+            url, params = f"{DRIVE_URL}/{file.id}", {"alt": "media"}
         else:
             raise DriveIngestionError(f"Unsupported file type for {file.name}.")
-        if len(response.content) > MAX_TEXT_BYTES:
-            raise DriveIngestionError(f"{file.name} exceeds the text snapshot limit.")
+        content = bytearray()
         try:
-            return response.content.decode("utf-8-sig")
+            async with self._client.stream(
+                "GET", url, params=params,
+                headers={"Authorization": f"Bearer {self._token}"},
+            ) as response:
+                self._check_response(response)
+                size = response.headers.get("content-length")
+                if size and size.isdigit() and int(size) > MAX_TEXT_BYTES:
+                    raise DriveIngestionError(f"{file.name} exceeds the text snapshot limit.")
+                async for chunk in response.aiter_bytes(chunk_size=64 * 1024):
+                    if len(content) + len(chunk) > MAX_TEXT_BYTES:
+                        raise DriveIngestionError(f"{file.name} exceeds the text snapshot limit.")
+                    content.extend(chunk)
+        except httpx.HTTPError as exc:
+            raise DriveIngestionError("Google Drive could not be reached.") from exc
+        try:
+            return content.decode("utf-8-sig")
         except UnicodeDecodeError as exc:
             raise DriveIngestionError(f"{file.name} is not UTF-8 text.") from exc
 
@@ -174,8 +194,9 @@ class SourceService:
             raise DriveIngestionError("The selected folder exceeds the 100-file demo limit.")
         if len({row.id for row, _ in children}) != len(children):
             raise DriveIngestionError("Google Drive returned the same file twice.")
-        created = updated = unchanged = 0
+        created = updated = unchanged = removed = 0
         unsupported: list[str] = []
+        current_source_ids = {source_id(file.id) for file, _ in children if file.mime_type in SUPPORTED_MIME}
         for file, depth in children:
             if file.mime_type not in SUPPORTED_MIME:
                 unsupported.append(file.name)
@@ -204,4 +225,13 @@ class SourceService:
                 updated += 1
             else:
                 created += 1
-        return RefreshResult(len(children), created, updated, unchanged, tuple(unsupported))
+        for prior in await self.store.list(project_id):
+            if (prior.get("rootFolderId") != folder_id or prior.get("status") != "ready"
+                    or prior.get("id") in current_source_ids):
+                continue
+            await self.store.put(project_id, prior["id"], {
+                **prior, "status": "failed", "failureReason": "removed_from_folder",
+                "updatedAt": datetime.now(timezone.utc).isoformat(),
+            })
+            removed += 1
+        return RefreshResult(len(children), created, updated, unchanged, removed, tuple(unsupported))

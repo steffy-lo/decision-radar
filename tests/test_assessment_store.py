@@ -130,11 +130,16 @@ class AssessmentStoreTests(unittest.TestCase):
                 asyncio.run(run())
         self.assertFalse(any(f"{self.project}/assessmentRuns/" in path for path in self.client.data))
 
-    def test_confirmed_decision_metadata_and_changed_source(self):
-        decision = DEMO.decisions[0]
-        stored = self.client.data[f"{self.project}/decisions/{decision.id}"]
-        stored["version"] = 2
-        stored["pendingRationale"] = None
+    def test_decision_storage_metadata_does_not_break_assessment(self):
+        for path, row in self.client.data.items():
+            if f"{self.project}/decisions/" in path:
+                row["version"] = 2
+                row["pendingRationale"] = None
+        result = self.run_assessment()
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["alertCount"], 1)
+
+    def test_changed_source_excludes_stale_extracted_fact(self):
         fact = DEMO.facts[0]
         self.client.data[f"{self.project}/sources/{fact.source_id}"] = {
             "id": fact.source_id, "contentSnapshot": "new source text",
@@ -144,17 +149,15 @@ class AssessmentStoreTests(unittest.TestCase):
             "snapshotHash": sha256(b"old source text").hexdigest(),
         }
         inputs = asyncio.run(self.store.load(DEMO.project_id))
-        self.assertEqual(len(inputs.decisions), len(DEMO.decisions))
         self.assertNotIn(fact.id, {row.id for row in inputs.facts})
-
-    def test_decision_storage_metadata_does_not_break_assessment(self):
-        for path, row in self.client.data.items():
-            if f"{self.project}/decisions/" in path:
-                row["version"] = 2
-                row["pendingRationale"] = None
-        result = self.run_assessment()
-        self.assertEqual(result["status"], "completed")
-        self.assertEqual(result["alertCount"], 1)
+        self.client.data[f"{self.project}/sources/{fact.source_id}"] = {
+            "id": fact.source_id, "contentSnapshot": "old source text", "status": "error",
+        }
+        inputs = asyncio.run(self.store.load(DEMO.project_id))
+        self.assertNotIn(fact.id, {row.id for row in inputs.facts})
+        self.client.data[f"{self.project}/sources/{fact.source_id}"]["status"] = "ready"
+        inputs = asyncio.run(self.store.load(DEMO.project_id))
+        self.assertIn(fact.id, {row.id for row in inputs.facts})
 
     def test_large_assessment_publishes_in_resumable_chunks(self):
         for index in range(200):
@@ -195,6 +198,36 @@ class AssessmentStoreTests(unittest.TestCase):
         self.assertEqual(runs[0]["status"], "publishing")
         result = self.run_assessment()
         self.assertEqual((result["status"], result["alertCount"]), ("completed", 201))
+
+    def test_large_run_does_not_complete_after_decision_changes(self):
+        for index in range(200):
+            fact = DEMO.facts[1].model_copy(update={"id": f"fact_vendor_delivery_extra_{index}"})
+            self.client.data[f"{self.project}/facts/{fact.id}"] = fact.model_dump(mode="json", by_alias=True)
+
+        def retire_before_completion(fn):
+            async def run(tx):
+                if fn.__name__ == "complete":
+                    path = f"{self.project}/decisions/{DEMO.decisions[0].id}"
+                    self.client.data[path]["status"] = "retired"
+                return await fn(tx)
+            return run
+
+        with self.assertRaisesRegex(AssessmentConflict, "changed during publication"):
+            self.run_assessment(transactional=retire_before_completion)
+        runs = [row for path, row in self.client.data.items()
+                if f"{self.project}/assessmentRuns/" in path and "/batches/" not in path]
+        self.assertEqual(len(runs), 1)
+        self.assertEqual(runs[0]["status"], "publishing")
+
+    def test_completed_large_run_replays_after_inputs_change(self):
+        for index in range(200):
+            fact = DEMO.facts[1].model_copy(update={"id": f"fact_vendor_delivery_extra_{index}"})
+            self.client.data[f"{self.project}/facts/{fact.id}"] = fact.model_dump(mode="json", by_alias=True)
+        first = self.run_assessment()
+        path = f"{self.project}/facts/{DEMO.facts[1].id}"
+        self.client.data[path]["value"]["value"] = "2026-10-25"
+        self.assertEqual(first, self.run_assessment())
+        self.assertNotEqual(first["runId"], self.run_assessment("d44e2c15-906c-482e-9fd3-b52dd72f6ee4")["runId"])
 
 
 if __name__ == "__main__":

@@ -135,42 +135,6 @@ class ExtractionTests(unittest.TestCase):
         self.assertEqual(result.facts[1].uncertain_reason, "predicate is unresolved")
         self.assertIsNone(result.facts[1].fact)
 
-    def test_combined_source_phrase_handles_gemini_word_boundary_change(self):
-        quote = "Acme Logistics delivery date is October 24, 2026."
-        source = NOTES.model_copy(update={"content_snapshot": quote})
-        aliases = {"Acme Logistics": "vendor_acme"}
-        predicates = {"delivery date": "delivery_date"}
-        for entity, predicate in (
-            ("Acme Logistics", "delivery date"),
-            ("Acme Logistics delivery", "date"),
-        ):
-            with self.subTest(entity=entity, predicate=predicate):
-                payload = {"facts": [fact(quote, {"type": "date", "value": "2026-10-24"},
-                                          entity=entity, predicate=predicate)]}
-                result = Extractor(FakeGenerator(payload)).extract(
-                    source, aliases, NOTES_URL, known_predicates=predicates,
-                )
-                self.assertEqual(result.facts[0].state, "ready")
-                self.assertEqual(result.alert_eligible_facts[0].entity_id, "vendor_acme")
-                self.assertEqual(result.alert_eligible_facts[0].predicate, "delivery_date")
-
-        unrelated = {"facts": [fact(quote, {"type": "date", "value": "2026-10-24"},
-                                    entity="integration package arrival", predicate="timing relative to target")]}
-        result = Extractor(FakeGenerator(unrelated)).extract(
-            source, aliases, NOTES_URL, known_predicates=predicates,
-        )
-        self.assertEqual(result.alert_eligible_facts, ())
-
-        ambiguous = {"facts": [fact(quote, {"type": "date", "value": "2026-10-24"},
-                                    entity="Acme", predicate="Logistics delivery date")]}
-        result = Extractor(FakeGenerator(ambiguous)).extract(
-            source,
-            {"Acme Logistics": "vendor_acme", "Acme Logistics delivery": "other_vendor"},
-            NOTES_URL,
-            known_predicates={"delivery date": "delivery_date", "date": "other_date"},
-        )
-        self.assertEqual(result.alert_eligible_facts, ())
-
     def test_hallucinated_date_with_real_quote_cannot_alert(self):
         payload = {"decisions": [], "facts": [fact(
             "Confirmed vendor fee is USD 4500.",

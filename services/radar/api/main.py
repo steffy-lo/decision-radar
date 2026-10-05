@@ -32,10 +32,10 @@ app.include_router(health.router, tags=["Health"])
 # Prefix route for proxy matching /api/v1
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(projects.router, prefix="/api/v1")
-app.include_router(connections.router, prefix="/api/v1")
-app.include_router(sources.router, prefix="/api/v1")
 app.include_router(assessments.router, prefix="/api/v1")
 app.include_router(decisions.router, prefix="/api/v1")
+app.include_router(connections.router, prefix="/api/v1")
+app.include_router(sources.router, prefix="/api/v1")
 app.include_router(reviews.router, prefix="/api/v1")
 
 

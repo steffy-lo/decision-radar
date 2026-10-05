@@ -31,6 +31,7 @@ export interface SourceSummary {
   mime_type: string;
   native_url: string;
   status: string;
+  failure_reason: string | null;
 }
 
 export interface MonitoredAssumption {
@@ -188,6 +189,7 @@ export interface FolderRefreshResult {
   created: number;
   updated: number;
   unchanged: number;
+  removed: number;
   unsupported: string[];
 }
 

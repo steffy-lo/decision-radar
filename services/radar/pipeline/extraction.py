@@ -165,8 +165,8 @@ def _fact_ids(
         return entity_id, predicate_id
 
     # Gemini may split one exact source phrase at a different word boundary.
-    # Accept the combined wording only when it is in the quote and resolves to
-    # one trusted entity/predicate pair. Other paraphrases remain uncertain.
+    # Accept the combined wording only when it appears in the quote and has
+    # one trusted entity/predicate interpretation.
     def normalize(value: str) -> str:
         return " ".join(value.split()).casefold()
 
