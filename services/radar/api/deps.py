@@ -2,7 +2,8 @@
 
 from typing import Any, Callable, Optional
 
-from fastapi import Depends, Header, HTTPException, Path, status
+from fastapi import Depends, HTTPException, Path, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from firebase_admin import exceptions as firebase_exceptions
 
 from services.radar.adapters.firebase_auth import verify_id_token
@@ -10,6 +11,7 @@ from services.radar.adapters.firestore import get_firestore_client
 from services.radar.domain.models import AuthenticatedProjectMember, ProjectMember
 
 TokenVerifier = Callable[[str], dict[str, Any]]
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def unauthorized(detail: str = "A valid Firebase ID token is required.") -> HTTPException:
@@ -48,9 +50,11 @@ def authenticate_bearer(
 
 
 async def verify_firebase_token(
-    authorization: Optional[str] = Header(default=None),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
 ) -> dict[str, Any]:
     """FastAPI dependency that returns only verified Firebase claims."""
+    # Declaring HTTP Bearer lets the API's Swagger UI send Authorization too.
+    authorization = f"{credentials.scheme} {credentials.credentials}" if credentials else None
     return authenticate_bearer(authorization)
 
 

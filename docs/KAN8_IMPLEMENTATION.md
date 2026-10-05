@@ -1,8 +1,9 @@
 # KAN-8 job foundation
 
-This branch starts KAN-8 from current `main`. It does not stack on the open
-KAN-4, KAN-16, or KAN-17 branches. Their business handlers are not yet in
-`main`, so refresh/analysis job admission remains closed until integration.
+The KAN-8 branch now includes merged KAN-4, KAN-16, KAN-17, KAN-18/21 and
+KAN-9/19 changes. The refresh and assessment services are present, but their
+idempotent worker handlers and UI dispatch wiring are still pending. Normal
+refresh/analysis job admission remains closed until that integration passes.
 
 ## Implemented boundary
 
@@ -65,21 +66,20 @@ and [HTTP task handler documentation](https://docs.cloud.google.com/tasks/docs/c
 
 ## Dependency integration still required
 
-1. Merge KAN-4 and rebase/retest KAN-16 and KAN-17 on the resulting `main`.
-2. Register `refresh` and `analysis` handlers in `worker/handlers.py` in that
+1. Register `refresh` and `analysis` handlers in `worker/handlers.py` in the
    same implementation/test track. They receive the saved immutable `Job`.
-3. For a folder refresh, use one stable request version per user action and
+2. For a folder refresh, use one stable request version per user action and
    reuse it on repeat submission. Fetch Drive content at execution time and
    preserve KAN-4's native file IDs, modified versions and stable source IDs.
    A later refresh action uses a new request version so changed files are read.
-4. For analysis, use a fingerprint covering the source snapshots and confirmed
+3. For analysis, use a fingerprint covering the source snapshots and confirmed
    decision revisions. Load exactly that manifest or fail rather than silently
    analyze newer inputs. KAN-17 publication must keep stable finding/alert IDs
    and preserve existing human review dispositions.
-5. Route the existing KAN-4 refresh and KAN-17 assessment controls through this
+4. Route the existing KAN-4 refresh and KAN-17 assessment controls through this
    job service and display the returned status. The foundation adds no fake
    refresh or analysis button to the product.
-6. Run full UAT through the merged KAN-3 connection: root Doc, TXT, nested Doc,
+5. Run full UAT through the merged KAN-3 connection: root Doc, TXT, nested Doc,
    saved Meet transcript, changed-file refresh, duplicate submission, transient
    failure, exhausted retries and manual retry. Also test real Cloud Tasks OIDC
    delivery to the private worker, including an infrastructure failure that

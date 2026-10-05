@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { EvidenceReference } from "@/components/evidence-reference";
+import { ImpactGraph } from "@/components/graph/impact-graph";
 import { EmptyState, PageHeading, Panel, StatusPill } from "@/components/ui";
 import { isDemoProject, useProjectData } from "@/lib/demo/use-project-data";
 import { createWorkspaceView } from "@/lib/demo/workspace-view";
@@ -38,16 +39,19 @@ function FixtureSourcesWorkspace({ projectId }: { projectId: string }) {
   </>;
 }
 
-export function ReviewsWorkspace({ projectId }: { projectId: string }) {
-  return isDemoProject(projectId) ? <FixtureReviewsWorkspace projectId={projectId} /> : <LiveReviewsWorkspace projectId={projectId} />;
+export function ReviewsWorkspace({ projectId, alertId }: { projectId: string; alertId?: string }) {
+  return isDemoProject(projectId)
+    ? <FixtureReviewsWorkspace projectId={projectId} alertId={alertId} />
+    : <LiveReviewsWorkspace projectId={projectId} alertId={alertId} />;
 }
 
-function FixtureReviewsWorkspace({ projectId }: { projectId: string }) {
+function FixtureReviewsWorkspace({ projectId, alertId }: { projectId: string; alertId?: string }) {
   const { status, data, error, retry } = useProjectData(projectId);
   const workspace = useMemo(() => data ? createWorkspaceView(data) : null, [data]);
   const open = workspace?.openReviews ?? [];
   return <>
     <PageHeading eyebrow="REVIEW QUEUE" title="Reviews" description="Compare confirmed assumptions with new evidence before changing a decision." />
+    {alertId && <ImpactGraph key={`${projectId}/${alertId}`} projectId={projectId} alertId={alertId} />}
     {status === "loading" ? <EvidenceLoading /> : status === "error" ?
       <EmptyState title="Reviews could not be loaded" description={error ?? "Could not load project data."} action={<button className="button button--secondary" type="button" onClick={retry}>Try again</button>} /> : open.length === 0 ?
       data?.sources.some((source) => source.status !== "ready")
@@ -63,6 +67,7 @@ function FixtureReviewsWorkspace({ projectId }: { projectId: string }) {
             {[finding.baselineEvidence, finding.updateEvidence].map((evidence, index) => { const source = data?.sources.find((row) => row.id === evidence.sourceId); return <EvidenceReference key={`${alert.id}-${index}`} evidence={evidence} label={index === 0 ? "ORIGINAL ASSUMPTION" : "NEW EVIDENCE"} available={source?.status === "ready"} sourceType={source?.mimeType} locator={snapshotLocator(source, evidence)} />; })}
           </div>
           <div className="review-impact"><strong>Potential downstream impact</strong>{dependencies.map((item) => <p key={item.id}>{item.impactDescription}</p>)}</div>
+          <a className="text-link" href={`/projects/${encodeURIComponent(projectId)}/reviews?alertId=${encodeURIComponent(alert.id)}`}>View impact graph →</a>
           <p className="review-card__note">Review actions and revision history will be enabled when the review workflow is connected.</p>
         </Panel>)}</div>}
     <p className="page-footnote">Synthetic demo states: <a className="text-link" href={`/projects/${encodeURIComponent(projectId)}/reviews`}>Needs review</a> · <a className="text-link" href={`/projects/${encodeURIComponent(projectId)}/reviews?scenario=access-unavailable`}>Access unavailable</a> · <a className="text-link" href={`/projects/${encodeURIComponent(projectId)}/reviews?scenario=evidence-unclear`}>Evidence unclear</a> · <a className="text-link" href={`/projects/${encodeURIComponent(projectId)}/reviews?scenario=no-detected-issue`}>No detected issue</a></p>

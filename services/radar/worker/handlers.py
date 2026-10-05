@@ -9,6 +9,6 @@ from services.radar.services.jobs import JobHandler
 
 
 def get_job_handlers() -> dict[str, JobHandler]:
-    # Main does not yet contain source refresh or assessment services.
-    # Admission stays closed until those handlers are integrated and tested.
+    # Source refresh and assessment services are available on main.
+    # Admission stays closed until idempotent handlers are wired and tested.
     return {}
