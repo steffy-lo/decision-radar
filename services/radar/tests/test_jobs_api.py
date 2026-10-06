@@ -1,10 +1,9 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
 from services.radar.adapters.job_store import get_job_store
-from services.radar.adapters.assessment_store import AssessmentInputs
 from services.radar.api.deps import require_project_member
 from services.radar.api.main import app
 from services.radar.api.routes.jobs import get_job_service
@@ -38,12 +37,18 @@ class JobApiTests(unittest.TestCase):
         self.client, self.worker = TestClient(app), TestClient(worker)
         self.queue_patch = patch.object(settings, "CLOUD_TASKS_QUEUE", "radar-jobs")
         self.queue_patch.start()
+        self.refresh_version_patch = patch("services.radar.api.routes.jobs.current_refresh_version", new_callable=AsyncMock, return_value="v1")
+        self.analysis_version_patch = patch("services.radar.api.routes.jobs.current_analysis_version", new_callable=AsyncMock, return_value="v1")
+        self.refresh_version_patch.start()
+        self.analysis_version_patch.start()
         self.body = {"kind": "refresh", "target_id": "folder_a", "source_version": "v1"}
 
     def tearDown(self):
         app.dependency_overrides.clear()
         worker.dependency_overrides.clear()
         self.queue_patch.stop()
+        self.refresh_version_patch.stop()
+        self.analysis_version_patch.stop()
 
     def submit(self):
         return self.client.post("/api/v1/projects/project_a/jobs", json=self.body)
@@ -59,6 +64,7 @@ class JobApiTests(unittest.TestCase):
         self.role = "editor"
         self.assertEqual(self.submit().status_code, 403)
         self.body["kind"] = "analysis"
+        self.body["target_id"] = "assessment"
         response = self.submit()
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.headers["Cache-Control"], "private, no-store")
@@ -111,12 +117,8 @@ class JobApiTests(unittest.TestCase):
         self.assertIn("Cloud Tasks delivery is not configured", response.json()["detail"])
 
     def test_analysis_admission_uses_server_derived_manifest(self):
-        class EmptyAssessmentStore:
-            async def load(self, project_id):
-                return AssessmentInputs((), (), (), {}, ())
-
         self.role = "editor"
-        with patch("services.radar.api.routes.jobs.get_assessment_store", return_value=EmptyAssessmentStore()):
+        with patch("services.radar.api.routes.jobs.current_analysis_version", new_callable=AsyncMock, return_value="run_from_server"):
             first = self.client.post("/api/v1/projects/project_a/jobs/analysis")
             second = self.client.post("/api/v1/projects/project_a/jobs/analysis")
         self.assertEqual(first.status_code, 202)
@@ -124,6 +126,12 @@ class JobApiTests(unittest.TestCase):
         self.assertEqual(first.json()["request"]["target_id"], "assessment")
         self.assertTrue(first.json()["request"]["source_version"].startswith("run_"))
         self.assertEqual(len(self.queue.tasks), 1)
+
+    def test_generic_submission_rejects_stale_version(self):
+        self.body["source_version"] = "old_version"
+        response = self.submit()
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(len(self.queue.tasks), 0)
 
     def test_wrong_queue_is_rejected_and_worker_is_not_on_public_api(self):
         worker.dependency_overrides[require_task_identity] = lambda: None

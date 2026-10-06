@@ -7,16 +7,18 @@ import {
   disconnectDrive,
   getConnection,
   getCurrentProjectMembership,
+  getJob,
   reconnectDrive,
-  refreshDriveFolder,
+  retryJob,
+  submitRefreshJob,
 } from "@/lib/api/client";
-import type { Connection, FolderRefreshResult, ProjectMembership } from "@/lib/api/client";
+import type { BackgroundJob, Connection, ProjectMembership } from "@/lib/api/client";
 
 export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectId: string; onSourcesChanged?: () => void }) {
   const [membership, setMembership] = useState<ProjectMembership | null>(null);
   const [connection, setConnection] = useState<Connection | null>(null);
   const [folderId, setFolderId] = useState("");
-  const [refreshResult, setRefreshResult] = useState<FolderRefreshResult | null>(null);
+  const [refreshJob, setRefreshJob] = useState<BackgroundJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +56,20 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
     // Defer the request until after the effect commits to avoid a synchronous render cascade.
     void Promise.resolve().then(load);
   }, [load]);
+
+  useEffect(() => {
+    if (!refreshJob || !["queued", "running", "retrying"].includes(refreshJob.status)) return;
+    const timer = window.setInterval(() => {
+      void getJob(projectId, refreshJob.id).then(async (next) => {
+        setRefreshJob(next);
+        if (next.status === "completed") {
+          setConnection(await getConnection(projectId));
+          onSourcesChanged?.();
+        }
+      }).catch((value) => setError(value instanceof Error ? value.message : "Folder refresh status failed."));
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [refreshJob, projectId, onSourcesChanged]);
 
   const beginAuthorization = async (reconnect = false) => {
     setActionLoading(true);
@@ -106,12 +122,10 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
     }
     setActionLoading(true);
     setError(null);
-    setRefreshResult(null);
     try {
-      const result = await refreshDriveFolder(projectId, selected);
-      setRefreshResult(result);
-      setConnection(await getConnection(projectId));
-      onSourcesChanged?.();
+      const job = await submitRefreshJob(projectId, selected);
+      setRefreshJob(job);
+      if (job.status === "completed") onSourcesChanged?.();
     } catch (refreshError) {
       setError(refreshError instanceof Error ? refreshError.message : "Folder refresh failed.");
     } finally {
@@ -242,13 +256,9 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
               {actionLoading ? "Refreshing…" : "Refresh folder"}
             </button>
           </div>
-          {refreshResult && (
-            <p role="status" className="text-sm text-emerald-800">
-              Scanned {refreshResult.scanned} files: {refreshResult.created} new, {refreshResult.updated} updated, {refreshResult.unchanged} unchanged.
-              {refreshResult.removed > 0 && ` ${refreshResult.removed} removed from the folder.`}
-              {refreshResult.unsupported.length > 0 && ` Unsupported: ${refreshResult.unsupported.join(", ")}.`}
-            </p>
-          )}
+          {refreshJob && <p role="status" className="text-sm text-slate-700">Folder refresh: {refreshJob.status}.
+            {refreshJob.status === "failed" && <button className="button button--secondary" disabled={actionLoading} onClick={() => void retryJob(projectId, refreshJob).then(setRefreshJob).catch((value) => setError(value instanceof Error ? value.message : "Retry failed."))}>Retry refresh</button>}
+          </p>}
         </div>
       )}
     </section>

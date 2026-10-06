@@ -3,8 +3,9 @@
 The KAN-8 integration worktree includes merged KAN-4, KAN-16, KAN-17,
 KAN-18/21 and KAN-9/19 changes. Assessment jobs now derive an immutable
 manifest on the server, publish through the assessment store in the worker,
-and show status in Reviews. Refresh jobs remain closed until their Drive
-inputs can be frozen across retries. This branch is not ready to merge.
+and show status in Reviews. Refresh jobs derive a Drive metadata manifest at
+submission and check it again before writing in the worker. A changed folder
+fails the old job and needs a new submission. This branch is not ready to merge.
 
 ## Assessment integration check, 6 October 2026
 
@@ -13,7 +14,7 @@ inputs can be frozen across retries. This branch is not ready to merge.
 - The worker rejects a changed input manifest and reuses the completed
   assessment request receipt after a callback repeats. Publication preserves
   existing reviewed alerts through the assessment store.
-- 27 job service/API tests, web lint, TypeScript checking, and the production
+- 36 focused job/Drive tests, web lint, TypeScript checking, and the production
   Webpack build passed.
 - Against the synthetic Firestore emulator project, the handler produced two
   findings and two alerts. A second delivery left the run, request, finding,
@@ -22,6 +23,10 @@ inputs can be frozen across retries. This branch is not ready to merge.
   new synthetic sign-in lacks project membership, so the click path has not
   passed yet. Cloud Tasks OIDC, fresh Drive refresh, and deployed execution
   remain untested. Do not merge on these checks alone.
+- A queued refresh manifest is stable across duplicate execution and rejects a
+  modified Drive listing before writing. The direct Drive refresh endpoint is
+  still present for compatibility; the Sources button now submits a job. The
+  actual Google OAuth/Drive/Cloud Tasks path has not yet passed UAT.
 
 ## Implemented boundary
 

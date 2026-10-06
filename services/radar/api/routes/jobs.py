@@ -3,16 +3,22 @@
 from datetime import datetime, timezone
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Path
+from pydantic import BaseModel, Field
 
 from services.radar.adapters.cloud_tasks import get_task_queue, TaskConfigurationError
 from services.radar.adapters.assessment_store import get_assessment_store
 from services.radar.adapters.job_store import get_job_store
+from services.radar.adapters.firestore import get_firestore_client
+from services.radar.adapters.source_store import get_source_store
 from services.radar.api.deps import require_project_member
+from services.radar.api.routes.connections import get_connection_service
 from services.radar.domain.jobs import Job, JobRequest, RetryJobRequest
 from services.radar.domain.assessment import AssessmentService
 from services.radar.domain.models import AuthenticatedProjectMember
 from services.radar.services.jobs import JobConflict, JobService
+from services.radar.services.drive_ingestion import DriveIngestionError, HttpDriveGateway, SourceService
 from services.radar.worker.handlers import get_job_handlers
 
 router = APIRouter(prefix="/projects/{project_id}/jobs", tags=["Jobs"])
@@ -34,6 +40,44 @@ def authorize_work(member: AuthenticatedProjectMember, kind: str) -> None:
         raise HTTPException(status_code=403, detail="Only admins can refresh folders; editors can run analysis.")
 
 
+class FolderJobRequest(BaseModel):
+    folder_id: str = Field(min_length=1, max_length=256, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+async def current_refresh_version(project_id: str, folder_id: str) -> str:
+    connection = get_connection_service(get_firestore_client())
+    token = await connection.get_access_token(project_id)
+    async with httpx.AsyncClient(timeout=30) as client:
+        source = SourceService(HttpDriveGateway(token.token, client), get_source_store())
+        try:
+            return await source.manifest(folder_id)
+        except DriveIngestionError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+async def current_analysis_version(project_id: str) -> str:
+    inputs = await get_assessment_store().load(project_id)
+    result = AssessmentService().assess(
+        project_id, inputs.decisions, inputs.assumptions, inputs.facts,
+        inputs.assumption_entities, observed_at=datetime.now(timezone.utc),
+        prior_alerts=inputs.prior_alerts,
+    )
+    return result.manifest.fingerprint
+
+
+@router.post("/refresh", response_model=Job, status_code=202)
+async def submit_refresh(
+    project_id: str, body: FolderJobRequest,
+    member: AuthenticatedProjectMember = Depends(require_project_member),
+    service: JobService = Depends(get_job_service),
+) -> Job:
+    authorize_work(member, "refresh")
+    version = await current_refresh_version(project_id, body.folder_id)
+    return await service.submit(project_id, JobRequest(
+        kind="refresh", target_id=body.folder_id, source_version=version,
+    ))
+
+
 @router.post("/analysis", response_model=Job, status_code=202)
 async def submit_analysis(
     project_id: str,
@@ -42,14 +86,8 @@ async def submit_analysis(
 ) -> Job:
     """Derive the immutable version on the server before admitting analysis."""
     authorize_work(member, "analysis")
-    inputs = await get_assessment_store().load(project_id)
-    result = AssessmentService().assess(
-        project_id, inputs.decisions, inputs.assumptions, inputs.facts,
-        inputs.assumption_entities, observed_at=datetime.now(timezone.utc),
-        prior_alerts=inputs.prior_alerts,
-    )
     return await service.submit(project_id, JobRequest(
-        kind="analysis", target_id="assessment", source_version=result.manifest.fingerprint,
+        kind="analysis", target_id="assessment", source_version=await current_analysis_version(project_id),
     ))
 
 
@@ -86,6 +124,10 @@ async def submit_job(
     service: JobService = Depends(get_job_service),
 ) -> Job:
     authorize_work(member, body.kind)
+    expected = (await current_refresh_version(project_id, body.target_id) if body.kind == "refresh"
+                else await current_analysis_version(project_id))
+    if body.source_version != expected or (body.kind == "analysis" and body.target_id != "assessment"):
+        raise HTTPException(status_code=409, detail="Job inputs changed. Submit the current refresh or analysis request.")
     try:
         return await service.submit(project_id, body)
     except JobConflict as exc:

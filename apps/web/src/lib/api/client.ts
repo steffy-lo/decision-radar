@@ -251,6 +251,13 @@ export async function submitAnalysisJob(projectId: string): Promise<BackgroundJo
   ));
 }
 
+export async function submitRefreshJob(projectId: string, folderId: string): Promise<BackgroundJob> {
+  return jobResponse(await fetchPrivateApi(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/jobs/refresh`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folder_id: folderId }) },
+  ));
+}
+
 export async function retryJob(projectId: string, job: BackgroundJob): Promise<BackgroundJob> {
   return jobResponse(await fetchPrivateApi(
     `/api/v1/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(job.id)}/retry`,

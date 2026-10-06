@@ -50,6 +50,20 @@ class FakeStore:
 
 
 class DriveIngestionTests(unittest.TestCase):
+    def test_queued_manifest_rejects_changed_folder_before_writing(self):
+        drive, store = FakeDrive(), FakeStore()
+        service = SourceService(drive, store)
+        version = asyncio.run(service.manifest("root"))
+        first = asyncio.run(service.refresh("proj_demo", "root", expected_manifest=version))
+        self.assertEqual(first.created, 3)
+        again = asyncio.run(service.refresh("proj_demo", "root", expected_manifest=version))
+        self.assertEqual(again.unchanged, 3)
+        drive.pages[("root", None)] = DrivePage((file("doc", modified="2026-09-29T00:00:00Z"),), None)
+        before = dict(store.rows)
+        with self.assertRaisesRegex(DriveIngestionError, "changed after this refresh was queued"):
+            asyncio.run(service.refresh("proj_demo", "root", expected_manifest=version))
+        self.assertEqual(store.rows, before)
+
     def test_refresh_reads_one_nested_level_and_reuses_changed_source_id(self):
         drive, store = FakeDrive(), FakeStore()
         service = SourceService(drive, store)
