@@ -20,13 +20,14 @@ The MVP scope explicitly excludes Google Docs export and durable briefs. The cur
 | Run | Environment | Source and decision | Alert and graph | Review and recovery | Result |
 | --- | --- | --- | --- | --- | --- |
 | Preflight, 5 Oct | Local app with synthetic API | Sources showed two files once; Decisions showed three records and the quote-backed draft form | Review showed one cited alert and assessed coverage; graph was on draft PR #13 during this check and merged the next day | A saved Keep review and one audit entry were visible; job retry was checked separately on draft PR #12 | Partial: full path waits for KAN-8 |
+| Graph integration, 6 Oct | Merged app on localhost:3012, merged API on 127.0.0.1:8012, Firebase Auth and Firestore emulators | Signed in through Firebase Auth emulator to the project from the earlier real Drive and Vertex run. The saved nested Google Doc fact moved the delivery date from 15 to 24 October. Added two synthetic downstream decisions and dependencies in the emulator through the normal impact store. | Clicked Run assessment twice. Both runs showed two findings, two alerts, and assessed coverage with stable alert IDs. Opened the new nested-Doc alert graph and clicked the final downstream node; the four-step ordered path and dependency rationales appeared, with direct evidence restricted to the trigger. | Saved Request clarification on the nested-Doc alert and verified one audit entry with the rationale and unchanged decision revision. Job delivery, fresh Drive refresh, and a new Vertex extraction were not part of this pass. | Graph, assessment, and review API/UI path passed after PR #13 merged. This is not a complete KAN-26 rehearsal. |
 | Rehearsal 1 | Pending | Pending | Pending | Pending | Pending |
 | Rehearsal 2 | Pending | Pending | Pending | Pending | Pending |
 
 ## Open dependencies
 
 - KAN-8 draft PR #12 now merges cleanly with main, but its production refresh/analysis worker handlers still need wiring and delivery testing.
-- KAN-9/19 PR #13 is merged into main. The synthetic graph was clicked through, including downstream node selection; the complete live end-to-end pass is still pending.
+- KAN-9/19 PR #13 is merged into main. The 6 October pass verified the graph from the current assessment of a saved fact produced by an earlier real Drive and Vertex run, through the authenticated API and Firestore emulator to the browser. A fresh Drive refresh and deployed cloud pass remain pending.
 - The preflight above used a controlled local API. It does not establish a fresh cloud Drive, Vertex, Firestore, and Cloud Tasks end-to-end pass.
 - Before a final demo, verify keyboard focus, narrow-screen layout, source recovery, and the two full repeat runs.
 

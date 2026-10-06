@@ -3,6 +3,7 @@
 - Before pushing any change, create and work on a dedicated branch or worktree. Never push project changes directly from `main`.
 - Draft commit messages and Jira wording in a direct, practical voice. State what changed or what needs doing in plain language, keep technical details exact, and avoid promotional wording. Jira titles, descriptions, comments, and written status updates follow this rule.
 - After every feature implementation, run hands-on UAT in the actual app: click through the changed flow, inspect the rendered result, and report what passed, failed, or could not be tested. Automated tests alone do not satisfy this check. If a feature has no user-facing UI yet, state that limit and test the nearest available integration path.
+- Before merging a feature PR, test its full path in the running app against the real service and resulting data. Include relevant failure and retry states. Unit tests and fixture-only UAT support this check but do not replace it. Record the environment and limits in the PR, leave the PR open if the full path cannot be verified, and rerun the integrated flow after dependency merges.
 - Keep credentials out of this repository and its documentation. Use GitHub's normal sign-in flow for account authorization.
 
 ## Current delivery sequence
