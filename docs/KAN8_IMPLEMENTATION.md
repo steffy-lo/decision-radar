@@ -1,9 +1,27 @@
 # KAN-8 job foundation
 
-The KAN-8 branch now includes merged KAN-4, KAN-16, KAN-17, KAN-18/21 and
-KAN-9/19 changes. The refresh and assessment services are present, but their
-idempotent worker handlers and UI dispatch wiring are still pending. Normal
-refresh/analysis job admission remains closed until that integration passes.
+The KAN-8 integration worktree includes merged KAN-4, KAN-16, KAN-17,
+KAN-18/21 and KAN-9/19 changes. Assessment jobs now derive an immutable
+manifest on the server, publish through the assessment store in the worker,
+and show status in Reviews. Refresh jobs remain closed until their Drive
+inputs can be frozen across retries. This branch is not ready to merge.
+
+## Assessment integration check, 6 October 2026
+
+- The Reviews button submits `POST /jobs/analysis`; the API derives the
+  assessment fingerprint rather than accepting one from the browser.
+- The worker rejects a changed input manifest and reuses the completed
+  assessment request receipt after a callback repeats. Publication preserves
+  existing reviewed alerts through the assessment store.
+- 27 job service/API tests, web lint, TypeScript checking, and the production
+  Webpack build passed.
+- Against the synthetic Firestore emulator project, the handler produced two
+  findings and two alerts. A second delivery left the run, request, finding,
+  alert, and review counts unchanged. A stale manifest failed before writing.
+- Browser UAT was opened on port 3015 with a controlled local task queue. The
+  new synthetic sign-in lacks project membership, so the click path has not
+  passed yet. Cloud Tasks OIDC, fresh Drive refresh, and deployed execution
+  remain untested. Do not merge on these checks alone.
 
 ## Implemented boundary
 

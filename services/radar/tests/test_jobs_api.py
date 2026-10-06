@@ -4,6 +4,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from services.radar.adapters.job_store import get_job_store
+from services.radar.adapters.assessment_store import AssessmentInputs
 from services.radar.api.deps import require_project_member
 from services.radar.api.main import app
 from services.radar.api.routes.jobs import get_job_service
@@ -103,11 +104,26 @@ class JobApiTests(unittest.TestCase):
         self.assertEqual(self.submit().status_code, 409)
         self.assertEqual(len(self.queue.tasks), 0)
 
-    def test_default_handler_boundary_is_closed_without_cloud_configuration(self):
+    def test_default_service_requires_cloud_configuration(self):
         app.dependency_overrides.pop(get_job_service)
         response = self.submit()
-        self.assertEqual(response.status_code, 409)
-        self.assertIn("awaiting source and assessment integration", response.json()["detail"])
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("Cloud Tasks delivery is not configured", response.json()["detail"])
+
+    def test_analysis_admission_uses_server_derived_manifest(self):
+        class EmptyAssessmentStore:
+            async def load(self, project_id):
+                return AssessmentInputs((), (), (), {}, ())
+
+        self.role = "editor"
+        with patch("services.radar.api.routes.jobs.get_assessment_store", return_value=EmptyAssessmentStore()):
+            first = self.client.post("/api/v1/projects/project_a/jobs/analysis")
+            second = self.client.post("/api/v1/projects/project_a/jobs/analysis")
+        self.assertEqual(first.status_code, 202)
+        self.assertEqual(first.json()["id"], second.json()["id"])
+        self.assertEqual(first.json()["request"]["target_id"], "assessment")
+        self.assertTrue(first.json()["request"]["source_version"].startswith("run_"))
+        self.assertEqual(len(self.queue.tasks), 1)
 
     def test_wrong_queue_is_rejected_and_worker_is_not_on_public_api(self):
         worker.dependency_overrides[require_task_identity] = lambda: None

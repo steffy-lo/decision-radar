@@ -245,6 +245,12 @@ export async function getJob(projectId: string, jobId: string): Promise<Backgrou
   return jobResponse(await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`));
 }
 
+export async function submitAnalysisJob(projectId: string): Promise<BackgroundJob> {
+  return jobResponse(await fetchPrivateApi(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/jobs/analysis`, { method: "POST" },
+  ));
+}
+
 export async function retryJob(projectId: string, job: BackgroundJob): Promise<BackgroundJob> {
   return jobResponse(await fetchPrivateApi(
     `/api/v1/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(job.id)}/retry`,

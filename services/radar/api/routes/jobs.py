@@ -1,13 +1,16 @@
 """Project-authorized job status and generation-safe manual retry."""
 
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path
 
 from services.radar.adapters.cloud_tasks import get_task_queue, TaskConfigurationError
+from services.radar.adapters.assessment_store import get_assessment_store
 from services.radar.adapters.job_store import get_job_store
 from services.radar.api.deps import require_project_member
 from services.radar.domain.jobs import Job, JobRequest, RetryJobRequest
+from services.radar.domain.assessment import AssessmentService
 from services.radar.domain.models import AuthenticatedProjectMember
 from services.radar.services.jobs import JobConflict, JobService
 from services.radar.worker.handlers import get_job_handlers
@@ -29,6 +32,25 @@ def get_job_service() -> JobService:
 def authorize_work(member: AuthenticatedProjectMember, kind: str) -> None:
     if member.role == "viewer" or (kind == "refresh" and member.role != "admin"):
         raise HTTPException(status_code=403, detail="Only admins can refresh folders; editors can run analysis.")
+
+
+@router.post("/analysis", response_model=Job, status_code=202)
+async def submit_analysis(
+    project_id: str,
+    member: AuthenticatedProjectMember = Depends(require_project_member),
+    service: JobService = Depends(get_job_service),
+) -> Job:
+    """Derive the immutable version on the server before admitting analysis."""
+    authorize_work(member, "analysis")
+    inputs = await get_assessment_store().load(project_id)
+    result = AssessmentService().assess(
+        project_id, inputs.decisions, inputs.assumptions, inputs.facts,
+        inputs.assumption_entities, observed_at=datetime.now(timezone.utc),
+        prior_alerts=inputs.prior_alerts,
+    )
+    return await service.submit(project_id, JobRequest(
+        kind="analysis", target_id="assessment", source_version=result.manifest.fingerprint,
+    ))
 
 
 @router.get("", response_model=list[Job])
