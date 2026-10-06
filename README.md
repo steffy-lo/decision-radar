@@ -111,6 +111,9 @@ npm run dev:api
 npm run dev:worker
 ```
 
+For Cloud Run deployments that follow GitHub commits, use the root
+`Dockerfile.worker` and the [continuous deployment setup](docs/CLOUD_RUN_WORKER.md).
+
 #### Start Next.js Web Application
 ```bash
 npm run dev:web

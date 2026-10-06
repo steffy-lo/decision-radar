@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+.job-status-panel { margin-bottom: 24px; padding: 24px; }
+.job-status-panel h2 { margin: 5px 0 0; font-size: 17px; letter-spacing: -.3px; font-weight: 650; }
+.job-status-panel p { margin: 8px 0; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.job-status-panel__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.job-status-panel__list { list-style: none; margin: 18px 0 0; padding: 0; }
+.job-status-panel__list:empty { margin: 0; }
+.job-status-panel__list li { padding: 18px 0; border-top: 1px solid var(--line); }
+.job-status-panel__list li:last-child { padding-bottom: 0; }
+.job-status-panel__list strong { font-size: 13px; }
+.job-status-panel p.job-status-panel__error { color: #b13e49; }
+
 :root {
   --canvas: #f7f8fc;
   --panel: #ffffff;
