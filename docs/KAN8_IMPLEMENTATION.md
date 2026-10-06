@@ -31,6 +31,9 @@ fails the old job and needs a new submission. This branch is not ready to merge.
   still displays as active, but this isolated API process has no OAuth client
   configuration. Real Drive refresh, Cloud Tasks OIDC, and deployed execution
   remain untested. Do not merge on these checks alone.
+- A read-only cloud check found `radar-jobs` in `asia-southeast1`. Cloud Run in
+  that region currently lists the staging API but no worker service, so the
+  real queue-to-worker path is not available yet.
 - A queued refresh manifest is stable across duplicate execution and rejects a
   modified Drive listing before writing. The direct Drive refresh endpoint is
   still present for compatibility; the Sources button now submits a job. The
