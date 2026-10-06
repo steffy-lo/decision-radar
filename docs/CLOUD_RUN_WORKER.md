@@ -42,7 +42,8 @@ Cloud Run environment variables or IAM settings.
    | Variable | Value |
    |---|---|
    | `FIREBASE_PROJECT_ID` | Actual Google Cloud/Firebase project ID |
-   | `FIRESTORE_DATABASE_ID` | `(default)` |
+   | `FIRESTORE_DATABASE_ID` | `decision-radar` for `geminimaxxing-509705` |
+   | `GOOGLE_SECRET_MANAGER_PROJECT_ID` | Project holding the Drive connection secret, if different from `FIREBASE_PROJECT_ID` |
    | `CLOUD_TASKS_LOCATION` | `asia-southeast1`, matching the queue |
    | `CLOUD_TASKS_QUEUE` | `radar-jobs` |
    | `TASK_SERVICE_ACCOUNT_EMAIL` | Delivery account email |
@@ -67,7 +68,8 @@ unfinished job becomes failed on the next status read after its task is removed.
 
 For a development service that follows the current KAN-8 branch, use a separate
 service such as `radar-worker-dev` and branch expression
-`^codex/kan8-idempotent-jobs$`. Only pushed commits will trigger deployment.
+`^codex/kan8-integrated-uat$` once that integration branch is pushed. Only
+pushed commits will trigger deployment.
 Use a separate test queue and point its API configuration to the development
 service. The GitHub connection and build trigger are configured in Google
 Cloud; adding the Dockerfile alone does not activate deployment.
@@ -79,10 +81,9 @@ build history and the Cloud Run revision details. Match the source commit to
 the GitHub commit and confirm the new revision is Ready and receives traffic.
 In worker logs, verify it starts listening on port 8080. Full job UAT also needs
 real Cloud Tasks OIDC delivery and the integrated KAN-4/KAN-17 handlers.
-
-The KAN-8 foundation currently leaves those business handlers unregistered.
-Deploying it can establish the authenticated worker endpoint, but real job
-execution still returns the integration guard until those handlers are ready.
+The integrated KAN-8 branch registers refresh and analysis handlers, but their
+real Cloud Tasks delivery has not passed UAT. The worker runtime identity also
+needs read access to the saved Drive token in Secret Manager.
 
 The container image has not been built locally because the Docker engine is
 not running. Worker startup and unauthenticated HTTP rejection were verified
