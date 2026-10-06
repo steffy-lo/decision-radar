@@ -19,9 +19,17 @@ fails the old job and needs a new submission. This branch is not ready to merge.
 - Against the synthetic Firestore emulator project, the handler produced two
   findings and two alerts. A second delivery left the run, request, finding,
   alert, and review counts unchanged. A stale manifest failed before writing.
-- Browser UAT was opened on port 3015 with a controlled local task queue. The
-  new synthetic sign-in lacks project membership, so the click path has not
-  passed yet. Cloud Tasks OIDC, fresh Drive refresh, and deployed execution
+- Browser UAT on port 3015 used the real app, Auth and Firestore emulators, and
+  a controlled local task queue. After Mike approved adding the synthetic
+  account to the synthetic project, clicking Run assessment changed the job
+  from queued to completed. Reviews displayed two findings and two alerts;
+  Sources displayed the completed Evidence analysis receipt. Clicking Run
+  assessment again reused the same completed job (one job record, generation
+  one) without adding another run. The existing review audit entry remained.
+- Clicking Refresh folder reached the configured connection check and showed
+  `Google Drive connection is not configured.` The saved project connection
+  still displays as active, but this isolated API process has no OAuth client
+  configuration. Real Drive refresh, Cloud Tasks OIDC, and deployed execution
   remain untested. Do not merge on these checks alone.
 - A queued refresh manifest is stable across duplicate execution and rejects a
   modified Drive listing before writing. The direct Drive refresh endpoint is
