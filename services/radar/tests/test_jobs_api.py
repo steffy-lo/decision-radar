@@ -1,3 +1,4 @@
+import asyncio
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -115,6 +116,18 @@ class JobApiTests(unittest.TestCase):
         response = self.submit()
         self.assertEqual(response.status_code, 503)
         self.assertIn("Cloud Tasks delivery is not configured", response.json()["detail"])
+
+    def test_default_service_creates_async_queue_on_the_request_loop(self):
+        app.dependency_overrides.pop(get_job_service)
+
+        def queue_on_request_loop():
+            asyncio.get_running_loop()
+            return self.queue
+
+        with patch("services.radar.api.routes.jobs.get_task_queue", side_effect=queue_on_request_loop), \
+             patch("services.radar.api.routes.jobs.get_job_store", return_value=self.store):
+            response = self.submit()
+        self.assertEqual(response.status_code, 202)
 
     def test_analysis_admission_uses_server_derived_manifest(self):
         self.role = "editor"

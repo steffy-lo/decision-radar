@@ -24,7 +24,7 @@ from services.radar.worker.handlers import get_job_handlers
 router = APIRouter(prefix="/projects/{project_id}/jobs", tags=["Jobs"])
 
 
-def get_job_service() -> JobService:
+async def get_job_service() -> JobService:
     handlers = get_job_handlers()
     if not handlers:
         raise HTTPException(status_code=409, detail="Background work is awaiting source and assessment integration.")
