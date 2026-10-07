@@ -83,7 +83,7 @@ append a retry generation. Completed receipts record the task name and source
 version. A repeat submission returns the same receipt; manual retry keeps the
 same immutable input and publication identity with a new delivery name.
 
-Cloud Tasks owns the retry policy. The configured queue allows 100 total
+Cloud Tasks owns the retry policy. The configured queue allows three total
 attempts, including the initial delivery; the application imposes no separate
 attempt cap. The worker records `retrying` and returns 503 on handler failure.
 Once Cloud Tasks removes an unfinished task after exhausting delivery, the
@@ -104,7 +104,7 @@ Provision the queue separately; API startup does not change cloud infrastructure
 ```sh
 gcloud tasks queues create radar-jobs \
   --location=REGION --project=PROJECT_ID \
-  --max-attempts=100 --max-retry-duration=0s \
+  --max-attempts=3 --max-retry-duration=0s \
   --min-backoff=10s --max-backoff=300s --max-doublings=3
 ```
 
@@ -195,6 +195,9 @@ extraction and paid labeling were not run.
 
 ## Queue-controlled retry verification on 3 October 2026
 
+- This earlier controlled check used a 100-attempt queue. Jira now requires
+  three attempts; the live dev queue was updated on 8 October 2026. The new
+  real-queue exhaustion and browser retry result is recorded below.
 - Removed the queue-policy rejection and the worker's three-attempt limit.
   Cloud Tasks now controls delivery exhaustion. Attempt counts remain in the
   job receipt for diagnostics and are hidden from the Sources UI.
@@ -212,3 +215,25 @@ extraction and paid labeling were not run.
 - Follow-up UI check: removed the attempt count from Sources. Opened the actual
   page and clicked Refresh status; the completed job remained visible without
   an attempt count. Component lint passed. Cloud Tasks still controls retries.
+
+## Real three-attempt exhaustion and manual retry, 8 October 2026
+
+- Changed the `radar-jobs` queue in `geminimaxxing-509705` to three total
+  attempts, 10-second minimum backoff, five-minute maximum backoff and three
+  max doublings. Readback confirmed those values.
+- Seeded only the synthetic project `proj_kan8_retry_cloud_20261008` from the
+  vendor-delay fixture. Added a temporary fact after saving a job's original
+  assessment manifest, then sent that job through the real Cloud Tasks queue
+  to the private Cloud Run worker. The changed manifest made all three
+  deliveries fail. Cloud Tasks removed the task; the job detail read recorded
+  `failed`, three attempts and `delivery_exhausted`.
+- In the running Sources page, the job showed Failed and a clear Retry work
+  control. Removed the temporary fact so the immutable manifest matched,
+  clicked Retry work, and saw Completed. Reviews showed two findings and one
+  alert. Cloud Firestore held one job at generation two, one assessment
+  request, one completed run, two findings and one alert. The retry completed
+  in one attempt without duplicate publication.
+- This test used a synthetic Firestore project and Auth emulator with the real
+  queue, private worker and named Firestore database. A live Drive folder
+  refresh, Gemini extraction, and production Firebase sign-in still require
+  their own end-to-end pass before this PR can merge.
