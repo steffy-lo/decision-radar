@@ -272,7 +272,11 @@ export async function disconnectDrive(projectId: string): Promise<void> {
   const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/connections/google-drive`, {
     method: "DELETE",
   });
-  if (!response.ok) throw new Error(`Drive disconnect failed with status ${response.status}.`);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    const detail = payload && typeof payload.detail === "string" ? payload.detail : null;
+    throw new Error(detail ?? `Drive disconnect failed with status ${response.status}.`);
+  }
 }
 
 export async function checkBackendHealth(): Promise<HealthResponse> {
