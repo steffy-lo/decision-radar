@@ -48,6 +48,14 @@ fails the old job and needs a new submission. This branch is not ready to merge.
   the request left one job, one request, one run, two findings and one alert.
   This verifies real queue, OIDC, worker and Firestore delivery, but it does
   not replace a browser run through real Drive refresh and Gemini extraction.
+- A further browser pass on port 3017 used synthetic Firebase Auth and a local
+  API proxy connected to the real queue, private worker, and named cloud
+  Firestore database. Clicking Run assessment showed running then completed;
+  Reviews displayed two findings and one alert with evidence, and Sources
+  displayed the completed background job. A second click reused the same
+  receipt. The project data was a separate synthetic vendor-delay fixture.
+  The browser-to-cloud assessment path passed; live Firebase sign-in, Drive
+  OAuth, folder refresh, Gemini extraction, and deployed API/web remain open.
 - A queued refresh manifest is stable across duplicate execution and rejects a
   modified Drive listing before writing. The direct Drive refresh endpoint is
   still present for compatibility; the Sources button now submits a job. The
