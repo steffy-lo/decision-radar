@@ -31,9 +31,23 @@ fails the old job and needs a new submission. This branch is not ready to merge.
   still displays as active, but this isolated API process has no OAuth client
   configuration. Real Drive refresh, Cloud Tasks OIDC, and deployed execution
   remain untested. Do not merge on these checks alone.
-- A read-only cloud check found `radar-jobs` in `asia-southeast1`. Cloud Run in
-  that region currently lists the staging API but no worker service, so the
-  real queue-to-worker path is not available yet.
+- The `radar-jobs` queue exists in `asia-southeast1`. On 7 October, I deployed
+  a private `radar-worker-dev` Cloud Run service from this branch, capped at one
+  instance. The task delivery account has Invoker on that service; the API
+  runtime account has queue-scoped enqueue/read rights and `actAs` on the task
+  delivery account. An unauthenticated worker request returned HTTP 403.
+- The first real Cloud Tasks delivery exposed a worker failure: FastAPI ran
+  the synchronous `get_job_service` dependency in a thread, where the async
+  gRPC task client had no event loop. After making that dependency async and
+  redeploying, a forced retry completed the same job on attempt 13. The named
+  Firestore database held one job, one assessment request and one completed
+  run. Repeating the submission reused that receipt.
+- A second cloud run used a separate synthetic project populated from the
+  vendor-delay fixture. The worker completed on its first delivery and saved
+  two findings and one alert, matching the local assessment result. Repeating
+  the request left one job, one request, one run, two findings and one alert.
+  This verifies real queue, OIDC, worker and Firestore delivery, but it does
+  not replace a browser run through real Drive refresh and Gemini extraction.
 - A queued refresh manifest is stable across duplicate execution and rejects a
   modified Drive listing before writing. The direct Drive refresh endpoint is
   still present for compatibility; the Sources button now submits a job. The

@@ -85,9 +85,11 @@ The integrated KAN-8 branch registers refresh and analysis handlers, but their
 real Cloud Tasks delivery has not passed UAT. The worker runtime identity also
 needs read access to the saved Drive token in Secret Manager.
 
-The container image has not been built locally because the Docker engine is
-not running. Worker startup and unauthenticated HTTP rejection were verified
-against the prepared service source with Python 3.12. The GitHub connection,
-Cloud Build trigger, container build, and Cloud Run deployment remain untested.
+The image was built from an isolated source bundle through Cloud Build on
+7 October 2026 and deployed as the private `radar-worker-dev` service. The
+unauthenticated endpoint returned HTTP 403. A synthetic Cloud Tasks delivery
+completed after the async dependency fix, including a nonempty assessment
+that published two findings and one alert to named Firestore. Continuous
+GitHub deployment and the real Drive/Gemini browser flow remain untested.
 
 Reference: [Google's continuous deployment setup](https://docs.cloud.google.com/run/docs/continuous-deployment).
