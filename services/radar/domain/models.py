@@ -43,6 +43,7 @@ class Connection(BaseModel):
     status: ConnectionStatus
     secret_name: Optional[str] = None
     account_email: Optional[str] = None
+    selected_folder_id: Optional[str] = None
     error_code: Optional[str] = None
     connected_by_uid: Optional[str] = None
     authorization_pending: bool = False
@@ -57,6 +58,7 @@ class ConnectionStatusResponse(BaseModel):
     project_id: str
     status: ConnectionStatus
     account_email: Optional[str] = None
+    selected_folder_id: Optional[str] = None
     error_code: Optional[str] = None
     authorization_pending: bool = False
     updated_at: Optional[datetime] = None
@@ -76,11 +78,14 @@ class AuthorizeConnectionResponse(BaseModel):
 class AccessToken(BaseModel):
     token: str
     expires_in: Optional[int] = None
+
+
 class EvidenceRef(RadarModel):
     source_id: Id
     source_title: str
     native_url: str
     quote: Quote
+    locator: str | None = None
 
 
 class DateValue(RadarModel):
@@ -193,17 +198,19 @@ class Alert(RadarModel):
     decision_id: Id
     decision_revision: int = Field(ge=1)
     severity: Literal["low", "medium", "high"]
-    review_state: Literal["open", "kept", "revised", "retired", "dismissed"]
+    review_state: Literal["open", "kept", "revised", "retired", "dismissed", "clarification_requested"]
     created_at: datetime
 
 
 class Review(RadarModel):
     id: Id
     alert_id: Id
-    action: Literal["keep", "revise", "retire", "dismiss"]
+    action: Literal["keep", "revise", "retire", "dismiss", "request_clarification"]
     rationale: str
-    actor_id: Id
+    actor_id: NonEmpty
     decision_revision: int = Field(ge=1)
+    before_revision: int | None = None
+    after_revision: int | None = None
     created_at: datetime
 
 
