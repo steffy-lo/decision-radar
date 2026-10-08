@@ -364,7 +364,7 @@ All routes are served under `/api/v1/projects/{projectId}/`:
 | `POST` | `/connections/google-drive/authorize` | Start a server-side Drive OAuth grant | Returns `{ "authorization_url": "..." }`; project admin only. |
 | `GET` | `/connections/google-drive` | Read safe Drive connection status | Refresh token and Secret Manager reference are never returned. |
 | `POST` | `/connections/google-drive/reconnect` | Start re-authorisation after revocation or expiry | Returns `{ "authorization_url": "..." }`; project admin only. |
-| `DELETE` | `/connections/google-drive` | Revoke and disconnect the Drive grant | Removes the stored refresh-token secret and marks the connection disconnected. |
+| `DELETE` | `/connections/google-drive` | Revoke and disconnect the Drive grant | Destroys stored refresh-token versions and marks the connection disconnected. The empty secret container remains for a later reconnect. |
 | `POST` | `/sources/sync` | Trigger manual folder refresh | Empty body $\to$ returns `{ "taskId": "task-123", "status": "queued" }` |
 | `GET` | `/sources` | List ingested files & status | Returns `[{ "id": "...", "name": "...", "status": "ready" }]` |
 | `GET` | `/decisions` | List decision register | Query `?status=active` |

@@ -77,7 +77,7 @@ export function AppShell({
             return <Link href={href} aria-current={pathname === href ? "page" : undefined} key={item.slug}>{item.label}</Link>;
           })}
         </nav>
-        <main className="page-content" id="main-content">{children}</main>
+        <main className="page-content" id="main-content" tabIndex={-1}>{children}</main>
       </div>
     </div>
   );

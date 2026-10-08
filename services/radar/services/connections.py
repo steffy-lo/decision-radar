@@ -10,6 +10,7 @@ from urllib.parse import urlencode
 
 import httpx
 from fastapi import HTTPException, status
+from google.api_core.exceptions import NotFound
 from google.cloud.firestore import async_transactional
 
 from services.radar.adapters.secret_manager import RefreshTokenStore
@@ -250,18 +251,27 @@ class ConnectionService:
                 refresh_token = await asyncio.to_thread(
                     self.refresh_tokens.get, connection.secret_name
                 )
-                async with httpx.AsyncClient(timeout=10) as client:
-                    await client.post(GOOGLE_REVOKE_URL, data={"token": refresh_token})
             except Exception:
-                # The local grant must still be removed if Google is unreachable or has already revoked it.
-                pass
+                refresh_token = None
             try:
                 await asyncio.to_thread(
                     self.refresh_tokens.delete, connection.secret_name
                 )
-            except Exception:
-                # A deleted or already-destroyed secret is equivalent to a completed disconnect.
+            except NotFound:
+                # A secret already removed by an earlier attempt is disconnected.
                 pass
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="The Drive grant could not be removed. Try disconnecting again.",
+                ) from exc
+            if refresh_token:
+                try:
+                    async with httpx.AsyncClient(timeout=10) as client:
+                        await client.post(GOOGLE_REVOKE_URL, data={"token": refresh_token})
+                except Exception:
+                    # The local grant is gone even if Google cannot be reached.
+                    pass
 
         await self._connection_ref(project_id).set(
             {

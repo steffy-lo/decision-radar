@@ -29,6 +29,11 @@ class FailingRefreshTokens(FakeRefreshTokens):
         raise RuntimeError("Secret Manager is unavailable")
 
 
+class FailingDeleteTokens(FakeRefreshTokens):
+    def delete(self, secret_name):
+        raise RuntimeError("Secret Manager cannot destroy this version")
+
+
 class ConnectionServiceTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.firestore = FakeFirestore()
@@ -155,3 +160,26 @@ class ConnectionServiceTests(unittest.IsolatedAsyncioTestCase):
         ]
         self.assertEqual(connection["status"], "disconnected")
         self.assertIsNone(connection["secret_name"])
+
+    async def test_disconnect_keeps_grant_when_secret_deletion_fails(self):
+        secret_name = "projects/test/secrets/project-a"
+        self.firestore.storage["projects/project-a/connections/google-drive"] = {
+            "id": "google-drive",
+            "project_id": "project-a",
+            "status": "active",
+            "secret_name": secret_name,
+        }
+        tokens = FailingDeleteTokens()
+        tokens.tokens[secret_name] = "still-stored"
+        self.service.refresh_tokens = tokens
+
+        with self.assertRaises(HTTPException) as raised:
+            await self.service.disconnect("project-a")
+
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertEqual(tokens.tokens[secret_name], "still-stored")
+        connection = self.firestore.storage[
+            "projects/project-a/connections/google-drive"
+        ]
+        self.assertEqual(connection["status"], "active")
+        self.assertEqual(connection["secret_name"], secret_name)
