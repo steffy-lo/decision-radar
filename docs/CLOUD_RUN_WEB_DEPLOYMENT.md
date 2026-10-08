@@ -6,6 +6,11 @@ proxy forwards the user's Firebase ID token to the private API in
 token in `X-Serverless-Authorization`. The browser never receives the service
 token.
 
+`Dockerfile.api` builds the matching FastAPI revision from the same repository
+source. Deploy that image to the private API service before running the live
+project flow; an older API revision can pass `/health` while lacking the merged
+job routes.
+
 ## Build
 
 `apps/web/Dockerfile` builds the standalone Next.js server. Set the four

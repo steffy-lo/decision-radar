@@ -9,5 +9,13 @@ steps:
       - --build-arg=NEXT_PUBLIC_FIREBASE_APP_ID=${_FIREBASE_APP_ID}
       - --tag=${_IMAGE}
       - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - run
+      - --rm
+      - --entrypoint=sh
+      - ${_IMAGE}
+      - -c
+      - test -f /app/apps/web/server.js
 images:
   - ${_IMAGE}
