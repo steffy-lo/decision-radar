@@ -19,3 +19,5 @@
 - Reconnected the same Google account through the app. Refreshed the same folder again: five scanned, five unchanged, no errors. Firestore showed an active connection with a secret reference; Secret Manager had one `ENABLED` version and the two prior versions remained `DESTROYED`.
 
 This passes the PR's real connect, disconnect, reconnect, and folder-refresh path. It does not test production Firebase sign-in or deployed browser routing; those remain separate deployment checks.
+
+After merging the 8 October `main` changes into this branch, the running app rescanned the same folder: five scanned and five unchanged. The 12 focused API tests, web lint, and TypeScript check passed on the integrated branch.
