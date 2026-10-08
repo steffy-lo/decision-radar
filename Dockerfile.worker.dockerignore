@@ -1,0 +1,13 @@
+# Only Python service source and its requirements enter the worker image.
+**
+!services/
+!services/radar/
+!services/radar/**/
+!services/radar/**/*.py
+!services/radar/requirements.txt
+
+# Exclude Python environments and tests even though they contain Python files.
+**/.venv/**
+**/venv/**
+**/__pycache__/**
+services/radar/tests/**

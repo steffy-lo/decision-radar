@@ -1,25 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   beginDriveAuthorization,
   disconnectDrive,
   getConnection,
   getCurrentProjectMembership,
+  getJob,
   reconnectDrive,
-  refreshDriveFolder,
+  retryJob,
+  submitRefreshJob,
 } from "@/lib/api/client";
-import type { Connection, FolderRefreshResult, ProjectMembership } from "@/lib/api/client";
+import type { BackgroundJob, Connection, ProjectMembership } from "@/lib/api/client";
 
 export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectId: string; onSourcesChanged?: () => void }) {
   const [membership, setMembership] = useState<ProjectMembership | null>(null);
   const [connection, setConnection] = useState<Connection | null>(null);
   const [folderId, setFolderId] = useState("");
-  const [refreshResult, setRefreshResult] = useState<FolderRefreshResult | null>(null);
+  const [refreshJob, setRefreshJob] = useState<BackgroundJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const cancelDisconnectRef = useRef<HTMLButtonElement>(null);
+  const confirmDisconnectRef = useRef<HTMLButtonElement>(null);
   const callbackFailure =
     typeof window === "undefined"
       ? null
@@ -55,6 +60,24 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
     void Promise.resolve().then(load);
   }, [load]);
 
+  useEffect(() => {
+    if (!refreshJob || !["queued", "running", "retrying"].includes(refreshJob.status)) return;
+    const timer = window.setInterval(() => {
+      void getJob(projectId, refreshJob.id).then(async (next) => {
+        setRefreshJob(next);
+        if (next.status === "completed") {
+          setConnection(await getConnection(projectId));
+          onSourcesChanged?.();
+        }
+      }).catch((value) => setError(value instanceof Error ? value.message : "Folder refresh status failed."));
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [refreshJob, projectId, onSourcesChanged]);
+
+  useEffect(() => {
+    if (confirmDisconnect) cancelDisconnectRef.current?.focus();
+  }, [confirmDisconnect]);
+
   const beginAuthorization = async (reconnect = false) => {
     setActionLoading(true);
     setError(null);
@@ -74,18 +97,11 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
   };
 
   const disconnect = async () => {
-    if (
-      !window.confirm(
-        "Disconnect the project's Drive account? The worker will no longer be able to refresh its sources.",
-      )
-    ) {
-      return;
-    }
-
     setActionLoading(true);
     setError(null);
     try {
       await disconnectDrive(projectId);
+      setConfirmDisconnect(false);
       await load();
     } catch (actionError) {
       setError(
@@ -106,12 +122,10 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
     }
     setActionLoading(true);
     setError(null);
-    setRefreshResult(null);
     try {
-      const result = await refreshDriveFolder(projectId, selected);
-      setRefreshResult(result);
-      setConnection(await getConnection(projectId));
-      onSourcesChanged?.();
+      const job = await submitRefreshJob(projectId, selected);
+      setRefreshJob(job);
+      if (job.status === "completed") onSourcesChanged?.();
     } catch (refreshError) {
       setError(refreshError instanceof Error ? refreshError.message : "Folder refresh failed.");
     } finally {
@@ -194,7 +208,7 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
         </p>
       )}
 
-      {error && (
+      {error && !confirmDisconnect && (
         <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
           {error}
         </p>
@@ -212,12 +226,52 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
           <button
             className="button button--secondary"
             disabled={actionLoading}
-            onClick={() => void disconnect()}
+            onClick={() => setConfirmDisconnect(true)}
           >
             Disconnect Drive
           </button>
         )}
       </div>
+
+      {confirmDisconnect && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="disconnect-drive-title"
+            aria-describedby="disconnect-drive-description"
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && !actionLoading) setConfirmDisconnect(false);
+              if (event.key === "Tab") {
+                if (event.shiftKey && document.activeElement === cancelDisconnectRef.current) {
+                  event.preventDefault();
+                  confirmDisconnectRef.current?.focus();
+                } else if (!event.shiftKey && document.activeElement === confirmDisconnectRef.current) {
+                  event.preventDefault();
+                  cancelDisconnectRef.current?.focus();
+                }
+              }
+            }}
+          >
+            <h3 id="disconnect-drive-title" className="text-lg font-semibold text-slate-900">
+              Disconnect Drive?
+            </h3>
+            <p id="disconnect-drive-description" className="mt-2 text-sm text-slate-600">
+              The worker will no longer be able to refresh this project&apos;s sources.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button ref={cancelDisconnectRef} className="button button--secondary" disabled={actionLoading} onClick={() => setConfirmDisconnect(false)}>
+                Cancel
+              </button>
+              <button ref={confirmDisconnectRef} className="button button--primary" disabled={actionLoading} onClick={() => void disconnect()}>
+                {actionLoading ? "Disconnecting…" : "Disconnect Drive"}
+              </button>
+            </div>
+            {error && <p className="mt-3 text-sm text-red-700" role="alert">{error}</p>}
+          </div>
+        </div>
+      )}
 
       {isConnected && (
         <div className="space-y-3 border-t border-slate-200 pt-4">
@@ -242,13 +296,9 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
               {actionLoading ? "Refreshing…" : "Refresh folder"}
             </button>
           </div>
-          {refreshResult && (
-            <p role="status" className="text-sm text-emerald-800">
-              Scanned {refreshResult.scanned} files: {refreshResult.created} new, {refreshResult.updated} updated, {refreshResult.unchanged} unchanged.
-              {refreshResult.removed > 0 && ` ${refreshResult.removed} removed from the folder.`}
-              {refreshResult.unsupported.length > 0 && ` Unsupported: ${refreshResult.unsupported.join(", ")}.`}
-            </p>
-          )}
+          {refreshJob && <p role="status" className="text-sm text-slate-700">Folder refresh: {refreshJob.status}.
+            {refreshJob.status === "failed" && <button className="button button--secondary" disabled={actionLoading} onClick={() => void retryJob(projectId, refreshJob).then(setRefreshJob).catch((value) => setError(value instanceof Error ? value.message : "Retry failed."))}>Retry refresh</button>}
+          </p>}
         </div>
       )}
     </section>

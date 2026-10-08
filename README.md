@@ -84,8 +84,10 @@ npm install
   `GOOGLE_OAUTH_CLIENT_SECRET`, and `GOOGLE_OAUTH_REDIRECT_URI` in
   `services/radar/.env`. Register the redirect URI as
   `http://localhost:3000/oauth/google/callback` for local development. The API
-  service account needs permission to create, add, access, and delete the
-  project refresh-token secret in Google Secret Manager. Set
+  service account needs permission to get the secret and add, list, access,
+  disable, and destroy its versions. Pre-create the project refresh-token
+  secret when granting access on that secret only; otherwise the first
+  connection also needs project-level secret creation permission. Set
   `GOOGLE_SECRET_MANAGER_PROJECT_ID` only when local emulators use a different
   `FIREBASE_PROJECT_ID` from the real GCP project that hosts Secret Manager.
 
@@ -110,6 +112,9 @@ npm run dev:api
 ```bash
 npm run dev:worker
 ```
+
+For Cloud Run deployments that follow GitHub commits, use the root
+`Dockerfile.worker` and the [continuous deployment setup](docs/CLOUD_RUN_WORKER.md).
 
 #### Start Next.js Web Application
 ```bash

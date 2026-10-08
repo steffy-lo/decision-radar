@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Background, Controls, Handle, MarkerType, Position, ReactFlow,
   type Node, type NodeProps } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -42,6 +42,23 @@ function Evidence({ label, evidence, demo }: { label: string; evidence: Evidence
 }
 
 function GraphView({ graph, demo }: { graph: ImpactProjection; demo: boolean }) {
+  const canvas = useRef<HTMLDivElement>(null);
+  const [layoutVersion, setLayoutVersion] = useState(0);
+  useEffect(() => {
+    if (!canvas.current) return;
+    let previous: { width: number; height: number } | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (previous && (Math.abs(width - previous.width) > 1 || Math.abs(height - previous.height) > 1)) {
+        clearTimeout(timer);
+        timer = setTimeout(() => setLayoutVersion((value) => value + 1), 100);
+      }
+      previous = { width, height };
+    });
+    observer.observe(canvas.current);
+    return () => { observer.disconnect(); clearTimeout(timer); };
+  }, []);
   const [selectedId, setSelectedId] = useState(graph.findingId);
   const [pathIndex, setPathIndex] = useState(0);
   const detailId = useId();
@@ -74,8 +91,8 @@ function GraphView({ graph, demo }: { graph: ImpactProjection; demo: boolean }) 
     <div className={styles.legend}><span className={styles.triggerKey}>Evidence trigger</span><span className={styles.challengeKey}>Direct challenge</span><span className={styles.downstreamKey}>Downstream effect</span></div>
     <p className={styles.help}>Drag the background to pan. Use + / − to zoom. Tab to a node and press Enter or Space to inspect it.</p>
     <div className={styles.layout}>
-      <div className={styles.canvas}>
-        <ReactFlow<FlowNode> nodes={nodes} edges={edges} nodeTypes={nodeTypes}
+      <div className={styles.canvas} ref={canvas}>
+        <ReactFlow<FlowNode> key={layoutVersion} nodes={nodes} edges={edges} nodeTypes={nodeTypes}
           nodesDraggable={false} nodesConnectable={false} edgesReconnectable={false} deleteKeyCode={null}
           nodesFocusable edgesFocusable autoPanOnNodeFocus fitView fitViewOptions={{ padding: 0.2 }} minZoom={0.25} maxZoom={1.5}
           onNodeClick={(_event, node) => select(node.id)}

@@ -43,6 +43,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <div className="auth-session">
         <span className="auth-session__email">{user.email ?? "Signed-in user"}</span>
         <button
