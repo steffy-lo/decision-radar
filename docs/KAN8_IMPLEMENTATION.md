@@ -5,7 +5,8 @@ KAN-18/21 and KAN-9/19 changes. Assessment jobs now derive an immutable
 manifest on the server, publish through the assessment store in the worker,
 and show status in Reviews. Refresh jobs derive a Drive metadata manifest at
 submission and check it again before writing in the worker. A changed folder
-fails the old job and needs a new submission. This branch is not ready to merge.
+fails the old job and needs a new submission. The earlier checks below left
+the branch open; the live Drive and Gemini pass is recorded at the end.
 
 ## Assessment integration check, 6 October 2026
 
@@ -237,3 +238,43 @@ extraction and paid labeling were not run.
   queue, private worker and named Firestore database. A live Drive folder
   refresh, Gemini extraction, and production Firebase sign-in still require
   their own end-to-end pass before this PR can merge.
+
+## Live Drive, Gemini, and worker browser pass, 8 October 2026
+
+- Merged current `main`, including PR #10's OAuth reconnect fix, into the
+  isolated KAN-8 branch. The only code conflict was in the Sources component;
+  both job polling and the Drive disconnect dialog remain in place. The radar
+  suite passed with 67 tests, 10 skipped, and three subtests. Web lint and
+  TypeScript checking passed.
+- Used the running app with Firebase Auth emulator for project sign-in. Google
+  OAuth, Drive, Secret Manager, named Firestore, Cloud Tasks, the private Cloud
+  Run worker, and Vertex Gemini were live. The UAT project and Drive folder
+  contained only synthetic launch data.
+- Submitted a folder refresh from Sources. The worker lacked the test OAuth
+  client setting and access to the synthetic Drive token. Cloud Tasks exhausted
+  its three attempts; the app showed Failed and Retry work. A dedicated test
+  client secret was stored in Secret Manager, and the staging worker received
+  Secret Accessor on that secret and this synthetic token secret only. Revision
+  `radar-worker-dev-00004-78m` then had the test OAuth configuration.
+- Clicked Retry work in Sources. The same job completed at generation two on
+  its first delivery. The app showed five sources, including Docs, TXT files,
+  and a nested Doc. Named Firestore held five nonempty snapshots and the
+  selected folder. Clicking Refresh folder again reused the completed job:
+  one refresh receipt remained.
+- Created and confirmed a decision against an exact quote in the synthetic
+  decision record. Gemini extracted the vendor's October 24 date from the
+  refreshed TXT snapshot. Its first predicate wording was unresolved; using
+  Gemini's `delivery date` wording produced one verified fact. Running the
+  background assessment in Reviews completed through the queue and worker and
+  showed one finding and one alert, nine days beyond the October 15 target.
+  Repeating Run assessment reused the same receipt. Firestore held one fact,
+  one assessment request/run, one finding, one alert, and two jobs total
+  (refresh and analysis). A Request clarification review was saved and visible
+  in the audit history.
+
+This verifies KAN-8's real service path, including failure, retry, duplicate
+submission, publication, and the resulting browser review. The app used Auth
+emulator sign-in and a localhost OAuth test client; production Firebase sign-in,
+deployed API/web routing, and production OAuth client setup are separate
+deployment checks. The dedicated test secret and its two Secret Accessor
+grants remain in the staging project until test cleanup.
