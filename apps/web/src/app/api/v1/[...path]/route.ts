@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cloudRunIdentityHeader } from "@/lib/server/cloud-run-identity";
 
 const TARGET_API_HOST = process.env.RADAR_API_URL || "http://127.0.0.1:8000";
 
@@ -31,6 +32,8 @@ async function proxyRequest(request: NextRequest, { params }: { params: Promise<
   }
 
   try {
+    const serviceIdentity = await cloudRunIdentityHeader();
+    if (serviceIdentity) headers.set("X-Serverless-Authorization", serviceIdentity);
     const body = ["GET", "HEAD"].includes(request.method) ? undefined : await request.arrayBuffer();
 
     const response = await fetch(targetUrl.toString(), {

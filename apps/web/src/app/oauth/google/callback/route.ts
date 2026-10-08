@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cloudRunIdentityHeader } from "@/lib/server/cloud-run-identity";
 
 const TARGET_API_HOST = process.env.RADAR_API_URL || "http://127.0.0.1:8000";
 const OAUTH_NONCE_COOKIE = "drive_oauth_nonce";
@@ -28,6 +29,8 @@ export async function GET(request: NextRequest) {
     const headers = new Headers();
     const cookie = request.headers.get("cookie");
     if (cookie) headers.set("cookie", cookie);
+    const serviceIdentity = await cloudRunIdentityHeader();
+    if (serviceIdentity) headers.set("X-Serverless-Authorization", serviceIdentity);
 
     const response = await fetch(callbackUrl, { cache: "no-store", headers });
     if (!response.ok) {
