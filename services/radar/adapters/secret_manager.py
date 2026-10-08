@@ -34,7 +34,7 @@ class SecretManagerRefreshTokenStore:
         return secretmanager.SecretManagerServiceClient()
 
     def put(self, project_id: str, refresh_token: str) -> str:
-        from google.api_core.exceptions import AlreadyExists
+        from google.api_core.exceptions import AlreadyExists, NotFound
         from google.cloud import secretmanager
 
         client = self._client()
@@ -42,15 +42,18 @@ class SecretManagerRefreshTokenStore:
         secret_id = self._secret_id(project_id)
         secret_name = f"{parent}/secrets/{secret_id}"
         try:
-            client.create_secret(
-                request={
-                    "parent": parent,
-                    "secret_id": secret_id,
-                    "secret": {"replication": {"automatic": {}}},
-                }
-            )
-        except AlreadyExists:
-            pass
+            client.get_secret(request={"name": secret_name})
+        except NotFound:
+            try:
+                client.create_secret(
+                    request={
+                        "parent": parent,
+                        "secret_id": secret_id,
+                        "secret": {"replication": {"automatic": {}}},
+                    }
+                )
+            except AlreadyExists:
+                pass
 
         current_version = client.add_secret_version(
             request={
@@ -74,4 +77,19 @@ class SecretManagerRefreshTokenStore:
         return response.payload.data.decode("utf-8")
 
     def delete(self, secret_name: str) -> None:
-        self._client().delete_secret(request={"name": secret_name})
+        from google.api_core.exceptions import NotFound
+        from google.cloud import secretmanager
+
+        client = self._client()
+        try:
+            versions = list(client.list_secret_versions(request={"parent": secret_name}))
+        except NotFound:
+            return
+        for version in versions:
+            if version.state == secretmanager.SecretVersion.State.DESTROYED:
+                continue
+            try:
+                client.destroy_secret_version(request={"name": version.name})
+            except NotFound:
+                # Another disconnect attempt already destroyed this version.
+                pass
