@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     GOOGLE_OAUTH_REDIRECT_URI: Optional[str] = None
     GOOGLE_OAUTH_STATE_TTL_SECONDS: int = 600
     GOOGLE_SECRET_MANAGER_PROJECT_ID: Optional[str] = None
+    WORKER_PORT: int = 8001
+    CLOUD_TASKS_LOCATION: Optional[str] = None
+    CLOUD_TASKS_QUEUE: Optional[str] = None
+    TASK_WORKER_URL: Optional[str] = None
+    TASK_WORKER_AUDIENCE: Optional[str] = None
+    TASK_SERVICE_ACCOUNT_EMAIL: Optional[str] = None
     VERTEX_PROJECT_ID: Optional[str] = None
     VERTEX_LOCATION: str = "us-central1"
     VERTEX_MODEL: str = "gemini-2.5-flash"

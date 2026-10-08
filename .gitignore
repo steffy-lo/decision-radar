@@ -35,7 +35,5 @@ Thumbs.db
 firebase-debug.log*
 firestore-debug.log*
 
-# Graphify: share graph/report/labels plus portable cache and manifest.
-/graphify-out/cost.json
-/graphify-out/.*
-!/graphify-out/.graphify_labels.json
+# Graphify: remove graphify-out folder from git tracking
+/graphify-out/

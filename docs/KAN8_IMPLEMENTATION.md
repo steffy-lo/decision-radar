@@ -1,0 +1,280 @@
+# KAN-8 job foundation
+
+The KAN-8 integration worktree includes merged KAN-4, KAN-16, KAN-17,
+KAN-18/21 and KAN-9/19 changes. Assessment jobs now derive an immutable
+manifest on the server, publish through the assessment store in the worker,
+and show status in Reviews. Refresh jobs derive a Drive metadata manifest at
+submission and check it again before writing in the worker. A changed folder
+fails the old job and needs a new submission. The earlier checks below left
+the branch open; the live Drive and Gemini pass is recorded at the end.
+
+## Assessment integration check, 6 October 2026
+
+- The Reviews button submits `POST /jobs/analysis`; the API derives the
+  assessment fingerprint rather than accepting one from the browser.
+- The worker rejects a changed input manifest and reuses the completed
+  assessment request receipt after a callback repeats. Publication preserves
+  existing reviewed alerts through the assessment store.
+- 36 focused job/Drive tests, web lint, TypeScript checking, and the production
+  Webpack build passed.
+- Against the synthetic Firestore emulator project, the handler produced two
+  findings and two alerts. A second delivery left the run, request, finding,
+  alert, and review counts unchanged. A stale manifest failed before writing.
+- Browser UAT on port 3015 used the real app, Auth and Firestore emulators, and
+  a controlled local task queue. After Mike approved adding the synthetic
+  account to the synthetic project, clicking Run assessment changed the job
+  from queued to completed. Reviews displayed two findings and two alerts;
+  Sources displayed the completed Evidence analysis receipt. Clicking Run
+  assessment again reused the same completed job (one job record, generation
+  one) without adding another run. The existing review audit entry remained.
+- Clicking Refresh folder reached the configured connection check and showed
+  `Google Drive connection is not configured.` The saved project connection
+  still displays as active, but this isolated API process has no OAuth client
+  configuration. Real Drive refresh, Cloud Tasks OIDC, and deployed execution
+  remain untested. Do not merge on these checks alone.
+- The `radar-jobs` queue exists in `asia-southeast1`. On 7 October, I deployed
+  a private `radar-worker-dev` Cloud Run service from this branch, capped at one
+  instance. The task delivery account has Invoker on that service; the API
+  runtime account has queue-scoped enqueue/read rights and `actAs` on the task
+  delivery account. An unauthenticated worker request returned HTTP 403.
+- The first real Cloud Tasks delivery exposed a worker failure: FastAPI ran
+  the synchronous `get_job_service` dependency in a thread, where the async
+  gRPC task client had no event loop. After making that dependency async and
+  redeploying, a forced retry completed the same job on attempt 13. The named
+  Firestore database held one job, one assessment request and one completed
+  run. Repeating the submission reused that receipt.
+- A second cloud run used a separate synthetic project populated from the
+  vendor-delay fixture. The worker completed on its first delivery and saved
+  two findings and one alert, matching the local assessment result. Repeating
+  the request left one job, one request, one run, two findings and one alert.
+  This verifies real queue, OIDC, worker and Firestore delivery, but it does
+  not replace a browser run through real Drive refresh and Gemini extraction.
+- A further browser pass on port 3017 used synthetic Firebase Auth and a local
+  API proxy connected to the real queue, private worker, and named cloud
+  Firestore database. Clicking Run assessment showed running then completed;
+  Reviews displayed two findings and one alert with evidence, and Sources
+  displayed the completed background job. A second click reused the same
+  receipt. The project data was a separate synthetic vendor-delay fixture.
+  The browser-to-cloud assessment path passed; live Firebase sign-in, Drive
+  OAuth, folder refresh, Gemini extraction, and deployed API/web remain open.
+- A queued refresh manifest is stable across duplicate execution and rejects a
+  modified Drive listing before writing. The direct Drive refresh endpoint is
+  still present for compatibility; the Sources button now submits a job. The
+  actual Google OAuth/Drive/Cloud Tasks path has not yet passed UAT.
+
+## Implemented boundary
+
+- `POST /api/v1/projects/{project_id}/jobs`: immutable `kind`, `target_id`,
+  and `source_version`; returns a project-scoped status receipt.
+- `GET /api/v1/projects/{project_id}/jobs`: latest 50 receipts, including failures.
+- `GET /api/v1/projects/{project_id}/jobs/{id}`: status lookup. For dispatched,
+  unfinished work it checks Cloud Tasks; a missing task becomes a visible
+  `delivery_exhausted` failure. Provider outages do not imply exhaustion.
+- `POST /api/v1/projects/{project_id}/jobs/{id}/retry`: takes the displayed
+  `generation`. Concurrent/repeated clicks reuse the next generation.
+- Private worker `POST /tasks/execute`: validates Google's OIDC token audience
+  and the configured verified service-account email before trusting delivery
+  metadata. The browser API does not expose worker routes.
+- Sources shows queued, running, retrying, completed and failed work. Admins
+  can retry refresh jobs; editors/admins can retry analysis jobs; viewers can
+  inspect status. Active work refreshes its status every five seconds.
+
+Job IDs hash `(project_id, kind, target_id, source_version)`. Cloud Tasks names
+append a retry generation. Completed receipts record the task name and source
+version. A repeat submission returns the same receipt; manual retry keeps the
+same immutable input and publication identity with a new delivery name.
+
+Cloud Tasks owns the retry policy. The configured queue allows three total
+attempts, including the initial delivery; the application imposes no separate
+attempt cap. The worker records `retrying` and returns 503 on handler failure.
+Once Cloud Tasks removes an unfinished task after exhausting delivery, the
+next job detail/status read records `failed` with `delivery_exhausted`, enabling
+manual retry. Only fixed error codes are stored or returned.
+
+## Queue and worker configuration
+
+Install `services/radar/requirements.txt`. Set `CLOUD_TASKS_LOCATION`,
+`CLOUD_TASKS_QUEUE`, `TASK_WORKER_URL`, and `TASK_SERVICE_ACCOUNT_EMAIL` in the
+service environment. The worker URL must use HTTPS. `TASK_WORKER_AUDIENCE`
+defaults to that URL; set it explicitly to the receiving Cloud Run service URL
+when task routing uses another URL. `npm run dev:worker` now serves HTTP on
+port 8001 instead of running a placeholder loop.
+
+Provision the queue separately; API startup does not change cloud infrastructure:
+
+```sh
+gcloud tasks queues create radar-jobs \
+  --location=REGION --project=PROJECT_ID \
+  --max-attempts=3 --max-retry-duration=0s \
+  --min-backoff=10s --max-backoff=300s --max-doublings=3
+```
+
+Use `gcloud tasks queues update` with the same flags for an existing queue.
+The adapter neither changes nor restricts the queue's retry settings. The API
+identity needs Cloud Tasks Enqueuer plus task lookup permission and
+`iam.serviceAccounts.actAs` on the delivery account. The delivery account needs
+Cloud Run Invoker on the private worker. The worker needs the same Firestore,
+Drive-token and extraction permissions as its eventual business handlers.
+Keep these identities and credentials in cloud configuration, outside the repo.
+
+The platform policy and callback headers follow Google's
+[retry configuration](https://docs.cloud.google.com/tasks/docs/reference/rest/v2/RetryConfig)
+and [HTTP task handler documentation](https://docs.cloud.google.com/tasks/docs/creating-http-target-tasks#http_target_tasks).
+
+## Dependency integration still required
+
+1. Register `refresh` and `analysis` handlers in `worker/handlers.py` in the
+   same implementation/test track. They receive the saved immutable `Job`.
+2. For a folder refresh, use one stable request version per user action and
+   reuse it on repeat submission. Fetch Drive content at execution time and
+   preserve KAN-4's native file IDs, modified versions and stable source IDs.
+   A later refresh action uses a new request version so changed files are read.
+3. For analysis, use a fingerprint covering the source snapshots and confirmed
+   decision revisions. Load exactly that manifest or fail rather than silently
+   analyze newer inputs. KAN-17 publication must keep stable finding/alert IDs
+   and preserve existing human review dispositions.
+4. Route the existing KAN-4 refresh and KAN-17 assessment controls through this
+   job service and display the returned status. The foundation adds no fake
+   refresh or analysis button to the product.
+5. Run full UAT through the merged KAN-3 connection: root Doc, TXT, nested Doc,
+   saved Meet transcript, changed-file refresh, duplicate submission, transient
+   failure, exhausted retries and manual retry. Also test real Cloud Tasks OIDC
+   delivery to the private worker, including an infrastructure failure that
+   prevents a handler callback.
+
+## Reliability limits
+
+[Cloud Tasks can deliver more than once](https://docs.cloud.google.com/tasks/docs/common-pitfalls#duplicate_execution).
+A completion receipt suppresses later deliveries after success, but does not
+make business side effects atomic. Handlers **must** publish evidence/findings/
+alerts with stable IDs derived from the saved input, including overlapping
+callbacks and a crash after publication but before the completion receipt.
+That guarantee must be verified against KAN-4/KAN-17 before KAN-8 is complete.
+
+Dispatch is direct, with no transactional outbox, distributed lease engine,
+periodic reconciliation process or stage-timeout framework. An interrupted
+first dispatch can be repaired by resubmitting the same request. A dispatch
+error produces a visible failed receipt. An unfinished dispatched task that
+vanishes from Cloud Tasks is marked failed on the next detail/status read.
+A request interrupted before dispatch confirmation requires resubmission;
+there is deliberately no background recovery process for that gap.
+
+## Initial verification on 3 October 2026 (before queue-controlled retries)
+
+- 37 radar service/API tests passed, including authorization, three-attempt
+  exhaustion, duplicate delivery, failure after publication, unavailable
+  handlers, and repeat manual retry. The emulator test is skipped during this
+  default run and executed separately.
+- The separate Firestore emulator integration test passed: eight concurrent
+  identical submissions persisted one job and one publication; eight concurrent
+  manual retry requests advanced the failed job to generation 2 once. The first
+  run exposed competing admission transaction locks; atomic create and avoiding
+  redundant status writes corrected that failure.
+- Six shared Python contract tests and three Node contract tests passed.
+- Web lint, TypeScript checking, and the production Webpack build passed.
+- Hands-on Chrome UAT used the actual Sources page, Firebase Auth emulator,
+  real Firestore emulator storage, synthetic project membership and a synthetic
+  task queue/handler. Signed in through the emulator Google popup, inspected
+  the failed state at attempt 3, clicked Retry work, saw queued work advance to
+  completed at attempt 1, refreshed status, and verified the completed receipt
+  persisted. Repeated with the final service code and a second input version.
+- With the controlled membership changed to viewer, status remained visible and
+  the Retry work control disappeared. Restoring admin membership restored the
+  control. Backend tests also reject viewer retry and editor folder refresh.
+- Emulator inspection found two completed generation-2 job receipts for two
+  different input versions and exactly two publication records. Failures and
+  manual retries kept one publication per input version.
+
+This UAT does not exercise Google Drive, Gemini, real assessment publication,
+Cloud Tasks backoff scheduling, or real OIDC delivery. Those checks remain in
+KAN-4/KAN-16/KAN-17 integration and cloud delivery UAT. Job admission on normal
+`main` configuration remains closed with a clear 409 while handlers are absent.
+
+The knowledge graph was updated with `graphify update .` (AST only). Its
+community names now follow the rebuilt structural graph; semantic document
+extraction and paid labeling were not run.
+
+## Queue-controlled retry verification on 3 October 2026
+
+- This earlier controlled check used a 100-attempt queue. Jira now requires
+  three attempts; the live dev queue was updated on 8 October 2026. The new
+  real-queue exhaustion and browser retry result is recorded below.
+- Removed the queue-policy rejection and the worker's three-attempt limit.
+  Cloud Tasks now controls delivery exhaustion. Attempt counts remain in the
+  job receipt for diagnostics and are hidden from the Sources UI.
+- 38 radar service/API tests passed; the separately enabled emulator test was
+  skipped in that suite. Tests cover 100 consecutive handler failures returning
+  retry responses, task removal becoming a failed receipt, late callbacks,
+  generation-safe manual retry, and success on attempt five with one stable
+  publication. Web lint and TypeScript checking passed.
+- Hands-on Chrome UAT used the actual Sources page with Auth/Firestore emulators
+  and a synthetic queue/handler. A job exhausted 100 deliveries; Sources showed
+  `Failed`, `Attempts: 100`, and `Retry work`. Clicking retry completed generation
+  two on its first attempt; reloading preserved the completed receipt.
+- This does not verify real Cloud Tasks timing, OIDC, Drive, or Gemini delivery.
+  Those remain cloud integration UAT requirements. Changes remain local.
+- Follow-up UI check: removed the attempt count from Sources. Opened the actual
+  page and clicked Refresh status; the completed job remained visible without
+  an attempt count. Component lint passed. Cloud Tasks still controls retries.
+
+## Real three-attempt exhaustion and manual retry, 8 October 2026
+
+- Changed the `radar-jobs` queue in `geminimaxxing-509705` to three total
+  attempts, 10-second minimum backoff, five-minute maximum backoff and three
+  max doublings. Readback confirmed those values.
+- Seeded only the synthetic project `proj_kan8_retry_cloud_20261008` from the
+  vendor-delay fixture. Added a temporary fact after saving a job's original
+  assessment manifest, then sent that job through the real Cloud Tasks queue
+  to the private Cloud Run worker. The changed manifest made all three
+  deliveries fail. Cloud Tasks removed the task; the job detail read recorded
+  `failed`, three attempts and `delivery_exhausted`.
+- In the running Sources page, the job showed Failed and a clear Retry work
+  control. Removed the temporary fact so the immutable manifest matched,
+  clicked Retry work, and saw Completed. Reviews showed two findings and one
+  alert. Cloud Firestore held one job at generation two, one assessment
+  request, one completed run, two findings and one alert. The retry completed
+  in one attempt without duplicate publication.
+- This test used a synthetic Firestore project and Auth emulator with the real
+  queue, private worker and named Firestore database. A live Drive folder
+  refresh, Gemini extraction, and production Firebase sign-in still require
+  their own end-to-end pass before this PR can merge.
+
+## Live Drive, Gemini, and worker browser pass, 8 October 2026
+
+- Merged current `main`, including PR #10's OAuth reconnect fix, into the
+  isolated KAN-8 branch. The only code conflict was in the Sources component;
+  both job polling and the Drive disconnect dialog remain in place. The radar
+  suite passed with 67 tests, 10 skipped, and three subtests. Web lint and
+  TypeScript checking passed.
+- Used the running app with Firebase Auth emulator for project sign-in. Google
+  OAuth, Drive, Secret Manager, named Firestore, Cloud Tasks, the private Cloud
+  Run worker, and Vertex Gemini were live. The UAT project and Drive folder
+  contained only synthetic launch data.
+- Submitted a folder refresh from Sources. The worker lacked the test OAuth
+  client setting and access to the synthetic Drive token. Cloud Tasks exhausted
+  its three attempts; the app showed Failed and Retry work. A dedicated test
+  client secret was stored in Secret Manager, and the staging worker received
+  Secret Accessor on that secret and this synthetic token secret only. Revision
+  `radar-worker-dev-00004-78m` then had the test OAuth configuration.
+- Clicked Retry work in Sources. The same job completed at generation two on
+  its first delivery. The app showed five sources, including Docs, TXT files,
+  and a nested Doc. Named Firestore held five nonempty snapshots and the
+  selected folder. Clicking Refresh folder again reused the completed job:
+  one refresh receipt remained.
+- Created and confirmed a decision against an exact quote in the synthetic
+  decision record. Gemini extracted the vendor's October 24 date from the
+  refreshed TXT snapshot. Its first predicate wording was unresolved; using
+  Gemini's `delivery date` wording produced one verified fact. Running the
+  background assessment in Reviews completed through the queue and worker and
+  showed one finding and one alert, nine days beyond the October 15 target.
+  Repeating Run assessment reused the same receipt. Firestore held one fact,
+  one assessment request/run, one finding, one alert, and two jobs total
+  (refresh and analysis). A Request clarification review was saved and visible
+  in the audit history.
+
+This verifies KAN-8's real service path, including failure, retry, duplicate
+submission, publication, and the resulting browser review. The app used Auth
+emulator sign-in and a localhost OAuth test client; production Firebase sign-in,
+deployed API/web routing, and production OAuth client setup are separate
+deployment checks. The dedicated test secret and its two Secret Accessor
+grants remain in the staging project until test cleanup.

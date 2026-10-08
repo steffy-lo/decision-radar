@@ -215,6 +215,56 @@ export interface AuthorizeConnectionResponse {
   authorization_url: string;
 }
 
+export interface BackgroundJob {
+  id: string;
+  project_id: string;
+  request: { kind: "refresh" | "analysis"; target_id: string; source_version: string };
+  generation: number;
+  status: "queued" | "running" | "retrying" | "completed" | "failed";
+  attempts: number;
+  dispatched: boolean;
+  error_code: "dispatch_failed" | "handler_failed" | "dependency_unavailable" | "delivery_exhausted" | null;
+  updated_at: string;
+}
+
+async function jobResponse(response: Response): Promise<BackgroundJob> {
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(typeof body?.detail === "string" ? body.detail : "Job request could not be completed.");
+  }
+  return response.json();
+}
+
+export async function getJobs(projectId: string): Promise<BackgroundJob[]> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/jobs`);
+  if (!response.ok) throw new Error("Background work could not be loaded.");
+  return response.json();
+}
+
+export async function getJob(projectId: string, jobId: string): Promise<BackgroundJob> {
+  return jobResponse(await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`));
+}
+
+export async function submitAnalysisJob(projectId: string): Promise<BackgroundJob> {
+  return jobResponse(await fetchPrivateApi(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/jobs/analysis`, { method: "POST" },
+  ));
+}
+
+export async function submitRefreshJob(projectId: string, folderId: string): Promise<BackgroundJob> {
+  return jobResponse(await fetchPrivateApi(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/jobs/refresh`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folder_id: folderId }) },
+  ));
+}
+
+export async function retryJob(projectId: string, job: BackgroundJob): Promise<BackgroundJob> {
+  return jobResponse(await fetchPrivateApi(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(job.id)}/retry`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ generation: job.generation }) },
+  ));
+}
+
 export class AuthenticationRequiredError extends Error {
   constructor() {
     super("Please sign in before accessing workspace data.");

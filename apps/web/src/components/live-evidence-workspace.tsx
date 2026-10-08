@@ -7,10 +7,10 @@ import { ImpactGraph } from "@/components/graph/impact-graph";
 import { ReviewActionPanel } from "@/components/review-action-panel";
 import {
   extractSource, getAssessmentResults, getCurrentProjectMembership, getExtraction,
-  listMonitoredAssumptions, listSources, runAssessment,
+  getJob, listMonitoredAssumptions, listSources, retryJob, submitAnalysisJob,
 } from "@/lib/api/client";
 import type {
-  AssessmentResults, ExtractionResult, MonitoredAssumption, ProjectMembership, SourceSummary,
+  AssessmentResults, BackgroundJob, ExtractionResult, MonitoredAssumption, ProjectMembership, SourceSummary,
 } from "@/lib/api/client";
 import { EmptyState, PageHeading, Panel, StatusPill } from "@/components/ui";
 
@@ -111,6 +111,7 @@ export function LiveReviewsWorkspace({ projectId, alertId }: { projectId: string
   const [sources, setSources] = useState<SourceSummary[]>([]);
   const [membership, setMembership] = useState<ProjectMembership | null>(null);
   const [busy, setBusy] = useState(false);
+  const [analysisJob, setAnalysisJob] = useState<BackgroundJob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
     try {
@@ -119,9 +120,30 @@ export function LiveReviewsWorkspace({ projectId, alertId }: { projectId: string
     } catch (value) { setError(errorText(value)); }
   }, [projectId]);
   useEffect(() => { void Promise.resolve().then(load); }, [load]);
+  useEffect(() => {
+    if (!analysisJob || !["queued", "running", "retrying"].includes(analysisJob.status)) return;
+    const timer = window.setInterval(() => {
+      void getJob(projectId, analysisJob.id).then((next) => {
+        setAnalysisJob(next);
+        if (next.status === "completed") void load();
+      }).catch((value) => setError(errorText(value)));
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [analysisJob, projectId, load]);
   async function assess() {
     setBusy(true); setError(null);
-    try { await runAssessment(projectId); await load(); }
+    try {
+      const job = await submitAnalysisJob(projectId);
+      setAnalysisJob(job);
+      if (job.status === "completed") await load();
+    }
+    catch (value) { setError(errorText(value)); }
+    finally { setBusy(false); }
+  }
+  async function retryAnalysis() {
+    if (!analysisJob) return;
+    setBusy(true); setError(null);
+    try { setAnalysisJob(await retryJob(projectId, analysisJob)); }
     catch (value) { setError(errorText(value)); }
     finally { setBusy(false); }
   }
@@ -129,7 +151,10 @@ export function LiveReviewsWorkspace({ projectId, alertId }: { projectId: string
   const uncertainCount = coverage.filter((row) => row.state !== "assessed").length;
   const reviewState = data?.alerts.length ? "Needs review" : !data?.latestRun ? "Ready to assess" : uncertainCount ? "Evidence unclear" : "No detected issue in assessed sources";
   return <>
-    <PageHeading eyebrow="REVIEW QUEUE" title="Reviews" description="Check confirmed decisions against verified source facts." action={membership?.role !== "viewer" && <button className="button button--primary" disabled={busy} onClick={() => void assess()}>{busy ? "Running assessment…" : "Run assessment"}</button>} />
+    <PageHeading eyebrow="REVIEW QUEUE" title="Reviews" description="Check confirmed decisions against verified source facts." action={membership && membership.role !== "viewer" && <button className="button button--primary" disabled={busy} onClick={() => void assess()}>{busy ? "Running assessment…" : "Run assessment"}</button>} />
+    {analysisJob && <p role="status" className="notice notice--info">Evidence analysis: {analysisJob.status}.
+      {analysisJob.status === "failed" && <button className="button button--secondary" disabled={busy} onClick={() => void retryAnalysis()}>Retry analysis</button>}
+    </p>}
     {alertId && <ImpactGraph key={`${projectId}/${alertId}`} projectId={projectId} alertId={alertId} />}
     {error && <p role="alert" className="notice notice--error">{error}</p>}
     <div className="review-summary workspace-card"><div><span className="section-kicker">LATEST ASSESSMENT</span><h2>{reviewState}</h2><p>{data?.latestRun ? `${data.latestRun.findingCount} ${data.latestRun.findingCount === 1 ? "finding" : "findings"} checked · ${data.latestRun.alertCount} ${data.latestRun.alertCount === 1 ? "alert" : "alerts"} · ${uncertainCount} ${uncertainCount === 1 ? "assumption" : "assumptions"} with incomplete coverage.` : "Run an assessment after you confirm decisions and extract source facts."}</p></div><span className="review-summary__symbol" aria-hidden="true">◇</span></div>

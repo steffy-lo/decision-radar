@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
+import json
 from typing import Any, Protocol
 
 import httpx
@@ -176,7 +177,7 @@ class SourceService:
             seen_tokens.add(page.next_page_token)
             page_token = page.next_page_token
 
-    async def refresh(self, project_id: str, folder_id: str) -> RefreshResult:
+    async def _inventory(self, folder_id: str) -> list[tuple[DriveFile, int]]:
         root = await self.drive.get_file(folder_id)
         if root.mime_type != FOLDER_MIME:
             raise DriveIngestionError("Choose a Google Drive folder, not a file.")
@@ -194,6 +195,22 @@ class SourceService:
             raise DriveIngestionError("The selected folder exceeds the 100-file demo limit.")
         if len({row.id for row, _ in children}) != len(children):
             raise DriveIngestionError("Google Drive returned the same file twice.")
+        return children
+
+    @staticmethod
+    def _manifest(children: list[tuple[DriveFile, int]]) -> str:
+        records = sorted((file.id, file.modified_time, file.name, file.mime_type,
+                          file.parent_id, file.native_url, file.can_download, depth)
+                         for file, depth in children)
+        return "refresh_" + sha256(json.dumps(records, separators=(",", ":")).encode()).hexdigest()
+
+    async def manifest(self, folder_id: str) -> str:
+        return self._manifest(await self._inventory(folder_id))
+
+    async def refresh(self, project_id: str, folder_id: str, *, expected_manifest: str | None = None) -> RefreshResult:
+        children = await self._inventory(folder_id)
+        if expected_manifest is not None and self._manifest(children) != expected_manifest:
+            raise DriveIngestionError("The Drive folder changed after this refresh was queued. Start a new refresh.")
         created = updated = unchanged = removed = 0
         unsupported: list[str] = []
         current_source_ids = {source_id(file.id) for file, _ in children if file.mime_type in SUPPORTED_MIME}
