@@ -25,6 +25,15 @@ Use a dedicated web service account with `roles/run.invoker` on the **API
 service only**. Set `RADAR_API_URL` and `RADAR_API_AUDIENCE` to the API's HTTPS
 Cloud Run URL. Keep the API private. The web service itself can be public once
 Firebase Authentication and the API authorization path have been verified.
+Set `RADAR_WEB_ORIGIN` to the web service's public HTTPS origin. The OAuth
+callback uses it for its final redirect and returns 503 if it is absent in
+production. Do not set it to Cloud Run's internal `0.0.0.0` listener.
+
+The API container disables Uvicorn's request access log because Drive OAuth
+callback URLs contain a short-lived authorization code. Cloud Run request
+metadata and application error logs remain available for diagnostics. Cloud
+Run request metadata can itself retain the callback query string, so limit
+access and retention for these staging logs.
 
 Add the deployed web hostname to Firebase Authentication authorized domains
 before trying Google sign-in. The Google provider must be enabled. Configure

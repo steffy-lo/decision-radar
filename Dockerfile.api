@@ -11,4 +11,4 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 COPY services/radar ./services/radar
 
 EXPOSE 8080
-CMD ["uvicorn", "services.radar.api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "services.radar.api.main:app", "--host", "0.0.0.0", "--port", "8080", "--no-access-log"]

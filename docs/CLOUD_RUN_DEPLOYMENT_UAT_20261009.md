@@ -48,11 +48,9 @@ Project: `geminimaxxing-509705`, region: `asia-southeast1`.
   API health returned 200. This verifies redirect construction, not a complete
   Google consent callback. Codex must not repeat the blocked browser action.
 
-Still required before merging the deployment PR: exercise a failed Cloud
-Tasks delivery with its retry control. The unavailable-folder test covered
-input failure and recovery, not worker retry. The Google OAuth client is
-restricted to configured test users. This is a staging deployment and does
-not establish a production-ready OAuth consent screen.
+The Google OAuth client is restricted to configured test users. This is a
+staging deployment and does not establish a production-ready OAuth consent
+screen.
 
 After revision `00003-gbk` was deployed, Mike completed a fresh Google consent
 return. The callback reached the private API but returned HTTP 503 while
@@ -68,3 +66,30 @@ authorization pending. In the deployed in-app browser, the signed-in Sources
 page showed the active connection; clicking Refresh folder completed and all
 six synthetic files remained visible. This verifies the deployed callback,
 Secret Manager write, token read, and Drive manifest path.
+
+A separate worker retry UAT used a synthetic TXT file with invalid UTF-8 in
+the same Drive folder. The deployed Sources page showed the new refresh job
+move from queued to running, retrying, then failed, with the delivery error
+and a Retry refresh control. Clicking Retry refresh dispatched another job;
+it retried and failed again while the input remained invalid. Replacing the
+same Drive file with valid UTF-8 changed the source manifest. A fresh refresh
+then completed and the Sources page listed seven ready files, including the
+repaired file. The original failed job remains in history. This verifies
+worker delivery retry, manual redispatch, and recovery after a corrected
+source; the corrected input needed a new job because the source version changed.
+
+The API container's default access log could record the OAuth callback URL,
+which contains a one-time code. The deployment image now starts Uvicorn with
+request access logging disabled. Cloud Run request metadata and application
+errors remain available. A metadata-only check found that Cloud Run request
+records can retain the callback query string, including a short-lived code;
+the container change does not remove those platform records. Limit access and
+retention for staging logs. Cloud Build `f6308884-ebaa-4834-94ef-905d33c3a676`
+passed, and private API revision `decision-radar-api-staging-00005-f9f` serves
+100% of its traffic. After deployment, the Sources page Refresh folder control
+completed with seven ready files. Request metadata shows HTTP 200 calls on
+the new API revision.
+The deployed Extract with Gemini control was also clicked for
+`vendor-update.txt` with the Acme Logistics delivery-date wording. It returned
+to ready and the saved October 24 verified fact remained visible; this repeat
+did not create a new fact.
