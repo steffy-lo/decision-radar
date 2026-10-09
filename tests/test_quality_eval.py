@@ -8,7 +8,7 @@ from pathlib import Path
 
 from services.radar.domain.assessment import AssessmentService
 from services.radar.domain.models import DateValue, DecimalValue, DemoFixture, EnumValue, EvidenceRef
-from services.radar.pipeline.extraction import EvidenceValidator
+from services.radar.pipeline.extraction import EvidenceValidator, ExtractionError, Extractor
 
 
 ROOT = Path(__file__).parents[1]
@@ -110,6 +110,26 @@ class TypedQualityEvaluation(unittest.TestCase):
         self.assertEqual((second.start_offset, second.end_offset), (28, 59))
         self.assertEqual(first.ref.quote, second.ref.quote)
         self.assertNotEqual(first.span_id, second.span_id)
+
+    def test_timestamp_candidate_cannot_be_silently_cast_to_a_date(self):
+        quote = "Acme delivery is 2026-10-24T00:30:00+14:00."
+        source = DEMO.sources[1].model_copy(update={"content_snapshot": quote})
+        payload = {"decisions": [], "facts": [{
+            "entity": "Acme", "predicate": "delivery date",
+            "value": {"type": "date", "value": "2026-10-24T00:30:00+14:00"},
+            "modality": "confirmed", "quote": quote, "contextComplete": True,
+        }]}
+
+        class Generator:
+            def generate(self, _source):
+                return payload
+
+        with self.assertRaises(ExtractionError):
+            Extractor(Generator()).extract(
+                source, {"Acme": "vendor_acme"},
+                "https://docs.google.com/document/d/eval-update/edit",
+                known_predicates={"delivery date": "delivery_date"},
+            )
 
 
 if __name__ == "__main__":
