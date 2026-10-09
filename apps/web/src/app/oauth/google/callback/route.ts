@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cloudRunIdentityHeader } from "@/lib/server/cloud-run-identity";
+import { publicCallbackUrl } from "@/lib/server/public-callback-url";
 
 const TARGET_API_HOST = process.env.RADAR_API_URL || "http://127.0.0.1:8000";
 const OAUTH_NONCE_COOKIE = "drive_oauth_nonce";
 
 function callbackRedirect(request: NextRequest, path: string) {
-  const response = NextResponse.redirect(new URL(path, request.url));
+  let destination: URL;
+  try {
+    destination = publicCallbackUrl(
+      path, request.url, process.env.RADAR_WEB_ORIGIN,
+      process.env.NODE_ENV === "production",
+    );
+  } catch {
+    return NextResponse.json({ error: "Public web origin is not configured." }, { status: 503 });
+  }
+  const response = NextResponse.redirect(destination);
   response.cookies.set(OAUTH_NONCE_COOKIE, "", {
     httpOnly: true,
     maxAge: 0,
