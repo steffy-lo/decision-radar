@@ -117,14 +117,35 @@ export async function getSourceDetail(projectId: string, sourceId: string): Prom
   return response.json();
 }
 
+function decisionErrorMessage(payload: unknown, fallback: string): string {
+  if (!payload || typeof payload !== "object" || !("detail" in payload)) return fallback;
+  const detail = payload.detail;
+  if (typeof detail === "string") return detail;
+  if (!Array.isArray(detail)) return fallback;
+  const fieldNames: Record<string, string> = {
+    statement: "Decision statement", owner: "Owner", rationale: "Rationale",
+    "assumptions.0.statement": "Assumption to monitor",
+    "assumptions.0.entityId": "Entity ID",
+    "assumptions.0.predicate": "Predicate",
+    "assumptions.0.expectedValue": "Expected by",
+  };
+  const messages = detail.flatMap((item: unknown) => {
+    if (!item || typeof item !== "object" || !("msg" in item) || typeof item.msg !== "string") return [];
+    const path = "loc" in item && Array.isArray(item.loc)
+      ? item.loc.filter((part: unknown) => part !== "body").join(".") : "";
+    return [`${fieldNames[path] ?? (path || "Decision")}: ${item.msg}`];
+  });
+  return messages.length ? messages.join("; ") : fallback;
+}
+
 export async function createLiveDecision(projectId: string, body: unknown): Promise<LiveDecision> {
   const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/decisions`, {
     method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    const payload: { detail?: string } = await response.json().catch(() => ({}));
-    throw new Error(payload.detail || `Decision draft failed with status ${response.status}.`);
+    const payload: unknown = await response.json().catch(() => ({}));
+    throw new Error(decisionErrorMessage(payload, `Decision draft failed with status ${response.status}.`));
   }
   const result: { decision: LiveDecision } = await response.json();
   return result.decision;
@@ -135,8 +156,8 @@ export async function confirmLiveDecision(projectId: string, decision: LiveDecis
     method: "POST", headers: { "Idempotency-Key": crypto.randomUUID(), "If-Match": `"${decision.version}"` },
   });
   if (!response.ok) {
-    const payload: { detail?: string } = await response.json().catch(() => ({}));
-    throw new Error(payload.detail || `Decision confirmation failed with status ${response.status}.`);
+    const payload: unknown = await response.json().catch(() => ({}));
+    throw new Error(decisionErrorMessage(payload, `Decision confirmation failed with status ${response.status}.`));
   }
   const result: { decision: LiveDecision } = await response.json();
   return result.decision;
