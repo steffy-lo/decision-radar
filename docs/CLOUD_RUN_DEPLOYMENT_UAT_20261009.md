@@ -55,3 +55,12 @@ control. The unavailable-folder test covered input failure and recovery, not
 worker retry. The Google OAuth client is restricted to configured test users.
 This is a staging deployment and does not establish a production-ready OAuth
 consent screen.
+
+After revision `00003-gbk` was deployed, Mike completed a fresh Google consent
+return. The callback reached the private API but returned HTTP 503 while
+storing the new refresh token. The API service account has Secret Accessor on
+`decision-radar-drive-proj_oauth_pr10_uat_20261007`, but the token store also
+reads secret metadata, adds a new version, and disables prior versions. An
+exact, secret-scoped grant for those operations is pending approval. The
+earlier token remains available for the successful refresh UAT above; the
+fresh reconnect has not passed.
