@@ -159,6 +159,8 @@ async def extract_source(
     selected = (await connection.get_connection(project_id)).selected_folder_id
     if not source or not selected or source.get("rootFolderId") != selected:
         raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
+    if source.get("status") != "ready":
+        raise HTTPException(status_code=409, detail="Source is not ready for extraction.")
     project = store.client.collection("projects").document(project_id)
     assumption_snapshot = await project.collection("assumptions").document(body.assumption_id).get()
     if not assumption_snapshot.exists:
@@ -170,6 +172,12 @@ async def extract_source(
             or assumption.get("decisionRevision") != decision.get("activeRevision")
             or not isinstance(assumption.get("entityId"), str)):
         raise HTTPException(status_code=422, detail="Choose an active monitored assumption.")
+    cached = await store.reusable_extraction(
+        project_id, source_id, source["contentSnapshot"], body.assumption_id,
+        body.entity_alias, body.predicate_alias,
+    )
+    if cached is not None:
+        return cached
     aliases = {body.entity_alias: assumption["entityId"]}
     predicates = {body.predicate_alias: assumption["predicate"]}
     predicates[assumption["predicate"]] = assumption["predicate"]
@@ -190,6 +198,8 @@ async def extract_source(
         "sourceId": source_id,
         "snapshotHash": sha256(source["contentSnapshot"].encode()).hexdigest(),
         "assumptionId": body.assumption_id,
+        "entityAlias": body.entity_alias,
+        "predicateAlias": body.predicate_alias,
         "createdAt": datetime.now(timezone.utc).isoformat(),
         "decisions": [
             {"statement": row.candidate.statement, "quote": row.evidence.ref.quote,

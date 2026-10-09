@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from hashlib import sha256
 from typing import Any
 
 from google.cloud import firestore
@@ -26,6 +27,44 @@ class FirestoreSourceStore:
     async def list(self, project_id: str) -> list[dict[str, Any]]:
         collection = self.client.collection("projects").document(project_id).collection("sources")
         return [snapshot.to_dict() or {} async for snapshot in collection.stream()]
+
+    async def reusable_extraction(
+        self, project_id: str, source_id: str, snapshot: str,
+        assumption_id: str, entity_alias: str, predicate_alias: str,
+    ) -> dict[str, Any] | None:
+        """Reuse verified facts for the same source and mapping, not uncertain runs."""
+        project = self.client.collection("projects").document(project_id)
+        extraction = await project.collection("sourceExtractions").document(source_id).get()
+        if not extraction.exists:
+            return None
+        result = extraction.to_dict() or {}
+        if (result.get("snapshotHash") != sha256(snapshot.encode()).hexdigest()
+                or result.get("assumptionId") != assumption_id
+                or not result.get("publishedFactCount")):
+            return None
+        ready = [row for row in result.get("facts", []) if row.get("state") == "ready"]
+        if not ready:
+            return None
+        entity = result.get("entityAlias")
+        predicate = result.get("predicateAlias")
+        if entity is None or predicate is None:
+            # Older records did not store the mapping. Their ready candidates
+            # must all use the requested wording before they can be reused.
+            if any(row.get("entity") != entity_alias or row.get("predicate") != predicate_alias
+                   for row in ready):
+                return None
+        elif entity != entity_alias or predicate != predicate_alias:
+            return None
+        fact_ids = result.get("factIds", [])
+        if len(fact_ids) != result["publishedFactCount"]:
+            return None
+        for fact_id in fact_ids:
+            if not (await project.collection("facts").document(fact_id).get()).exists:
+                return None
+        source = await project.collection("sources").document(source_id).get()
+        if not source.exists or (source.to_dict() or {}).get("contentSnapshot") != snapshot:
+            return None
+        return {key: value for key, value in result.items() if key != "factIds"}
 
     async def publish_extraction(
         self, project_id: str, source_id: str, snapshot: str,
