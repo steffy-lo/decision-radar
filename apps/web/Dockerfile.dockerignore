@@ -1,0 +1,12 @@
+# The build context is the repository root so the demo fixtures are available.
+**
+!apps/
+!apps/web/
+!apps/web/**/
+!apps/web/**
+!fixtures/
+!fixtures/*.json
+apps/web/node_modules/**
+apps/web/.next/**
+apps/web/.env*
+apps/web/coverage/**

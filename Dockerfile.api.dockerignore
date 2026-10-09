@@ -1,0 +1,11 @@
+**
+!Dockerfile.api
+!services/
+!services/radar/
+!services/radar/**/
+!services/radar/**/*.py
+!services/radar/requirements.txt
+**/.venv/**
+**/venv/**
+**/__pycache__/**
+services/radar/tests/**
