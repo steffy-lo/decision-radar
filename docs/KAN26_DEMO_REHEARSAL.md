@@ -15,6 +15,45 @@ Use a fresh project folder or the deterministic vendor-delay fixture. Keep the o
 
 The MVP scope explicitly excludes Google Docs export and durable briefs. The current Briefs page is an empty state. Do not present a brief export as part of this rehearsal despite the older KAN-26 ticket wording.
 
+## Demo script and reset
+
+Use the live synthetic project only for a read-through of an already reviewed
+alert. For the acceptance rehearsal, start a clean review project so the human
+action and its audit entry are new. Do not clear the existing synthetic audit
+history to make it look fresh.
+
+1. Open **Decisions** and name the confirmed launch decision, its owner, and
+   the expected Acme delivery date. Explain that the decision stays unchanged
+   until a person reviews the alert.
+2. Open **Sources**. Show the active Drive folder, the Doc/TXT/transcript and
+   nested Doc inventory, and the source links. Refresh once and check that the
+   count does not grow for unchanged files. Use the trusted Acme Logistics and
+   delivery-date wording for the vendor TXT. A repeat extraction of the same
+   verified snapshot should retain its fact after PR #20.
+3. Open **Reviews**, run assessment, and read the original 15 October quote
+   beside the confirmed 24 October quote. State that the nine-day difference
+   directly challenges the launch decision; the two other assumptions have
+   unclear coverage rather than a confirmed contradiction.
+4. Open the impact graph. Select the direct challenge, then both downstream
+   decisions. Explain that the latter are projected effects through recorded
+   dependencies, with the trigger evidence linked separately. Check Enter or
+   Space on a focused node and Fit View at phone width.
+5. On a fresh alert, save a human review with a short rationale. Check one new
+   audit entry and confirm the decision revision changes only if the chosen
+   action explicitly revises it. This step is still required for rehearsal 2.
+6. For recovery, use an unavailable folder ID and show its access message,
+   then restore the valid folder and confirm the source count. If live Drive
+   or Vertex is unavailable, open the **Demo workspace** from the home page.
+   Its synthetic review links show access-unavailable, evidence-unclear, and
+   no-issue states. Say clearly that fixture mode does not save review actions.
+
+The current live UAT folder is `1uc4D6a_jXKJxfJOq1gecBeCDmPtN8W9a` under
+project `proj_oauth_pr10_uat_20261007`. It contains seven synthetic files as
+of 9 October. A clean rehearsal project needs its own Drive connection or a
+documented fixture seed; do not copy a refresh token between projects. If a
+new project cannot be set up, record the review step as untested rather than
+counting the read-through as rehearsal 2.
+
 ## Pass record
 
 | Run | Environment | Source and decision | Alert and graph | Review and recovery | Result |
