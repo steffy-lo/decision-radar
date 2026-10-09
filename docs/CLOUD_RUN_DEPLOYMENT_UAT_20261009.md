@@ -48,13 +48,11 @@ Project: `geminimaxxing-509705`, region: `asia-southeast1`.
   API health returned 200. This verifies redirect construction, not a complete
   Google consent callback. Codex must not repeat the blocked browser action.
 
-Still required before merging the deployment PR: finish a fresh Google Drive
-OAuth callback through the deployed hostname, verify that reconnect preserves
-the live connection, and exercise a failed Cloud Tasks delivery with its retry
-control. The unavailable-folder test covered input failure and recovery, not
-worker retry. The Google OAuth client is restricted to configured test users.
-This is a staging deployment and does not establish a production-ready OAuth
-consent screen.
+Still required before merging the deployment PR: exercise a failed Cloud
+Tasks delivery with its retry control. The unavailable-folder test covered
+input failure and recovery, not worker retry. The Google OAuth client is
+restricted to configured test users. This is a staging deployment and does
+not establish a production-ready OAuth consent screen.
 
 After revision `00003-gbk` was deployed, Mike completed a fresh Google consent
 return. The callback reached the private API but returned HTTP 503 while
@@ -63,6 +61,10 @@ storing the new refresh token. The API service account has Secret Accessor on
 reads secret metadata, adds a new version, and disables prior versions. Mike
 approved Secret Manager Viewer and Secret Version Manager on this synthetic
 project secret for the staging API service account; the bindings are verified.
-The earlier token remains available for the successful refresh UAT above. A
-fresh Google consent is still needed because the previous authorization code
-was consumed before token storage failed.
+Mike completed another Google consent. The latest API callback returned HTTP
+200, a new Secret Manager version was enabled while the previous version was
+disabled, and the connection document reports `active`, no error, and no
+authorization pending. In the deployed in-app browser, the signed-in Sources
+page showed the active connection; clicking Refresh folder completed and all
+six synthetic files remained visible. This verifies the deployed callback,
+Secret Manager write, token read, and Drive manifest path.
