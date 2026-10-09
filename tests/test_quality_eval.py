@@ -8,6 +8,7 @@ from pathlib import Path
 
 from services.radar.domain.assessment import AssessmentService
 from services.radar.domain.models import DateValue, DecimalValue, DemoFixture, EnumValue, EvidenceRef
+from services.radar.pipeline.extraction import EvidenceValidator
 
 
 ROOT = Path(__file__).parents[1]
@@ -92,6 +93,23 @@ class TypedQualityEvaluation(unittest.TestCase):
         recall = tp / (tp + fn) if tp + fn else 1.0
         self.assertGreaterEqual(precision, 0.90)
         self.assertGreaterEqual(recall, 0.85)
+
+    def test_citation_span_changes_with_the_source_snapshot(self):
+        quote = "Acme delivery October 24, 2026."
+        original = DEMO.sources[1].model_copy(update={
+            "content_snapshot": "Approved. Acme delivery October 24, 2026.",
+        })
+        revised = original.model_copy(update={
+            "content_snapshot": "Draft superseded. Approved. Acme delivery October 24, 2026.",
+        })
+        validator = EvidenceValidator()
+        first = validator.verify(original, quote, "https://docs.google.com/document/d/eval-update/edit")
+        second = validator.verify(revised, quote, "https://docs.google.com/document/d/eval-update/edit")
+
+        self.assertEqual((first.start_offset, first.end_offset), (10, 41))
+        self.assertEqual((second.start_offset, second.end_offset), (28, 59))
+        self.assertEqual(first.ref.quote, second.ref.quote)
+        self.assertNotEqual(first.span_id, second.span_id)
 
 
 if __name__ == "__main__":
