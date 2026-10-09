@@ -2,7 +2,7 @@
 
 Project: `geminimaxxing-509705`, region: `asia-southeast1`.
 
-- Web revision `decision-radar-web-00002-2g7` serves the public Cloud Run URL.
+- Web revision `decision-radar-web-00003-gbk` serves the public Cloud Run URL.
   The first revision failed because the container expected `server.js` at the
   wrong path. The fixed build uses an explicit Next.js tracing root and checks
   the standalone server path in Cloud Build.
@@ -36,6 +36,17 @@ Project: `geminimaxxing-509705`, region: `asia-southeast1`.
   OAuth client. Google sign-in worked in Chrome. The in-app browser returned
   `auth/network-request-failed` during the popup flow; the external Chrome
   result is the browser UAT evidence for sign-in.
+- A fresh Drive reconnect reached Google's test-app warning. Mike asked Codex
+  to continue past it. Automatic browser review blocked the final consent
+  action because it detected a redirect to `https://0.0.0.0:8080` rather than
+  the deployed host. The web callback had used the internal request URL as its
+  redirect base. The fix requires a configured `RADAR_WEB_ORIGIN` in production
+  and fails closed if it is missing. Its focused tests, lint, type check, local
+  webpack production build, and Cloud Build passed. Revision `00003-gbk` now
+  serves all web traffic with `RADAR_WEB_ORIGIN` set to the public host. A
+  no-code callback probe returned HTTP 307 to that public host, and proxied
+  API health returned 200. This verifies redirect construction, not a complete
+  Google consent callback. Codex must not repeat the blocked browser action.
 
 Still required before merging the deployment PR: finish a fresh Google Drive
 OAuth callback through the deployed hostname, verify that reconnect preserves
