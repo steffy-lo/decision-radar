@@ -60,7 +60,9 @@ After revision `00003-gbk` was deployed, Mike completed a fresh Google consent
 return. The callback reached the private API but returned HTTP 503 while
 storing the new refresh token. The API service account has Secret Accessor on
 `decision-radar-drive-proj_oauth_pr10_uat_20261007`, but the token store also
-reads secret metadata, adds a new version, and disables prior versions. An
-exact, secret-scoped grant for those operations is pending approval. The
-earlier token remains available for the successful refresh UAT above; the
-fresh reconnect has not passed.
+reads secret metadata, adds a new version, and disables prior versions. Mike
+approved Secret Manager Viewer and Secret Version Manager on this synthetic
+project secret for the staging API service account; the bindings are verified.
+The earlier token remains available for the successful refresh UAT above. A
+fresh Google consent is still needed because the previous authorization code
+was consumed before token storage failed.
