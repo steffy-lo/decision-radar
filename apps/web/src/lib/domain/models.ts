@@ -1,12 +1,13 @@
 /** JSON contract shared with services/radar/domain/models.py. */
 export type Id = string;
-export type EvidenceRef = { sourceId: Id; sourceTitle: string; nativeUrl: string; quote: string; locator?: string | null };
+export type EvidenceRef = { sourceId: Id; sourceTitle: string; nativeUrl: string; quote: string; locator?: string | null; sourceVersionId?: string | null; spanId?: string | null };
 export type TypedValue =
   | { type: "date"; value: string }
   | { type: "decimal"; value: string | number; unit: string }
   | { type: "enum"; value: string };
 export type Source = {
   id: Id; projectId: Id; name: string; mimeType: string; contentSnapshot: string;
+  versionId?: string | null;
   status: "ready" | "failed" | "access_required";
 };
 export type Decision = {

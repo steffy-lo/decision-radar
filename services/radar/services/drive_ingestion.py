@@ -7,6 +7,7 @@ import json
 from typing import Any, Protocol
 
 import httpx
+from services.radar.services.source_versions import normalize_text
 
 FOLDER_MIME = "application/vnd.google-apps.folder"
 DOC_MIME = "application/vnd.google-apps.document"
@@ -226,10 +227,14 @@ class SourceService:
                     and prior.get("rootFolderId") == folder_id
                     and prior.get("parentFolderId") == file.parent_id
                     and prior.get("status") == "ready"):
+                if not prior.get("versionId"):
+                    versioned_put = getattr(self.store, "put_versioned", None)
+                    if versioned_put:
+                        await versioned_put(project_id, sid, prior)
                 unchanged += 1
                 continue
-            content = await self.drive.read_text(file)
-            await self.store.put(project_id, sid, {
+            content = normalize_text(await self.drive.read_text(file))
+            record = {
                 "id": sid, "projectId": project_id, "nativeId": file.id,
                 "name": file.name, "mimeType": file.mime_type,
                 "parentFolderId": file.parent_id, "folderDepth": depth,
@@ -237,7 +242,12 @@ class SourceService:
                 "lastModified": file.modified_time, "nativeUrl": file.native_url,
                 "contentSnapshot": content, "status": "ready",
                 "updatedAt": datetime.now(timezone.utc).isoformat(),
-            })
+            }
+            versioned_put = getattr(self.store, "put_versioned", None)
+            if versioned_put:
+                await versioned_put(project_id, sid, record)
+            else:
+                await self.store.put(project_id, sid, record)
             if prior:
                 updated += 1
             else:

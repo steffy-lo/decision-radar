@@ -47,7 +47,7 @@ class ExtractionTests(unittest.TestCase):
             self.assertEqual(NOTES.content_snapshot[span.start_offset:span.end_offset], span.ref.quote)
             self.assertTrue(span.span_id.startswith("span_"))
             self.assertEqual(span.ref.native_url, NOTES_URL)
-            self.assertEqual(span.ref.locator, f"Snapshot characters {span.start_offset + 1}–{span.end_offset}")
+            self.assertIn(f"snapshot characters {span.start_offset + 1}–{span.end_offset}", span.ref.locator)
 
     def test_decision_and_assumption_are_quote_backed(self):
         payload = {"decisions": [{

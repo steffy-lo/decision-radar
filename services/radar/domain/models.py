@@ -86,6 +86,8 @@ class EvidenceRef(RadarModel):
     native_url: str
     quote: Quote
     locator: str | None = None
+    source_version_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    span_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class DateValue(RadarModel):
@@ -114,6 +116,7 @@ class Source(RadarModel):
     mime_type: str
     content_snapshot: str
     status: Literal["ready", "failed", "access_required"]
+    version_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class Decision(RadarModel):
