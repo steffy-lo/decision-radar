@@ -86,41 +86,51 @@ class FirestoreSourceStore:
         current = await source_ref.get()
         if not current.exists or (current.to_dict() or {}).get("versionId") != source["versionId"]:
             return 0, 0
-        if (current.to_dict() or {}).get("citationsBackfilled"):
+        if ((current.to_dict() or {}).get("citationsBackfilled")
+                and (current.to_dict() or {}).get("citationBackfillSchema") == 2):
             return 0, 0
         project = self.client.collection("projects").document(project_id)
         migrated = unresolved = 0
         batch = self.client.batch()
         writes = 0
-        for collection_name in ("facts", "decisionRevisions", "assumptions"):
+        for collection_name, evidence_fields in (
+            ("facts", ("evidence",)),
+            ("decisionRevisions", ("evidence",)),
+            ("assumptions", ("evidence",)),
+            ("findings", ("baselineEvidence", "updateEvidence")),
+        ):
             async for document in project.collection(collection_name).stream():
-                evidence = (document.to_dict() or {}).get("evidence")
-                if (not isinstance(evidence, dict) or evidence.get("sourceId") != source_id
-                        or evidence.get("sourceVersionId")):
-                    continue
-                try:
-                    span = resolve_quote(source_id, source["contentSnapshot"], evidence["quote"],
-                                         document=source.get("mimeType") == "application/vnd.google-apps.document")
-                except (KeyError, ValueError):
-                    unresolved += 1
-                    continue
-                batch.update(document.reference, {"evidence": {
-                    **evidence, "sourceVersionId": span.version_id,
-                    "spanId": span.id, "locator": span.locator,
-                }})
-                batch.set(source_ref.collection("versions").document(span.version_id)
-                          .collection("spans").document(span.id), {
-                              "id": span.id, "sourceId": source_id,
-                              "sourceVersionId": span.version_id,
-                              "quote": span.quote, "locator": span.locator,
-                          })
-                writes += 2
-                migrated += 1
+                updates = {}
+                for field in evidence_fields:
+                    evidence = (document.to_dict() or {}).get(field)
+                    if (not isinstance(evidence, dict) or evidence.get("sourceId") != source_id
+                            or evidence.get("sourceVersionId")):
+                        continue
+                    try:
+                        span = resolve_quote(source_id, source["contentSnapshot"], evidence["quote"],
+                                             document=source.get("mimeType") == "application/vnd.google-apps.document")
+                    except (KeyError, ValueError):
+                        unresolved += 1
+                        continue
+                    updates[field] = {**evidence, "sourceVersionId": span.version_id,
+                                      "spanId": span.id, "locator": span.locator}
+                    batch.set(source_ref.collection("versions").document(span.version_id)
+                              .collection("spans").document(span.id), {
+                                  "id": span.id, "sourceId": source_id,
+                                  "sourceVersionId": span.version_id,
+                                  "quote": span.quote, "locator": span.locator,
+                              })
+                    writes += 1
+                    migrated += 1
+                if updates:
+                    batch.update(document.reference, updates)
+                    writes += 1
                 if writes >= 400:
                     await batch.commit()
                     batch, writes = self.client.batch(), 0
         batch.update(source_ref, {"citationsBackfilled": unresolved == 0,
-                                  "citationBackfillErrorCount": unresolved})
+                                  "citationBackfillErrorCount": unresolved,
+                                  "citationBackfillSchema": 2})
         await batch.commit()
         if unresolved:
             logger.warning("Could not resolve %d legacy citations for source %s", unresolved, source_id)

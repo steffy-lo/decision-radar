@@ -49,9 +49,13 @@ def test_pre_versioning_citations_gain_spans_from_preserved_snapshot():
         await store.put(project_id, source_id, source)
         revision = project.collection("decisionRevisions").document("rev_legacy")
         await revision.set({"evidence": {"sourceId": source_id, "quote": "October 15, 2026"}})
+        finding = project.collection("findings").document("finding_legacy")
+        await finding.set({"baselineEvidence": {"sourceId": source_id, "quote": "October 15, 2026"}})
         await store.put_versioned(project_id, source_id, source)
         evidence = (await revision.get()).to_dict()["evidence"]
+        finding_evidence = (await finding.get()).to_dict()["baselineEvidence"]
         assert evidence["sourceVersionId"] == (await store.get(project_id, source_id))["versionId"]
+        assert finding_evidence["spanId"] == evidence["spanId"]
         assert (await store._ref(project_id, source_id).collection("versions")
                 .document(evidence["sourceVersionId"]).collection("spans")
                 .document(evidence["spanId"]).get()).exists

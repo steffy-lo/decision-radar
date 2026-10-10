@@ -232,7 +232,7 @@ class SourceService:
                     versioned_put = getattr(self.store, "put_versioned", None)
                     if versioned_put:
                         await versioned_put(project_id, sid, prior)
-                elif backfill and not prior.get("citationsBackfilled"):
+                elif backfill and (not prior.get("citationsBackfilled") or prior.get("citationBackfillSchema") != 2):
                     await backfill(project_id, sid, prior)
                 unchanged += 1
                 continue
@@ -242,7 +242,8 @@ class SourceService:
             versioned_put = getattr(self.store, "put_versioned", None)
             if prior and prior.get("status") == "ready" and not prior.get("versionId") and versioned_put:
                 await versioned_put(project_id, sid, prior)
-            elif prior and prior.get("versionId") and not prior.get("citationsBackfilled") and backfill:
+            elif (prior and prior.get("versionId") and backfill
+                  and (not prior.get("citationsBackfilled") or prior.get("citationBackfillSchema") != 2)):
                 await backfill(project_id, sid, prior)
             content = normalize_text(await self.drive.read_text(file))
             record = {
