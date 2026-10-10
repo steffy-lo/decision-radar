@@ -7,6 +7,7 @@ import json
 from typing import Any, Protocol
 
 import httpx
+from services.radar.services.source_versions import normalize_text
 
 FOLDER_MIME = "application/vnd.google-apps.folder"
 DOC_MIME = "application/vnd.google-apps.document"
@@ -222,14 +223,30 @@ class SourceService:
                 raise DriveIngestionError(f"Google Drive did not return a modification time for {file.name}.")
             sid = source_id(file.id)
             prior = await self.store.get(project_id, sid)
+            backfill = getattr(self.store, "backfill_legacy_citations", None)
             if (prior and prior.get("lastModified") == file.modified_time
                     and prior.get("rootFolderId") == folder_id
                     and prior.get("parentFolderId") == file.parent_id
                     and prior.get("status") == "ready"):
+                if not prior.get("versionId"):
+                    versioned_put = getattr(self.store, "put_versioned", None)
+                    if versioned_put:
+                        await versioned_put(project_id, sid, prior)
+                elif backfill and (not prior.get("citationsBackfilled") or prior.get("citationBackfillSchema") != 2):
+                    await backfill(project_id, sid, prior)
                 unchanged += 1
                 continue
-            content = await self.drive.read_text(file)
-            await self.store.put(project_id, sid, {
+            # A pre-versioning source may have changed in Drive since its last
+            # refresh. Preserve its cited text before advancing the current
+            # pointer to the edited content.
+            versioned_put = getattr(self.store, "put_versioned", None)
+            if prior and prior.get("status") == "ready" and not prior.get("versionId") and versioned_put:
+                await versioned_put(project_id, sid, prior)
+            elif (prior and prior.get("versionId") and backfill
+                  and (not prior.get("citationsBackfilled") or prior.get("citationBackfillSchema") != 2)):
+                await backfill(project_id, sid, prior)
+            content = normalize_text(await self.drive.read_text(file))
+            record = {
                 "id": sid, "projectId": project_id, "nativeId": file.id,
                 "name": file.name, "mimeType": file.mime_type,
                 "parentFolderId": file.parent_id, "folderDepth": depth,
@@ -237,7 +254,11 @@ class SourceService:
                 "lastModified": file.modified_time, "nativeUrl": file.native_url,
                 "contentSnapshot": content, "status": "ready",
                 "updatedAt": datetime.now(timezone.utc).isoformat(),
-            })
+            }
+            if versioned_put:
+                await versioned_put(project_id, sid, record)
+            else:
+                await self.store.put(project_id, sid, record)
             if prior:
                 updated += 1
             else:

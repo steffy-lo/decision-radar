@@ -8,6 +8,7 @@ from google.cloud import firestore
 from services.radar.adapters.firestore import get_firestore_client
 from services.radar.domain.decisions import DecisionState
 from services.radar.domain.models import Assumption, Decision, DecisionRevision, EvidenceRef
+from services.radar.services.source_versions import resolve_quote
 
 
 class DecisionNotFound(ValueError):
@@ -152,8 +153,26 @@ class FirestoreDecisionStore:
                     raise UnverifiedEvidence("A cited source is missing. Refresh the source before confirming.")
                 sources[ref.source_id] = snapshot.to_dict() or {}
             source = sources[ref.source_id]
-            if source.get("status") != "ready" or ref.quote not in source.get("contentSnapshot", ""):
+            if source.get("status") != "ready":
                 raise UnverifiedEvidence("A cited quote is missing from the ready source snapshot.")
+            try:
+                span = resolve_quote(ref.source_id, source.get("contentSnapshot", ""), ref.quote,
+                                     document=source.get("mimeType") == "application/vnd.google-apps.document")
+            except ValueError as exc:
+                raise UnverifiedEvidence("A cited quote is missing or ambiguous in the ready source snapshot.") from exc
+            if source.get("versionId"):
+                if source["versionId"] != span.version_id:
+                    raise UnverifiedEvidence("The cited source version changed. Refresh and try again.")
+                ref.source_version_id = span.version_id
+                ref.span_id = span.id
+                ref.locator = span.locator
+                tx.set(project.collection("sources").document(ref.source_id)
+                       .collection("versions").document(span.version_id)
+                       .collection("spans").document(span.id), {
+                           "id": span.id, "sourceId": ref.source_id,
+                           "sourceVersionId": span.version_id, "quote": span.quote,
+                           "locator": span.locator,
+                       })
 
 
 def get_decision_store() -> FirestoreDecisionStore:

@@ -19,6 +19,7 @@ from services.radar.pipeline.extraction import Extractor, ExtractionError
 from services.radar.pipeline.gemini import VertexGeminiGenerator
 from services.radar.services.connections import ConnectionService
 from services.radar.services.drive_ingestion import DriveIngestionError, HttpDriveGateway, SourceService
+from services.radar.services.source_versions import resolve_quote
 
 router = APIRouter(prefix="/projects/{project_id}/sources", tags=["Sources"])
 
@@ -141,8 +142,56 @@ async def get_source(
     return {
         "id": source["id"], "name": source["name"],
         "nativeUrl": source["nativeUrl"], "contentSnapshot": source["contentSnapshot"],
-        "status": source["status"],
+        "status": source["status"], "versionId": source.get("versionId"),
     }
+
+
+@router.get("/{source_id}/versions/{version_id}")
+async def get_source_version(
+    project_id: str, source_id: str, version_id: str,
+    _: AuthenticatedProjectMember = Depends(require_project_member),
+    store: FirestoreSourceStore = Depends(get_source_store),
+    connection: ConnectionService = Depends(get_connection_service),
+) -> dict[str, Any]:
+    source = await store.get(project_id, source_id)
+    selected = (await connection.get_connection(project_id)).selected_folder_id
+    if not source or source.get("rootFolderId") != selected:
+        raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
+    version = await store.get_version(project_id, source_id, version_id)
+    if not version:
+        raise HTTPException(status_code=404, detail="Source version not found.")
+    return version
+
+
+@router.get("/{source_id}/versions/{version_id}/spans/{span_id}")
+async def get_source_span(
+    project_id: str, source_id: str, version_id: str, span_id: str,
+    _: AuthenticatedProjectMember = Depends(require_project_member),
+    store: FirestoreSourceStore = Depends(get_source_store),
+    connection: ConnectionService = Depends(get_connection_service),
+) -> dict[str, Any]:
+    source = await store.get(project_id, source_id)
+    selected = (await connection.get_connection(project_id)).selected_folder_id
+    if not source or source.get("rootFolderId") != selected:
+        raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
+    snapshot = await store.get_version(project_id, source_id, version_id)
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="Source version not found.")
+    span_ref = store._ref(project_id, source_id).collection("versions").document(version_id).collection("spans").document(span_id)
+    span_doc = await span_ref.get()
+    if not span_doc.exists:
+        raise HTTPException(status_code=404, detail="Published citation span not found.")
+    evidence = span_doc.to_dict() or {}
+    try:
+        span = resolve_quote(source_id, snapshot["contentSnapshot"], evidence["quote"],
+                             document=snapshot["mimeType"] == "application/vnd.google-apps.document")
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=409, detail="The stored citation no longer resolves.") from exc
+    if span.id != span_id or span.version_id != version_id:
+        raise HTTPException(status_code=409, detail="The stored citation no longer resolves.")
+    return {"id": span.id, "sourceVersionId": version_id, "quote": span.quote,
+            "start": span.start, "end": span.end, "line": span.line,
+            "column": span.column, "locator": span.locator}
 
 
 @router.post("/{source_id}/extract")
@@ -161,6 +210,9 @@ async def extract_source(
         raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
     if source.get("status") != "ready":
         raise HTTPException(status_code=409, detail="Source is not ready for extraction.")
+    if not source.get("versionId") and getattr(store, "snapshot_bucket", None) is not None:
+        await store.put_versioned(project_id, source_id, source)
+        source = await store.get(project_id, source_id)
     project = store.client.collection("projects").document(project_id)
     assumption_snapshot = await project.collection("assumptions").document(body.assumption_id).get()
     if not assumption_snapshot.exists:
@@ -187,7 +239,7 @@ async def extract_source(
             Source(
                 id=source["id"], project_id=project_id, name=source["name"],
                 mime_type=source["mimeType"], content_snapshot=source["contentSnapshot"],
-                status=source["status"],
+                status=source["status"], version_id=source.get("versionId"),
             ),
             aliases, source["nativeUrl"], predicates,
         )

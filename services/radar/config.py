@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     FIREBASE_AUTH_EMULATOR_HOST: Optional[str] = None
     FIREBASE_PROJECT_ID: str = "decision-radar"
     FIRESTORE_DATABASE_ID: str = "(default)"
+    SOURCE_SNAPSHOT_BUCKET: Optional[str] = None
     GOOGLE_OAUTH_CLIENT_ID: Optional[str] = None
     GOOGLE_OAUTH_CLIENT_SECRET: Optional[str] = None
     GOOGLE_OAUTH_REDIRECT_URI: Optional[str] = None

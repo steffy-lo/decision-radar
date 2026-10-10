@@ -10,6 +10,7 @@ from decimal import Decimal
 from pydantic import Field, TypeAdapter, ValidationError
 
 from services.radar.domain.models import DateValue, DecimalValue, EnumValue, EvidenceRef, Fact, Id, RadarModel, Source, TypedValue
+from services.radar.services.source_versions import resolve_quote
 
 
 class ExtractionError(ValueError):
@@ -112,20 +113,20 @@ class EvidenceValidator:
             raise ExtractionError("source has no secure native link")
         if not quote or not quote.strip():
             raise ExtractionError("candidate has no evidence quote")
-        start = source.content_snapshot.find(quote)
-        if start < 0:
-            raise ExtractionError("evidence quote is absent from the source snapshot")
-        if source.content_snapshot.find(quote, start + 1) >= 0:
-            raise ExtractionError("evidence quote matches more than one source span")
-        end = start + len(quote)
-        snapshot_hash = sha256(source.content_snapshot.encode("utf-8")).hexdigest()
-        span_hash = sha256(f"{source.id}:{snapshot_hash}:{start}:{end}".encode()).hexdigest()[:20]
+        try:
+            span = resolve_quote(source.id, source.content_snapshot, quote,
+                                 document=source.mime_type == "application/vnd.google-apps.document")
+        except ValueError as exc:
+            raise ExtractionError(str(exc)) from exc
+        if source.version_id and source.version_id != span.version_id:
+            raise ExtractionError("source version does not match the text being extracted")
         return VerifiedEvidence(
             ref=EvidenceRef(
                 source_id=source.id, source_title=source.name, native_url=native_url,
-                quote=quote, locator=f"Snapshot characters {start + 1}–{end}",
+                quote=quote, locator=span.locator,
+                source_version_id=span.version_id, span_id=span.id,
             ),
-            span_id=f"span_{span_hash}", start_offset=start, end_offset=end,
+            span_id=span.id, start_offset=span.start, end_offset=span.end,
         )
 
 

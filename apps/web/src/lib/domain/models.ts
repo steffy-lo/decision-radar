@@ -1,12 +1,13 @@
 /** JSON contract shared with services/radar/domain/models.py. */
 export type Id = string;
-export type EvidenceRef = { sourceId: Id; sourceTitle: string; nativeUrl: string; quote: string; locator?: string | null };
+export type EvidenceRef = { sourceId: Id; sourceTitle: string; nativeUrl: string; quote: string; locator?: string | null; sourceVersionId?: string | null; spanId?: string | null };
 export type TypedValue =
   | { type: "date"; value: string }
   | { type: "decimal"; value: string | number; unit: string }
   | { type: "enum"; value: string };
 export type Source = {
   id: Id; projectId: Id; name: string; mimeType: string; contentSnapshot: string;
+  versionId?: string | null;
   status: "ready" | "failed" | "access_required";
 };
 export type Decision = {
@@ -128,7 +129,10 @@ const evidence: Check = (value) => {
   for (const name of ["sourceId", "sourceTitle", "nativeUrl", "quote"]) if (!(name in row)) fail(`missing ${name}`);
   id(row.sourceId); nonempty(row.sourceTitle); nonempty(row.nativeUrl); nonempty(row.quote);
   if ("locator" in row) optional(nonempty)(row.locator);
-  for (const name of Object.keys(row)) if (!["sourceId", "sourceTitle", "nativeUrl", "quote", "locator"].includes(name)) fail(`unexpected ${name}`);
+  if ("sourceVersionId" in row) optional(id)(row.sourceVersionId);
+  if ("spanId" in row) optional(id)(row.spanId);
+  if (Boolean(row.sourceVersionId) !== Boolean(row.spanId)) fail("incomplete versioned citation");
+  for (const name of Object.keys(row)) if (!["sourceId", "sourceTitle", "nativeUrl", "quote", "locator", "sourceVersionId", "spanId"].includes(name)) fail(`unexpected ${name}`);
 };
 const typedValue: Check = (value) => {
   const kind = object(value).type;
@@ -172,7 +176,7 @@ export function parseDemoFixture(value: unknown): DemoFixture {
   const brief = new Set(data.briefs.map((row) => row.id));
   const checkEvidence = (ref: EvidenceRef) => {
     const text = source.get(ref.sourceId)?.contentSnapshot;
-    if (!text?.includes(ref.quote)) fail("evidence quote absent from source");
+    if (!ref.sourceVersionId && !text?.includes(ref.quote)) fail("evidence quote absent from source");
   };
   data.revisions.forEach((row) => { if (!decision.has(row.decisionId)) fail("revision decision missing"); checkEvidence(row.evidence); });
   data.assumptions.forEach((row) => { if (!decision.has(row.decisionId)) fail("assumption decision missing"); checkEvidence(row.evidence); });
