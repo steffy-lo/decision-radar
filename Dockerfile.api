@@ -1,0 +1,14 @@
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HOST=0.0.0.0 \
+    PORT=8080
+
+WORKDIR /app
+COPY services/radar/requirements.txt ./requirements.txt
+RUN python -m pip install --no-cache-dir -r requirements.txt
+COPY services/radar ./services/radar
+
+EXPOSE 8080
+CMD ["uvicorn", "services.radar.api.main:app", "--host", "0.0.0.0", "--port", "8080", "--no-access-log"]

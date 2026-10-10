@@ -52,8 +52,18 @@ export function LiveDecisionRegister({ projectId }: { projectId: string }) {
     if (!source || !quote.trim() || !source.contentSnapshot.includes(quote.trim())) {
       setError("Paste one exact quote from the selected source text."); return;
     }
+    const missing = [
+      ["Decision statement", statement], ["Owner", owner],
+      ["Assumption to monitor", assumption], ["Entity ID", entityId], ["Predicate", predicate],
+    ].filter(([, value]) => !value.trim()).map(([label]) => label);
+    if (missing.length) {
+      setError(`Complete these fields: ${missing.join(", ")}.`); return;
+    }
+    if (!/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/.test(entityId)) {
+      setError("Entity ID must use lowercase letters, numbers, and underscores, starting with a letter."); return;
+    }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(expectedDate)) {
-      setError("Enter an expected date in YYYY-MM-DD format."); return;
+      setError("Choose an expected date."); return;
     }
     setBusy(true); setError(null); setNotice(null);
     const evidence = { sourceId: source.id, sourceTitle: source.name, nativeUrl: source.nativeUrl, quote: quote.trim() };

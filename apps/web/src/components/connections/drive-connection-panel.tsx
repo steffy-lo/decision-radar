@@ -122,6 +122,7 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
     }
     setActionLoading(true);
     setError(null);
+    setRefreshJob(null);
     try {
       const job = await submitRefreshJob(projectId, selected);
       setRefreshJob(job);
