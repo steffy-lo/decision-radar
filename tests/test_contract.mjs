@@ -33,6 +33,19 @@ test("malformed IDs and missing evidence are rejected", () => {
   assert.throws(() => parseDemoFixture(changed((p) => { p.findings[0].updateEvidence.quote = "unverified quote"; })));
 });
 
+test("versioned historical evidence can outlive the current source text", () => {
+  const copy = changed((p) => {
+    const ref = p.revisions[0].evidence;
+    ref.sourceVersionId = "ver_abc123";
+    ref.spanId = "span_abc123";
+    ref.quote = "A quote retained only in the prior version.";
+  });
+  assert.doesNotThrow(() => parseDemoFixture(copy));
+  assert.throws(() => parseDemoFixture(changed((p) => {
+    p.revisions[0].evidence.sourceVersionId = "ver_abc123";
+  })));
+});
+
 test("invalid typed values, modality, and date deltas are rejected", () => {
   assert.throws(() => parseDemoFixture(changed((p) => { p.assumptions[0].expectedValue.value = "2026-02-30"; })));
   assert.throws(() => parseDemoFixture(changed((p) => { p.assumptions[1].expectedValue.value = "not a decimal"; })));
