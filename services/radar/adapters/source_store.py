@@ -5,6 +5,7 @@ from __future__ import annotations
 from hashlib import sha256
 from typing import Any
 import asyncio
+import logging
 
 from google.cloud import firestore
 from google.api_core.exceptions import PreconditionFailed
@@ -12,6 +13,8 @@ from google.api_core.exceptions import PreconditionFailed
 from services.radar.adapters.firestore import get_firestore_client
 from services.radar.config import settings
 from services.radar.services.source_versions import NORMALIZER_VERSION, normalize_text, resolve_quote, version_id
+
+logger = logging.getLogger(__name__)
 
 
 class FirestoreSourceStore:
@@ -72,6 +75,56 @@ class FirestoreSourceStore:
                                 "snapshotHash": digest, "normalizerVersion": NORMALIZER_VERSION})
 
         await publish(transaction)
+        await self.backfill_legacy_citations(project_id, source_id, {**record, "versionId": vid})
+
+    async def backfill_legacy_citations(self, project_id: str, source_id: str,
+                                        source: dict[str, Any]) -> tuple[int, int]:
+        """Attach preserved-version spans to pre-versioning published evidence."""
+        if not source.get("versionId") or not source.get("contentSnapshot"):
+            return 0, 0
+        source_ref = self._ref(project_id, source_id)
+        current = await source_ref.get()
+        if not current.exists or (current.to_dict() or {}).get("versionId") != source["versionId"]:
+            return 0, 0
+        if (current.to_dict() or {}).get("citationsBackfilled"):
+            return 0, 0
+        project = self.client.collection("projects").document(project_id)
+        migrated = unresolved = 0
+        batch = self.client.batch()
+        writes = 0
+        for collection_name in ("facts", "decisionRevisions", "assumptions"):
+            async for document in project.collection(collection_name).stream():
+                evidence = (document.to_dict() or {}).get("evidence")
+                if (not isinstance(evidence, dict) or evidence.get("sourceId") != source_id
+                        or evidence.get("sourceVersionId")):
+                    continue
+                try:
+                    span = resolve_quote(source_id, source["contentSnapshot"], evidence["quote"],
+                                         document=source.get("mimeType") == "application/vnd.google-apps.document")
+                except (KeyError, ValueError):
+                    unresolved += 1
+                    continue
+                batch.update(document.reference, {"evidence": {
+                    **evidence, "sourceVersionId": span.version_id,
+                    "spanId": span.id, "locator": span.locator,
+                }})
+                batch.set(source_ref.collection("versions").document(span.version_id)
+                          .collection("spans").document(span.id), {
+                              "id": span.id, "sourceId": source_id,
+                              "sourceVersionId": span.version_id,
+                              "quote": span.quote, "locator": span.locator,
+                          })
+                writes += 2
+                migrated += 1
+                if writes >= 400:
+                    await batch.commit()
+                    batch, writes = self.client.batch(), 0
+        batch.update(source_ref, {"citationsBackfilled": unresolved == 0,
+                                  "citationBackfillErrorCount": unresolved})
+        await batch.commit()
+        if unresolved:
+            logger.warning("Could not resolve %d legacy citations for source %s", unresolved, source_id)
+        return migrated, unresolved
 
     async def get_version(self, project_id: str, source_id: str, vid: str) -> dict[str, Any] | None:
         if self.snapshot_bucket is None:

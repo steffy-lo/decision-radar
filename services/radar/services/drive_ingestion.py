@@ -223,6 +223,7 @@ class SourceService:
                 raise DriveIngestionError(f"Google Drive did not return a modification time for {file.name}.")
             sid = source_id(file.id)
             prior = await self.store.get(project_id, sid)
+            backfill = getattr(self.store, "backfill_legacy_citations", None)
             if (prior and prior.get("lastModified") == file.modified_time
                     and prior.get("rootFolderId") == folder_id
                     and prior.get("parentFolderId") == file.parent_id
@@ -231,8 +232,18 @@ class SourceService:
                     versioned_put = getattr(self.store, "put_versioned", None)
                     if versioned_put:
                         await versioned_put(project_id, sid, prior)
+                elif backfill and not prior.get("citationsBackfilled"):
+                    await backfill(project_id, sid, prior)
                 unchanged += 1
                 continue
+            # A pre-versioning source may have changed in Drive since its last
+            # refresh. Preserve its cited text before advancing the current
+            # pointer to the edited content.
+            versioned_put = getattr(self.store, "put_versioned", None)
+            if prior and prior.get("status") == "ready" and not prior.get("versionId") and versioned_put:
+                await versioned_put(project_id, sid, prior)
+            elif prior and prior.get("versionId") and not prior.get("citationsBackfilled") and backfill:
+                await backfill(project_id, sid, prior)
             content = normalize_text(await self.drive.read_text(file))
             record = {
                 "id": sid, "projectId": project_id, "nativeId": file.id,
@@ -243,7 +254,6 @@ class SourceService:
                 "contentSnapshot": content, "status": "ready",
                 "updatedAt": datetime.now(timezone.utc).isoformat(),
             }
-            versioned_put = getattr(self.store, "put_versioned", None)
             if versioned_put:
                 await versioned_put(project_id, sid, record)
             else:

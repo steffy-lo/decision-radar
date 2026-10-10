@@ -36,6 +36,31 @@ class FakeBucket:
 
 
 @pytest.mark.skipif(not os.getenv("FIRESTORE_EMULATOR_HOST"), reason="Firestore emulator required")
+def test_pre_versioning_citations_gain_spans_from_preserved_snapshot():
+    async def run():
+        client = firestore.AsyncClient(project="decision-radar-uat")
+        store = FirestoreSourceStore(client, FakeBucket())
+        project_id, source_id = "proj_" + uuid4().hex, "src_legacy"
+        original = "Vendor delivery: October 15, 2026."
+        source = {"id": source_id, "projectId": project_id, "name": "Vendor Doc",
+                  "mimeType": "application/vnd.google-apps.document", "contentSnapshot": original,
+                  "status": "ready", "lastModified": "old", "updatedAt": "old"}
+        project = client.collection("projects").document(project_id)
+        await store.put(project_id, source_id, source)
+        revision = project.collection("decisionRevisions").document("rev_legacy")
+        await revision.set({"evidence": {"sourceId": source_id, "quote": "October 15, 2026"}})
+        await store.put_versioned(project_id, source_id, source)
+        evidence = (await revision.get()).to_dict()["evidence"]
+        assert evidence["sourceVersionId"] == (await store.get(project_id, source_id))["versionId"]
+        assert (await store._ref(project_id, source_id).collection("versions")
+                .document(evidence["sourceVersionId"]).collection("spans")
+                .document(evidence["spanId"]).get()).exists
+        assert (await store.get(project_id, source_id))["citationsBackfilled"] is True
+
+    asyncio.run(run())
+
+
+@pytest.mark.skipif(not os.getenv("FIRESTORE_EMULATOR_HOST"), reason="Firestore emulator required")
 def test_edited_doc_keeps_old_version_and_published_span():
     async def run():
         client = firestore.AsyncClient(project="decision-radar-uat")
