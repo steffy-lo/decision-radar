@@ -1,0 +1,86 @@
+# KAN-26 demo rehearsal
+
+Prepared 5 October 2026 from the [MVP scope](https://geminimaxxing.atlassian.net/wiki/spaces/GeminiMaxx/pages/163960/MVP+Scope+Delivery+Plan+Backlog) and the vendor-delay fixture. KAN-9/19 merged on 6 October and KAN-8 merged on 8 October. Record two consecutive complete runs before marking KAN-26 done.
+
+## Demo path
+
+Use a fresh project folder or the deterministic vendor-delay fixture. Keep the original PRD delivery date of 10 October 2026 and the updated vendor note date of 24 October 2026. The confirmed launch decision is 20 October 2026.
+
+1. **Sources:** Sign in, select the project, connect one Drive folder, and run manual refresh. Check that the PRD, vendor note, and any transcript Doc or TXT appear once with source links and healthy status. Repeat refresh and confirm no duplicate sources or jobs.
+2. **Decisions:** Open the decision register. Show the launch decision, owner, revision, preserved rationale, and its monitored delivery-date assumption. Confirm that source wording and the trusted entity/predicate mapping are clear.
+3. **Reviews:** Run assessment. Show the original quote beside the new vendor quote, the date conflict, assessed coverage, and the link to each source. Explain that the fact directly challenges the launch decision.
+4. **Impact graph:** Open the challenged alert's graph. Select the launch decision and each downstream effect by mouse and keyboard. Show the ordered dependency path and point out which nodes have direct evidence and which are projected effects. Test pan and zoom, then repeat at a narrow viewport.
+5. **Human review:** Save Keep or Revise with a rationale. Confirm that the saved outcome and audit history appear once, and that no decision changes without a human action.
+6. **Failure and fallback:** Check empty, permission/error, and incomplete-coverage states. If live Drive or Vertex is unavailable, reset to the vendor-delay fixture and repeat the same narrative without claiming it is a live run.
+
+The MVP scope explicitly excludes Google Docs export and durable briefs. The current Briefs page is an empty state. Do not present a brief export as part of this rehearsal despite the older KAN-26 ticket wording.
+
+## Demo script and reset
+
+Use the live synthetic project only for a read-through of an already reviewed
+alert. For the acceptance rehearsal, start a clean review project so the human
+action and its audit entry are new. Do not clear the existing synthetic audit
+history to make it look fresh.
+
+1. Open **Decisions** and name the confirmed launch decision, its owner, and
+   the expected Acme delivery date. Explain that the decision stays unchanged
+   until a person reviews the alert.
+2. Open **Sources**. Show the active Drive folder, the Doc/TXT/transcript and
+   nested Doc inventory, and the source links. Refresh once and check that the
+   count does not grow for unchanged files. Use the trusted Acme Logistics and
+   delivery-date wording for the vendor TXT. A repeat extraction of the same
+   verified snapshot should retain its fact after PR #20.
+3. Open **Reviews**, run assessment, and read the original 15 October quote
+   beside the confirmed 24 October quote. State that the nine-day difference
+   directly challenges the launch decision; the two other assumptions have
+   unclear coverage rather than a confirmed contradiction.
+4. Open the impact graph. Select the direct challenge, then both downstream
+   decisions. Explain that the latter are projected effects through recorded
+   dependencies, with the trigger evidence linked separately. Check Enter or
+   Space on a focused node and Fit View at phone width.
+5. On a fresh alert, save a human review with a short rationale. Check one new
+   audit entry and confirm the decision revision changes only if the chosen
+   action explicitly revises it. This step is still required for rehearsal 2.
+6. For recovery, use an unavailable folder ID and show its access message,
+   then restore the valid folder and confirm the source count. If live Drive
+   or Vertex is unavailable, open the **Demo workspace** from the home page.
+   Its synthetic review links show access-unavailable, evidence-unclear, and
+   no-issue states. Say clearly that fixture mode does not save review actions.
+
+The current live UAT folder is `1uc4D6a_jXKJxfJOq1gecBeCDmPtN8W9a` under
+project `proj_oauth_pr10_uat_20261007`. It contains seven synthetic files as
+of 9 October. A clean rehearsal project needs its own Drive connection or a
+documented fixture seed; do not copy a refresh token between projects. If a
+new project cannot be set up, record the review step as untested rather than
+counting the read-through as rehearsal 2.
+
+## Pass record
+
+| Run | Environment | Source and decision | Alert and graph | Review and recovery | Result |
+| --- | --- | --- | --- | --- | --- |
+| Preflight, 5 Oct | Local app with synthetic API | Sources showed two files once; Decisions showed three records and the quote-backed draft form | Review showed one cited alert and assessed coverage; graph was on draft PR #13 during this check and merged the next day | A saved Keep review and one audit entry were visible; job retry was checked separately on draft PR #12 | Partial: full path waits for KAN-8 |
+| Graph integration, 6 Oct | Merged app on localhost:3012, merged API on 127.0.0.1:8012, Firebase Auth and Firestore emulators | Signed in through Firebase Auth emulator to the project from the earlier real Drive and Vertex run. The saved nested Google Doc fact moved the delivery date from 15 to 24 October. Added two synthetic downstream decisions and dependencies in the emulator through the normal impact store. | Clicked Run assessment twice. Both runs showed two findings, two alerts, and assessed coverage with stable alert IDs. Opened the new nested-Doc alert graph and clicked the final downstream node; the four-step ordered path and dependency rationales appeared, with direct evidence restricted to the trigger. | Saved Request clarification on the nested-Doc alert and verified one audit entry with the rationale and unchanged decision revision. Job delivery, fresh Drive refresh, and a new Vertex extraction were not part of this pass. | Graph, assessment, and review API/UI path passed after PR #13 merged. This is not a complete KAN-26 rehearsal. |
+| Rehearsal 1, 8 Oct | Local web on localhost:3020, API on 127.0.0.1:8020, Firebase Auth emulator, named cloud Firestore, real Drive and Vertex, private Cloud Tasks worker | After KAN-8 merged, Sources showed the active Drive connection and five Doc/TXT/Meet/nested snapshots. Refresh returned a completed receipt and reused the existing completed job. Three quote-backed decisions were active. | Added two synthetic dependencies through the normal graph store before the walkthrough. The graph showed one direct challenge, two downstream effects, and a four-step ordered path. Mouse and keyboard selection worked; the graph remained usable at 390px width. | A fresh Gemini extraction of the same vendor TXT first returned a different entity/predicate interpretation and zero verified facts. The real worker assessment completed with zero alerts and three unclear assumptions. The built-in retry extracted one verified fact; a second real worker assessment restored one cited alert with two unrelated assumptions marked unclear. Saved Keep decision with a rationale; the audit history had one Keep and the earlier Request clarification, with decision revision unchanged. | Completed with the supported retry. The extraction variability is a KAN-23 case. One more consecutive complete rehearsal is needed before KAN-26 can pass. |
+| Deployed stability pass, 9 Oct | Public Cloud Run web, private API revision `00006-n6b`, real Drive folder, named Firestore, Cloud Tasks worker, signed-in browser | The seven-file Drive folder refreshed without duplicates. A repeated vendor extraction reused the prior verified October 24 fact after PR #20's fix; the saved extraction timestamp stayed unchanged. Three active decisions remained visible. | Assessment completed with one cited nine-day alert and two assumptions with unclear coverage. The graph showed a direct challenge, two downstream decisions, and the ordered path. Mouse and keyboard selection worked; Fit View worked at 390px. | Unavailable-folder error and recovery passed. Fixture access-unavailable, evidence-unclear, and no-issue states displayed clear copy. The live alert already had saved reviews, while fixture mode has no review control, so this pass could not save a new human review. | Partial. It verifies the deployed stability fix and supporting paths, but it is not rehearsal 2. |
+| Rehearsal 2 in progress, 9-10 Oct | Public Cloud Run web, private API, isolated synthetic project `proj_kan26_rehearsal2_20261009` | Mike completed Drive reconnection and reported a completed refresh with seven ready files. Screenshots show a quote-backed draft created from the synthetic decision Doc and then confirmed as one active decision. Mike reported one verified Gemini fact from `vendor-update.txt`: “Acme Logistics delivery date is October 24, 2026.” A repeated refresh completed and still listed seven files. A read-only named-Firestore check after recovery confirmed seven ready sources in the valid folder. | Mike's Reviews export shows one assessed contradiction and one cited alert, nine days past the target. The graph opened with the evidence trigger and challenged decision; a later screenshot shows the challenged decision selected. The project initially had zero downstream decisions. After that review, three more active synthetic decisions and two dependency links were added through the normal stores inside this project. A fresh assessment and clicked downstream graph check are pending. | Mike reported one saved Revise decision audit entry. The entry shows the verified nine-day delay rationale and the statement changing from revision 1 to revision 2. An unavailable folder showed the expected access error; restoring the valid folder completed. The page also showed the old Completed refresh beside the error, tracked in draft PR #22. Keyboard and narrow-screen checks remain pending. Browser-agent access to the deployed app remains blocked by a saved site permission; these steps are being guided with Mike's clicks and screenshots. | Incomplete. Do not count this as the second rehearsal until the remaining checks are resolved. |
+| Rehearsal 2 continuation, 10 Oct | Same deployed app and isolated project, in a new Codex chat with working browser access | The signed-in Sources page showed the active Drive connection, seven ready Doc/TXT/Meet/nested sources, and the verified October 24 vendor fact. I clicked Refresh folder with the valid ID; it completed and the inventory stayed at seven. This repeated request reused the completed refresh receipt, so it does not prove a new Drive read. The Decisions page showed four active decisions, including the original revision 2 and the new revision 1 launch gate. | I clicked Run assessment in the deployed app. The background worker completed with two assessed findings, one cited contradiction, and the nine-day date difference. The new alert's graph showed the trigger, directly challenged launch gate, two downstream decisions, and the four-step ordered path. I selected both downstream nodes by mouse and the challenged node with Enter. At 390px width, Fit View and the final-node inspection worked. The downstream detail correctly said it had dependency rationale but no direct contradiction evidence. | I saved Request clarification on the new alert with a rationale about confirming the revised handoff and readiness dates. One audit entry survived a page reload; the decision remained revision 1. I entered an unavailable folder ID and saw the access error, then restored the valid folder and seven ready files. During the error, the old “Folder refresh: completed” status stayed visible; draft PR #22 addresses this, but its changed UI has not been deployed or clicked. | The second project now has a clicked assessment, graph, human review, and failure/retry pass. Earlier decision creation and fresh Gemini extraction were Mike's clicks, verified from his screenshots and the persisted project state. Presentation screenshots are linked below. PR #22 changed error-state UAT remains. Keep PR #15 draft until the integrated flow is rechecked after any dependency merge. |
+| Integrated check after PRs #21 and #22, 10 Oct | Cloud Run web revision `decision-radar-web-00004-djs`, private API, real Drive, Cloud Tasks worker, and named Firestore | In the isolated second-run project, the seven ready sources and verified October 24 fact remained visible. A new quote-backed synthetic decision was created and confirmed through the API, then remained active after reload. The form displayed clear missing-field, Entity ID, and date messages. | The saved assessment still showed the cited nine-day contradiction. The graph displayed the direct challenge, two downstream effects, and four-step path. | An unavailable Drive folder showed the access error without a stale connection-panel Completed message. Restoring the valid folder completed and seven sources returned. The earlier Request clarification audit entry remained after reload. | Post-merge integration check passed. The second rehearsal now has its required clicked graph, review, and recovery path. Its original decision creation and fresh Gemini extraction were performed by Mike and verified from screenshots and persisted data. |
+
+## Open dependencies
+
+- KAN-8 PR #12 is merged. Its real Drive, Secret Manager, Cloud Tasks, Cloud Run worker, named Firestore, and Vertex path passed in its own UAT. The 8 October rehearsal above used a completed refresh receipt and did not create a fresh Drive job.
+- PR #20 merged the same-snapshot verified-extraction reuse rule and passed its deployed browser check. KAN-23 still needs the broader measured quality gate and changed-evidence evaluation. Keep unclear coverage visible; do not treat an earlier saved alert as the current assessment result.
+- The second rehearsal project has a new human review and audit entry, plus clicked graph, keyboard, narrow-screen, and folder failure/retry checks. PR #22's changed error state was verified on the deployed integrated revision after merge. Presentation screenshots are below.
+- The user has since expanded the delivery target to the entire Jira board. KAN-26's older ticket includes brief preview and export status. Those flows depend on open KAN-10 and KAN-22 and still require a separate end-to-end pass before the full ticket can close.
+- The isolated second-run project has a separate Secret Manager secret with Secret Accessor, Secret Version Manager, and Secret Manager Viewer granted to the staging API service account on that secret only. No refresh token was copied from the prior test project. Mike completed Google consent; Firestore reports an active connection and Secret Manager shows one token version. The older Codex chat still has a saved browser permission block. A new chat could access and click the deployed app on 10 October.
+
+Reset the fixture by starting from `fixtures/vendor-delay.json` and using a fresh project ID or clean emulator data. Do not reuse the synthetic review project after it has an audit entry when demonstrating a new review.
+
+## Presentation screenshots
+
+Captured from the deployed second-rehearsal project on 10 October 2026. These show saved state after the live clicks; they do not by themselves prove the worker or Drive calls.
+
+- [Confirmed decisions](assets/kan26/rehearsal-2-decisions.jpg)
+- [Seven connected sources](assets/kan26/rehearsal-2-sources.jpg) and [verified vendor fact](assets/kan26/rehearsal-2-verified-fact.jpg)
+- [Impact graph](assets/kan26/rehearsal-2-impact-graph.jpg) and [four-step path](assets/kan26/rehearsal-2-impact-path.jpg)
+- [Cited alert and persisted review audit](assets/kan26/rehearsal-2-review-audit.jpg)
