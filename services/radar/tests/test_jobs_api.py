@@ -1,5 +1,6 @@
 import asyncio
 import unittest
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
@@ -139,6 +140,16 @@ class JobApiTests(unittest.TestCase):
         self.assertEqual(first.json()["request"]["target_id"], "assessment")
         self.assertTrue(first.json()["request"]["source_version"].startswith("run_"))
         self.assertEqual(len(self.queue.tasks), 1)
+
+    def test_repeated_completed_analysis_reactivates_its_run(self):
+        first = self.client.post("/api/v1/projects/project_a/jobs/analysis").json()
+        asyncio.run(self.store.change("project_a", first["id"],
+                                      lambda current: current.model_copy(update={"status": "completed"})))
+        assessment_store = SimpleNamespace(activate_completed_run=AsyncMock())
+        with patch("services.radar.api.routes.jobs.get_assessment_store", return_value=assessment_store):
+            response = self.client.post("/api/v1/projects/project_a/jobs/analysis")
+        self.assertEqual(response.status_code, 202)
+        assessment_store.activate_completed_run.assert_awaited_once_with("project_a", "v1")
 
     def test_generic_submission_rejects_stale_version(self):
         self.body["source_version"] = "old_version"
