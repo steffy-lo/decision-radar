@@ -20,13 +20,15 @@ class RefreshTokenStore(Protocol):
 
 
 class SecretManagerRefreshTokenStore:
-    def __init__(self, gcp_project_id: str):
+    def __init__(self, gcp_project_id: str, kind: str = "drive"):
         self.gcp_project_id = gcp_project_id
+        if kind not in {"drive", "meet"}:
+            raise ValueError("Unsupported Google connection kind.")
+        self.kind = kind
 
-    @staticmethod
-    def _secret_id(project_id: str) -> str:
+    def _secret_id(self, project_id: str) -> str:
         normalized = re.sub(r"[^a-zA-Z0-9_-]", "-", project_id).strip("-")
-        return f"decision-radar-drive-{normalized or 'project'}"
+        return f"decision-radar-{self.kind}-{normalized or 'project'}"
 
     def _client(self):
         from google.cloud import secretmanager

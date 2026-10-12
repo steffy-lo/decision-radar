@@ -15,7 +15,7 @@ export interface ProjectMembership {
 }
 
 export interface Connection {
-  id: "google-drive";
+  id: "google-drive" | "google-meet";
   project_id: string;
   status: "pending" | "active" | "needs_reconnect" | "disconnected" | "error";
   account_email: string | null;
@@ -25,6 +25,38 @@ export interface Connection {
   export_scope_granted: boolean;
   updated_at: string | null;
 }
+
+export interface MeetSpace {
+  projectId: string;
+  spaceName: string;
+  status: "pending" | "active" | "stopping" | "stopped" | "error";
+  operationName: string;
+  subscriptionName?: string;
+  expiresAt?: string;
+  errorCode?: string;
+}
+
+async function meetRequest<T>(projectId: string, path: string, init?: RequestInit): Promise<T> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}${path}`, init);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(typeof payload?.detail === "string" ? payload.detail : `Meet request failed (${response.status}).`);
+  }
+  return response.json() as Promise<T>;
+}
+
+export const getMeetConnection = (projectId: string) =>
+  meetRequest<Connection>(projectId, "/connections/google-meet");
+export const beginMeetAuthorization = (projectId: string) =>
+  meetRequest<AuthorizeConnectionResponse>(projectId, "/connections/google-meet/authorize", { method: "POST" });
+export const listMeetSpaces = (projectId: string) =>
+  meetRequest<MeetSpace[]>(projectId, "/meet-spaces");
+export const monitorMeetSpace = (projectId: string, spaceName: string) =>
+  meetRequest<MeetSpace>(projectId, "/meet-spaces", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ space_name: spaceName }) });
+export const reconcileMeetSpace = (projectId: string, spaceId: string) =>
+  meetRequest<MeetSpace>(projectId, `/meet-spaces/${encodeURIComponent(spaceId)}/reconcile`, { method: "POST" });
+export const stopMeetSpace = (projectId: string, spaceId: string) =>
+  meetRequest<MeetSpace>(projectId, `/meet-spaces/${encodeURIComponent(spaceId)}/stop`, { method: "POST" });
 
 export interface SourceSummary {
   id: string;

@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
         : `/?connection=failed&reason=${reason}`);
     }
 
-    const result = (await response.json()) as { project_id: string; purpose?: string };
+    const result = (await response.json()) as { project_id: string; purpose?: string; connection_id?: string };
     return callbackRedirect(
       request,
       result.purpose === "brief_export"

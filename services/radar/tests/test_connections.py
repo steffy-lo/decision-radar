@@ -82,6 +82,23 @@ class ConnectionServiceTests(unittest.IsolatedAsyncioTestCase):
         self.service._exchange_code = full_scope
         await self.service.complete_authorization("code", retry_state, retry.browser_nonce)
         self.assertTrue(self.firestore.storage["projects/project-a/connections/google-drive"]["export_scope_granted"])
+    async def test_meet_connection_uses_separate_scope_and_state(self):
+        meet = ConnectionService(self.firestore, self.tokens, self.settings, connection_id="google-meet")
+        authorization = await meet.start_authorization("project-a", "admin-1")
+        state = parse_qs(urlparse(authorization.authorization_url).query)["state"][0]
+        self.assertEqual(parse_qs(urlparse(authorization.authorization_url).query)["scope"],
+                         ["https://www.googleapis.com/auth/meetings.space.readonly"])
+        self.assertEqual(self.firestore.storage[f"oauth_states/{state}"]["connection_id"], "google-meet")
+        with self.assertRaisesRegex(HTTPException, "different Google service"):
+            await self.service.complete_authorization("code", state, authorization.browser_nonce)
+
+        async def exchange_code(_):
+            return {"access_token": "short-lived", "refresh_token": "meet-only-token"}
+        meet._exchange_code = exchange_code
+        await meet.complete_authorization("code", state, authorization.browser_nonce)
+        connection = self.firestore.storage["projects/project-a/connections/google-meet"]
+        self.assertEqual(connection["status"], "active")
+        self.assertNotIn("projects/project-a/connections/google-drive", self.firestore.storage)
 
     async def test_callback_stores_only_secret_reference_in_firestore(self):
         authorization = await self.service.start_authorization("project-a", "admin-1")

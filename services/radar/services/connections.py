@@ -1,4 +1,4 @@
-"""Server-side Google Drive OAuth lifecycle for a project connection."""
+"""Server-side Google OAuth lifecycle for project connections."""
 
 import asyncio
 import hashlib
@@ -17,6 +17,7 @@ from services.radar.adapters.secret_manager import RefreshTokenStore
 from services.radar.config import Settings
 from services.radar.domain.models import (
     GOOGLE_DRIVE_CONNECTION_ID,
+    GOOGLE_MEET_CONNECTION_ID,
     AccessToken,
     Connection,
     OAuthState,
@@ -25,6 +26,7 @@ from services.radar.domain.models import (
 DRIVE_READONLY_SCOPE = "https://www.googleapis.com/auth/drive.readonly"
 DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
 EXPORT_STATE_PREFIX = "export_"
+MEET_READONLY_SCOPE = "https://www.googleapis.com/auth/meetings.space.readonly"
 GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke"
@@ -42,10 +44,17 @@ class ConnectionService:
         firestore_client: Any,
         refresh_tokens: RefreshTokenStore,
         settings: Settings,
+        *,
+        connection_id: str = GOOGLE_DRIVE_CONNECTION_ID,
     ):
         self.firestore = firestore_client
         self.refresh_tokens = refresh_tokens
         self.settings = settings
+        if connection_id not in (GOOGLE_DRIVE_CONNECTION_ID, GOOGLE_MEET_CONNECTION_ID):
+            raise ValueError("Unsupported Google connection kind.")
+        self.connection_id = connection_id
+        self.scope = DRIVE_READONLY_SCOPE if connection_id == GOOGLE_DRIVE_CONNECTION_ID else MEET_READONLY_SCOPE
+        self.label = "Drive" if connection_id == GOOGLE_DRIVE_CONNECTION_ID else "Meet"
 
     def _require_oauth_config(self) -> None:
         if not all(
@@ -57,7 +66,7 @@ class ConnectionService:
         ):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Google Drive connection is not configured.",
+                detail=f"Google {self.label} connection is not configured.",
             )
 
     def _connection_ref(self, project_id: str):
@@ -65,7 +74,7 @@ class ConnectionService:
             self.firestore.collection("projects")
             .document(project_id)
             .collection("connections")
-            .document(GOOGLE_DRIVE_CONNECTION_ID)
+            .document(self.connection_id)
         )
 
     def _state_ref(self, oauth_state: str):
@@ -87,11 +96,12 @@ class ConnectionService:
                 initiating_uid=uid,
                 browser_nonce_hash=self._hash_nonce(browser_nonce),
                 expires_at=expires_at,
+                connection_id=self.connection_id,
             ).model_dump()
         )
         await self._connection_ref(project_id).set(
             {
-                "id": GOOGLE_DRIVE_CONNECTION_ID,
+                "id": self.connection_id,
                 "project_id": project_id,
                 "status": "active"
                 if existing.status == "active" and existing.secret_name
@@ -108,7 +118,7 @@ class ConnectionService:
                 "client_id": self.settings.GOOGLE_OAUTH_CLIENT_ID,
                 "redirect_uri": self.settings.GOOGLE_OAUTH_REDIRECT_URI,
                 "response_type": "code",
-                "scope": f"{DRIVE_READONLY_SCOPE} {DRIVE_FILE_SCOPE}" if export else DRIVE_READONLY_SCOPE,
+                "scope": f"{DRIVE_READONLY_SCOPE} {DRIVE_FILE_SCOPE}" if export else self.scope,
                 "access_type": "offline",
                 "prompt": "consent",
                 "state": oauth_state,
@@ -122,7 +132,7 @@ class ConnectionService:
     async def get_connection(self, project_id: str) -> Connection:
         snapshot = await self._connection_ref(project_id).get()
         if not snapshot.exists:
-            return Connection(project_id=project_id, status="disconnected")
+            return Connection(id=self.connection_id, project_id=project_id, status="disconnected")
         data = snapshot.to_dict() or {}
         data.setdefault("project_id", project_id)
         return Connection(**data)
@@ -159,7 +169,7 @@ class ConnectionService:
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Google did not return a refreshable Drive grant.",
+                detail=f"Google did not return a refreshable {self.label} grant.",
             )
 
         try:
@@ -172,12 +182,12 @@ class ConnectionService:
             )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="The Drive grant could not be stored.",
+                detail=f"The {self.label} grant could not be stored.",
             ) from exc
         now = datetime.now(timezone.utc)
         connection = await self.get_connection(state_data.project_id)
         connection_data = {
-            "id": GOOGLE_DRIVE_CONNECTION_ID,
+            "id": self.connection_id,
             "project_id": state_data.project_id,
             "status": "active",
             "secret_name": secret_name,
@@ -200,7 +210,7 @@ class ConnectionService:
         if connection.status != "active" or not connection.secret_name:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="The Drive connection needs reconnecting.",
+                detail=f"The {self.label} connection needs reconnecting.",
             )
 
         try:
@@ -220,7 +230,7 @@ class ConnectionService:
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Drive credentials are temporarily unavailable.",
+                detail=f"{self.label} credentials are temporarily unavailable.",
             ) from exc
 
         payload = self._response_json_object(response)
@@ -230,11 +240,11 @@ class ConnectionService:
                 await self._set_error(project_id, "reauthorization_required")
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="The Drive connection needs reconnecting.",
+                    detail=f"The {self.label} connection needs reconnecting.",
                 )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Google Drive authorization is temporarily unavailable.",
+                detail=f"Google {self.label} authorization is temporarily unavailable.",
             )
 
         token = payload.get("access_token")
@@ -242,7 +252,7 @@ class ConnectionService:
             await self._set_error(project_id, "reauthorization_required")
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="The Drive connection needs reconnecting.",
+                detail=f"The {self.label} connection needs reconnecting.",
             )
         return AccessToken(token=token, expires_in=payload.get("expires_in"))
 
@@ -271,7 +281,7 @@ class ConnectionService:
             except Exception as exc:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="The Drive grant could not be removed. Try disconnecting again.",
+                    detail=f"The {self.label} grant could not be removed. Try disconnecting again.",
                 ) from exc
             if refresh_token:
                 try:
@@ -283,7 +293,7 @@ class ConnectionService:
 
         await self._connection_ref(project_id).set(
             {
-                "id": GOOGLE_DRIVE_CONNECTION_ID,
+                "id": self.connection_id,
                 "project_id": project_id,
                 "status": "disconnected",
                 "secret_name": None,
@@ -310,12 +320,12 @@ class ConnectionService:
         except httpx.HTTPError as exc:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Google could not be reached to complete the Drive connection.",
+                detail=f"Google could not be reached to complete the {self.label} connection.",
             ) from exc
         if response.status_code >= 400:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Google could not complete the Drive connection.",
+                detail=f"Google could not complete the {self.label} connection.",
             )
         return self._response_json_object(response)
 
@@ -343,6 +353,11 @@ class ConnectionService:
                 )
 
             state_data = OAuthState.model_validate(snapshot.to_dict() or {})
+            if state_data.connection_id != self.connection_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="The connection request is for a different Google service.",
+                )
             nonce_matches = secrets.compare_digest(
                 state_data.browser_nonce_hash, self._hash_nonce(browser_nonce),
             )
