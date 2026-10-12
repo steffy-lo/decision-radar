@@ -42,13 +42,15 @@ test("diamond paths remain separately selectable with shared nodes", () => {
 
 test("direct and projected explanations keep citations and review priority distinct", () => {
   const graph = parse(fixture);
-  const direct = explainImpactPath(graph, graph.rootId, pathsForNode(graph, graph.rootId)[0]);
-  const downstream = explainImpactPath(graph, "dec_production_go_live", pathsForNode(graph, "dec_production_go_live")[0]);
+  const direct = explainImpactPath(graph, graph.rootId, pathsForNode(graph, graph.rootId)[0], "medium");
+  const downstream = explainImpactPath(graph, "dec_production_go_live", pathsForNode(graph, "dec_production_go_live")[0], "medium");
   assert.match(direct.summary, /directly challenged/);
   assert.match(direct.briefText, /Original source:/);
   assert.match(direct.briefText, /Update source:/);
   assert.match(downstream.summary, /downstream/);
   assert.match(downstream.reviewReason, /does not claim/);
+  assert.match(direct.severityBasis, /assessed alert/);
+  assert.match(downstream.severityBasis, /no separate severity rating/);
   assert.notEqual(direct.summary, downstream.summary);
 });
 

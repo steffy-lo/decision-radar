@@ -51,7 +51,7 @@ function FixtureReviewsWorkspace({ projectId, alertId }: { projectId: string; al
   const open = workspace?.openReviews ?? [];
   return <>
     <PageHeading eyebrow="REVIEW QUEUE" title="Reviews" description="Compare confirmed assumptions with new evidence before changing a decision." />
-    {alertId && <ImpactGraph key={`${projectId}/${alertId}`} projectId={projectId} alertId={alertId} />}
+    {alertId && <ImpactGraph key={`${projectId}/${alertId}`} projectId={projectId} alertId={alertId} severity={data?.alerts.find((alert) => alert.id === alertId)?.severity} />}
     {status === "loading" ? <EvidenceLoading /> : status === "error" ?
       <EmptyState title="Reviews could not be loaded" description={error ?? "Could not load project data."} action={<button className="button button--secondary" type="button" onClick={retry}>Try again</button>} /> : open.length === 0 ?
       data?.sources.some((source) => source.status !== "ready")

@@ -1,4 +1,4 @@
-import type { ImpactEdge, ImpactNode, ImpactPath, ImpactProjection, TypedValue } from "./models";
+import type { Alert, ImpactEdge, ImpactNode, ImpactPath, ImpactProjection, TypedValue } from "./models";
 
 export function impactTitle(node: ImpactNode): string {
   if (node.nodeType === "decision") return node.decision.statement;
@@ -44,12 +44,13 @@ export function pathsForNode(graph: ImpactProjection, nodeId: string): ImpactPat
 export type ImpactExplanation = {
   summary: string;
   evidenceBasis: string;
+  severityBasis: string;
   reviewReason: string;
   briefText: string;
 };
 
 /** Keep the narrative tied to the server's ordered path and recorded edge reasons. */
-export function explainImpactPath(graph: ImpactProjection, nodeId: string, path: ImpactPath): ImpactExplanation {
+export function explainImpactPath(graph: ImpactProjection, nodeId: string, path: ImpactPath, severity?: Alert["severity"]): ImpactExplanation {
   const selected = graph.nodes.find((node) => node.id === nodeId);
   const root = graph.nodes.find((node) => node.id === graph.rootId);
   const trigger = graph.nodes.find((node) => node.id === graph.findingId);
@@ -74,6 +75,11 @@ export function explainImpactPath(graph: ImpactProjection, nodeId: string, path:
   const evidenceBasis = direct
     ? `Direct evidence: “${trigger.finding.baselineEvidence.quote}” → “${trigger.finding.updateEvidence.quote}”.`
     : `Projected impact from recorded dependencies. The trigger has cited evidence; this decision has no separate contradiction evidence.`;
+  const severityBasis = severity
+    ? direct
+      ? `The ${severity} severity comes from the assessed alert for the challenged assumption.`
+      : `The assessed alert is ${severity} severity at the challenged assumption. This downstream decision has no separate severity rating.`
+    : "The assessment severity is unavailable for this path.";
   const reviewReason = direct
     ? `Review the changed assumption before relying on ${root.decision.statement}.`
     : `Review each recorded dependency before changing this decision. The graph does not claim that this decision's own evidence changed.`;
@@ -81,12 +87,13 @@ export function explainImpactPath(graph: ImpactProjection, nodeId: string, path:
     `Impact: ${impactTitle(selected)}`,
     summary,
     `Evidence basis: ${evidenceBasis}`,
+    `Severity: ${severityBasis}`,
     ...steps.map((step, index) => `Path ${index + 1}: ${step}`),
     `Why review: ${reviewReason}`,
     `Original source: ${trigger.finding.baselineEvidence.sourceTitle} — ${trigger.finding.baselineEvidence.quote}${evidenceUrl(trigger.finding.baselineEvidence.nativeUrl) ? ` (${evidenceUrl(trigger.finding.baselineEvidence.nativeUrl)})` : ""}`,
     `Update source: ${trigger.finding.updateEvidence.sourceTitle} — ${trigger.finding.updateEvidence.quote}${evidenceUrl(trigger.finding.updateEvidence.nativeUrl) ? ` (${evidenceUrl(trigger.finding.updateEvidence.nativeUrl)})` : ""}`,
   ].join("\n");
-  return { summary, evidenceBasis, reviewReason, briefText };
+  return { summary, evidenceBasis, severityBasis, reviewReason, briefText };
 }
 
 /** Native links accept only web URLs; malformed evidence never becomes executable. */

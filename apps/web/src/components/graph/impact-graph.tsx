@@ -6,7 +6,7 @@ import { Background, Controls, Handle, MarkerType, Position, ReactFlow,
 import "@xyflow/react/dist/style.css";
 import { fetchPrivateApi } from "@/lib/api/client";
 import { isDemoProject } from "@/lib/demo/use-project-data";
-import { parseImpactProjection, type EvidenceRef, type ImpactNode, type ImpactProjection } from "@/lib/domain/models";
+import { parseImpactProjection, type Alert, type EvidenceRef, type ImpactNode, type ImpactProjection } from "@/lib/domain/models";
 import { edgeLabel, evidenceUrl, explainImpactPath, impactDeltaDays, impactPositions, impactTitle, impactValue, pathsForNode } from "@/lib/domain/impact-view";
 import styles from "./impact-graph.module.css";
 
@@ -41,7 +41,7 @@ function Evidence({ label, evidence, demo }: { label: string; evidence: Evidence
   </section>;
 }
 
-function GraphView({ graph, demo }: { graph: ImpactProjection; demo: boolean }) {
+function GraphView({ graph, demo, severity }: { graph: ImpactProjection; demo: boolean; severity?: Alert["severity"] }) {
   const canvas = useRef<HTMLDivElement>(null);
   const [layoutVersion, setLayoutVersion] = useState(0);
   useEffect(() => {
@@ -67,7 +67,7 @@ function GraphView({ graph, demo }: { graph: ImpactProjection; demo: boolean }) 
   const selected = graph.nodes.find((node) => node.id === selectedId)!;
   const paths = useMemo(() => pathsForNode(graph, selectedId), [graph, selectedId]);
   const path = paths[pathIndex] ?? paths[0];
-  const explanation = path ? explainImpactPath(graph, selectedId, path) : null;
+  const explanation = path ? explainImpactPath(graph, selectedId, path, severity) : null;
   const positions = useMemo(() => impactPositions(graph), [graph]);
   const select = useCallback((id: string) => { setSelectedId(id); setPathIndex(0); setCopyStatus(""); }, []);
   const copyExplanation = async () => {
@@ -119,6 +119,7 @@ function GraphView({ graph, demo }: { graph: ImpactProjection; demo: boolean }) 
         {explanation && <section className={styles.explanation} aria-label="Impact explanation">
           <h4>Why this path matters</h4><p>{explanation.summary}</p>
           <p><strong>{selected.impact === "downstream_impact" ? "Projected impact" : "Direct challenge"}:</strong> {explanation.evidenceBasis}</p>
+          <p><strong>Assessment severity:</strong> {explanation.severityBasis}</p>
           <p><strong>Review priority:</strong> {explanation.reviewReason}</p>
           <button className="button button--secondary" type="button" onClick={() => void copyExplanation()}>Copy path summary</button>
           {copyStatus && <p role="status">{copyStatus}</p>}
@@ -149,7 +150,7 @@ function GraphView({ graph, demo }: { graph: ImpactProjection; demo: boolean }) 
   </section>;
 }
 
-export function ImpactGraph({ projectId, alertId }: { projectId: string; alertId: string }) {
+export function ImpactGraph({ projectId, alertId, severity }: { projectId: string; alertId: string; severity?: string }) {
   const [state, setState] = useState<{ key: string; graph?: ImpactProjection; error?: string }>();
   const [attempt, setAttempt] = useState(0);
   const key = `${projectId}/${alertId}`;
@@ -170,5 +171,6 @@ export function ImpactGraph({ projectId, alertId }: { projectId: string; alertId
   }, [projectId, alertId, demo, key, attempt]);
   if (state?.key !== key) return <div className={styles.loading} role="status">Loading impact graph…</div>;
   if (state.error) return <div className={styles.error} role="alert"><h2>Impact graph unavailable</h2><p>{state.error}</p><button className="button button--secondary" type="button" onClick={() => { setState(undefined); setAttempt((value) => value + 1); }}>Try again</button></div>;
-  return state.graph && <GraphView key={`${key}/${state.graph.revision}/${attempt}`} graph={state.graph} demo={demo} />;
+  const assessedSeverity: Alert["severity"] | undefined = severity === "low" || severity === "medium" || severity === "high" ? severity : undefined;
+  return state.graph && <GraphView key={`${key}/${state.graph.revision}/${attempt}`} graph={state.graph} demo={demo} severity={assessedSeverity} />;
 }
