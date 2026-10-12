@@ -7,7 +7,7 @@ import "@xyflow/react/dist/style.css";
 import { fetchPrivateApi } from "@/lib/api/client";
 import { isDemoProject } from "@/lib/demo/use-project-data";
 import { parseImpactProjection, type EvidenceRef, type ImpactNode, type ImpactProjection } from "@/lib/domain/models";
-import { edgeLabel, evidenceUrl, explainImpactPath, impactPositions, impactTitle, impactValue, pathsForNode } from "@/lib/domain/impact-view";
+import { edgeLabel, evidenceUrl, explainImpactPath, impactDeltaDays, impactPositions, impactTitle, impactValue, pathsForNode } from "@/lib/domain/impact-view";
 import styles from "./impact-graph.module.css";
 
 type FlowNode = Node<{ record: ImpactNode }, "impact">;
@@ -24,7 +24,7 @@ function ImpactCard({ data, selected }: NodeProps<FlowNode>) {
     <strong>{impactTitle(node)}</strong>
     {node.nodeType === "finding" ? <>
       <span>{impactValue(node.finding.baselineValue)} → {impactValue(node.finding.extractedValue)}</span>
-      {node.finding.deltaDays !== null && <b className={styles.delta}>{node.finding.deltaDays > 0 ? "+" : ""}{node.finding.deltaDays} days</b>}
+      {node.finding.deltaDays !== null && <b className={styles.delta}>{impactDeltaDays(node.finding.deltaDays)}</b>}
     </> : <span>{node.decision.owner}</span>}
     <small>{node.nodeType === "finding" || node.impact === "direct_challenge" ? "Direct evidence available" : "Dependency rationale · trigger evidence available"}</small>
     <Handle type="source" position={Position.Bottom} isConnectable={false} />
@@ -139,7 +139,7 @@ function GraphView({ graph, demo }: { graph: ImpactProjection; demo: boolean }) 
         </div> : finding && <>
           {selected.nodeType === "decision" && <p className={styles.coverage}>Challenged assumption: {graph.edges.find((edge) => edge.edgeType === "direct_challenge")?.impactDescription}</p>}
           <h4>Supporting evidence</h4>
-          <p>Expected: <strong>{impactValue(finding.baselineValue)}</strong> · Updated: <strong>{impactValue(finding.extractedValue)}</strong>{finding.deltaDays !== null && <> · <strong>{finding.deltaDays > 0 ? "+" : ""}{finding.deltaDays} days</strong></>}</p>
+          <p>Expected: <strong>{impactValue(finding.baselineValue)}</strong> · Updated: <strong>{impactValue(finding.extractedValue)}</strong>{finding.deltaDays !== null && <> · <strong>{impactDeltaDays(finding.deltaDays)}</strong></>}</p>
           <Evidence label="Original assumption" evidence={finding.baselineEvidence} demo={demo} />
           <Evidence label="New evidence" evidence={finding.updateEvidence} demo={demo} />
         </>}

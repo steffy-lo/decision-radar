@@ -11,7 +11,7 @@ async function loadModule(path) {
   return import(`data:text/javascript,${encodeURIComponent(compiled)}`);
 }
 const { parseImpactProjection } = await loadModule("../apps/web/src/lib/domain/models.ts");
-const { impactPositions, pathsForNode, evidenceUrl, edgeLabel, impactValue, explainImpactPath } = await loadModule("../apps/web/src/lib/domain/impact-view.ts");
+const { impactPositions, pathsForNode, evidenceUrl, edgeLabel, impactValue, impactDeltaDays, explainImpactPath } = await loadModule("../apps/web/src/lib/domain/impact-view.ts");
 const fixture = JSON.parse(readFileSync(new URL("../fixtures/vendor-delay-impact.json", import.meta.url), "utf8"));
 const parse = (value) => parseImpactProjection(value, fixture.projectId, fixture.alertId);
 const changed = (edit) => { const value = structuredClone(fixture); edit(value); return value; };
@@ -74,4 +74,7 @@ test("evidence links reject executable protocols and typed values keep units", (
   assert.equal(evidenceUrl("not a URL"), null);
   assert.equal(evidenceUrl("https://docs.google.com/document/d/example"), "https://docs.google.com/document/d/example");
   assert.equal(impactValue({ type: "decimal", value: "1200.50", unit: "USD" }), "1200.50 USD");
+  assert.equal(impactDeltaDays(1), "+1 day");
+  assert.equal(impactDeltaDays(-1), "-1 day");
+  assert.equal(impactDeltaDays(9), "+9 days");
 });

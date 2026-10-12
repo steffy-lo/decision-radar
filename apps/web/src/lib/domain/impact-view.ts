@@ -9,6 +9,10 @@ export function impactValue(value: TypedValue): string {
   return value.type === "decimal" ? `${value.value} ${value.unit}` : String(value.value);
 }
 
+export function impactDeltaDays(days: number): string {
+  return `${days > 0 ? "+" : ""}${days} ${Math.abs(days) === 1 ? "day" : "days"}`;
+}
+
 export function edgeLabel(edge: ImpactEdge): string {
   return edge.edgeType === "direct_challenge" ? "Challenges" : edge.relationType === "enables" ? "Enables" : "Requires review";
 }
@@ -53,8 +57,7 @@ export function explainImpactPath(graph: ImpactProjection, nodeId: string, path:
       path.nodeIds.at(-1) !== nodeId) throw new Error("The selected impact path is unavailable.");
 
   const change = `${impactValue(trigger.finding.baselineValue)} → ${impactValue(trigger.finding.extractedValue)}`;
-  const delta = trigger.finding.deltaDays === null ? "" :
-    ` (${trigger.finding.deltaDays > 0 ? "+" : ""}${trigger.finding.deltaDays} ${Math.abs(trigger.finding.deltaDays) === 1 ? "day" : "days"})`;
+  const delta = trigger.finding.deltaDays === null ? "" : ` (${impactDeltaDays(trigger.finding.deltaDays)})`;
   const direct = selected.nodeType === "finding" || selected.id === graph.rootId;
   const steps = path.edgeIds.slice(1).map((edgeId) => {
     const edge = graph.edges.find((row) => row.id === edgeId);
