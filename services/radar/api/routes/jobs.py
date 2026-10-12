@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from pydantic import BaseModel, Field
 
 from services.radar.adapters.cloud_tasks import get_task_queue, TaskConfigurationError
-from services.radar.adapters.assessment_store import get_assessment_store
+from services.radar.adapters.assessment_store import AssessmentConflict, get_assessment_store
 from services.radar.adapters.job_store import get_job_store
 from services.radar.adapters.firestore import get_firestore_client
 from services.radar.adapters.source_store import get_source_store
@@ -86,9 +86,15 @@ async def submit_analysis(
 ) -> Job:
     """Derive the immutable version on the server before admitting analysis."""
     authorize_work(member, "analysis")
-    return await service.submit(project_id, JobRequest(
+    job = await service.submit(project_id, JobRequest(
         kind="analysis", target_id="assessment", source_version=await current_analysis_version(project_id),
     ))
+    if job.status == "completed":
+        try:
+            await get_assessment_store().activate_completed_run(project_id, job.request.source_version)
+        except AssessmentConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return job
 
 
 @router.get("", response_model=list[Job])

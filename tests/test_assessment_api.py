@@ -103,6 +103,21 @@ class AssessmentRouteTests(unittest.TestCase):
         self.assertEqual(response.json()["latestRun"]["runId"], "run_old")
         self.assertEqual([row["id"] for row in response.json()["alerts"]], ["alert_old"])
 
+    def test_results_show_reactivated_completed_run(self):
+        db = Client()
+        root = f"projects/{DEMO.project_id}"
+        db.data[f"{root}/assessmentRuns/run_reactivated"] = {
+            "runId": "run_reactivated", "status": "completed", "createdAt": "2026-09-28T00:00:00Z",
+            "lastActivatedAt": "2026-09-30T00:00:00Z", "findingIds": [], "alertIds": [],
+        }
+        db.data[f"{root}/assessmentRuns/run_newer"] = {
+            "runId": "run_newer", "status": "completed", "createdAt": "2026-09-29T00:00:00Z",
+            "findingIds": [], "alertIds": [],
+        }
+        app.dependency_overrides[get_firestore_client] = lambda: db
+        response = self.client.get(f"/api/v1/projects/{DEMO.project_id}/assessments/results")
+        self.assertEqual(response.json()["latestRun"]["runId"], "run_reactivated")
+
     def test_confirmed_decision_can_be_assessed_through_api(self):
         db = Client()
         for source in DEMO.sources:

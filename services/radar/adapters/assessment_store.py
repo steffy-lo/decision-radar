@@ -85,6 +85,14 @@ class FirestoreAssessmentStore:
     def __init__(self, client: firestore.AsyncClient):
         self.client = client
 
+    async def activate_completed_run(self, project_id: str, run_id: str) -> None:
+        """Record a new assessment request when its inputs reuse a completed job."""
+        run_ref = self.client.collection("projects").document(project_id).collection("assessmentRuns").document(run_id)
+        run = await run_ref.get()
+        if not run.exists or (run.to_dict() or {}).get("status") != "completed":
+            raise AssessmentConflict("The completed assessment run is missing.")
+        await run_ref.update({"lastActivatedAt": datetime.now(timezone.utc)})
+
     async def load(self, project_id: str) -> AssessmentInputs:
         project = self.client.collection("projects").document(project_id)
         decisions = _decisions(await _read_collection(project.collection("decisions")))
@@ -138,6 +146,7 @@ class FirestoreAssessmentStore:
             prior_run = await run_ref.get(transaction=tx)
             if prior_run.exists:
                 response = prior_run.to_dict() or {}
+                tx.update(run_ref, {"lastActivatedAt": datetime.now(timezone.utc)})
             else:
                 # All reads precede all writes in a Firestore transaction.
                 alert_snapshots = {
@@ -196,6 +205,7 @@ class FirestoreAssessmentStore:
             if existing.exists and (existing.to_dict() or {}).get("status") == "completed":
                 if not prior_request.exists:
                     tx.create(request_ref, {"runId": run_id, "reason": reason, "createdAt": datetime.now(timezone.utc)})
+                    tx.update(run_ref, {"lastActivatedAt": datetime.now(timezone.utc)})
                 return existing.to_dict() or {}
             if stored and stored.get("runId") != run_id:
                 raise AssessmentConflict("Assessment inputs changed. Run the assessment again.")

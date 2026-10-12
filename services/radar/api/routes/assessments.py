@@ -29,7 +29,7 @@ async def assessment_results(
     findings = [row.to_dict() or {} async for row in project.collection("findings").stream()]
     alerts = [row.to_dict() or {} async for row in project.collection("alerts").stream()]
     completed_runs = [row for row in runs if row.get("status") == "completed"]
-    latest = max(completed_runs, key=lambda row: str(row.get("createdAt", "")), default=None)
+    latest = max(completed_runs, key=lambda row: str(row.get("lastActivatedAt") or row.get("createdAt", "")), default=None)
     if latest is None:
         return {"latestRun": None, "findings": [], "alerts": []}
     if latest and "findingIds" in latest and "alertIds" in latest:

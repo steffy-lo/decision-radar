@@ -38,6 +38,9 @@ class Document:
     async def get(self, transaction=None):
         return Snapshot(self.path, self.client.data.get(self.path))
 
+    async def update(self, data):
+        self.client.data[self.path].update(data)
+
 
 class Collection:
     def __init__(self, client, path):
@@ -59,6 +62,9 @@ class Transaction:
 
     def set(self, document, data):
         self.client.data[document.path] = data
+
+    def update(self, document, data):
+        self.client.data[document.path].update(data)
 
     def create(self, document, data):
         if document.path in self.client.data:
