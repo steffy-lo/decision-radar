@@ -306,6 +306,7 @@ class SourceService:
                         "rootFolderId": folder_id, "lastModified": file.modified_time,
                         "nativeUrl": file.native_url, "contentSnapshot": "",
                         "status": "mapping_required", "failureReason": "Configure table columns to ingest this source.",
+                        "monitoringPaused": bool(prior and prior.get("monitoringPaused")),
                         "updatedAt": datetime.now(timezone.utc).isoformat(),
                     })
                     if prior: updated += 1
@@ -339,6 +340,7 @@ class SourceService:
                 "rootFolderId": folder_id,
                 "lastModified": file.modified_time, "nativeUrl": file.native_url,
                 "contentSnapshot": content, "status": "ready",
+                "monitoringPaused": bool(prior and prior.get("monitoringPaused")),
                 "updatedAt": datetime.now(timezone.utc).isoformat(),
             }
             if file.mime_type in TABLE_MIME:

@@ -63,8 +63,10 @@ async def _current_facts(project: Any, transaction: Any = None) -> tuple[Fact, .
     current = []
     for row in rows:
         extraction = extractions.get(row.get("sourceId"))
+        source = sources.get(row.get("sourceId"))
+        if source and source.get("monitoringPaused"):
+            continue
         if extraction:
-            source = sources.get(row.get("sourceId"))
             if (not source or source.get("status") != "ready"
                     or sha256(source.get("contentSnapshot", "").encode()).hexdigest() != extraction.get("snapshotHash")):
                 continue

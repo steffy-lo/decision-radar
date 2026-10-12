@@ -7,6 +7,7 @@ import { isDemoProject } from "@/lib/demo/use-project-data";
 
 const items = [
   { slug: "decisions", label: "Decisions", icon: "◈" },
+  { slug: "connections", label: "Connections", icon: "⛓" },
   { slug: "sources", label: "Sources", icon: "▤" },
   { slug: "reviews", label: "Reviews", icon: "◎" },
   { slug: "briefs", label: "Briefs", icon: "▧" },
@@ -33,7 +34,7 @@ export function AppShell({
 
         <div className="sidebar__section-label">WORKSPACE</div>
         <nav className="sidebar__nav" aria-label="Primary">
-          {items.map((item) => {
+          {items.filter((item) => !demo || item.slug !== "connections").map((item) => {
             const href = `${base}/${item.slug}`;
             const active = pathname === href || pathname.startsWith(`${href}/`);
             return (
