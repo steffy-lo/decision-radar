@@ -11,7 +11,7 @@ async function loadModule(path) {
   return import(`data:text/javascript,${encodeURIComponent(compiled)}`);
 }
 const { parseImpactProjection } = await loadModule("../apps/web/src/lib/domain/models.ts");
-const { impactPositions, pathsForNode, evidenceUrl, edgeLabel, impactValue } = await loadModule("../apps/web/src/lib/domain/impact-view.ts");
+const { impactPositions, pathsForNode, evidenceUrl, edgeLabel, impactValue, explainImpactPath } = await loadModule("../apps/web/src/lib/domain/impact-view.ts");
 const fixture = JSON.parse(readFileSync(new URL("../fixtures/vendor-delay-impact.json", import.meta.url), "utf8"));
 const parse = (value) => parseImpactProjection(value, fixture.projectId, fixture.alertId);
 const changed = (edit) => { const value = structuredClone(fixture); edit(value); return value; };
@@ -34,6 +34,22 @@ test("diamond paths remain separately selectable with shared nodes", () => {
   assert.equal(pathsForNode(graph, "dec_production_go_live").length, 2);
   assert.equal(graph.nodes.length, 4);
   assert.equal(impactPositions(graph).get("dec_production_go_live").y, 720);
+  const explanations = pathsForNode(graph, "dec_production_go_live").map((path) => explainImpactPath(graph, "dec_production_go_live", path));
+  assert.match(explanations[0].briefText, /Path 2: enables/);
+  assert.match(explanations[1].briefText, /Path 1: requires review of/);
+  assert.match(explanations[0].evidenceBasis, /no separate contradiction evidence/);
+});
+
+test("direct and projected explanations keep citations and review priority distinct", () => {
+  const graph = parse(fixture);
+  const direct = explainImpactPath(graph, graph.rootId, pathsForNode(graph, graph.rootId)[0]);
+  const downstream = explainImpactPath(graph, "dec_production_go_live", pathsForNode(graph, "dec_production_go_live")[0]);
+  assert.match(direct.summary, /directly challenged/);
+  assert.match(direct.briefText, /Original source:/);
+  assert.match(direct.briefText, /Update source:/);
+  assert.match(downstream.summary, /downstream/);
+  assert.match(downstream.reviewReason, /does not claim/);
+  assert.notEqual(direct.summary, downstream.summary);
 });
 
 test("malformed scope, direct challenge and disconnected or incomplete paths fail closed", () => {

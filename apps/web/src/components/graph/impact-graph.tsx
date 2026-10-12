@@ -7,7 +7,7 @@ import "@xyflow/react/dist/style.css";
 import { fetchPrivateApi } from "@/lib/api/client";
 import { isDemoProject } from "@/lib/demo/use-project-data";
 import { parseImpactProjection, type EvidenceRef, type ImpactNode, type ImpactProjection } from "@/lib/domain/models";
-import { edgeLabel, evidenceUrl, impactPositions, impactTitle, impactValue, pathsForNode } from "@/lib/domain/impact-view";
+import { edgeLabel, evidenceUrl, explainImpactPath, impactPositions, impactTitle, impactValue, pathsForNode } from "@/lib/domain/impact-view";
 import styles from "./impact-graph.module.css";
 
 type FlowNode = Node<{ record: ImpactNode }, "impact">;
@@ -61,13 +61,22 @@ function GraphView({ graph, demo }: { graph: ImpactProjection; demo: boolean }) 
   }, []);
   const [selectedId, setSelectedId] = useState(graph.findingId);
   const [pathIndex, setPathIndex] = useState(0);
+  const [copyStatus, setCopyStatus] = useState("");
   const detailId = useId();
   const pathSelectId = useId();
   const selected = graph.nodes.find((node) => node.id === selectedId)!;
   const paths = useMemo(() => pathsForNode(graph, selectedId), [graph, selectedId]);
   const path = paths[pathIndex] ?? paths[0];
+  const explanation = path ? explainImpactPath(graph, selectedId, path) : null;
   const positions = useMemo(() => impactPositions(graph), [graph]);
-  const select = useCallback((id: string) => { setSelectedId(id); setPathIndex(0); }, []);
+  const select = useCallback((id: string) => { setSelectedId(id); setPathIndex(0); setCopyStatus(""); }, []);
+  const copyExplanation = async () => {
+    if (!explanation) return;
+    try {
+      await navigator.clipboard.writeText(explanation.briefText);
+      setCopyStatus("Path summary copied. Review it before sharing.");
+    } catch { setCopyStatus("Copy failed. Select the explanation text to copy it manually."); }
+  };
   const nodes: FlowNode[] = useMemo(() => graph.nodes.map((node) => ({
     id: node.id, type: "impact", data: { record: node }, position: positions.get(node.id)!,
     selected: node.id === selectedId, ariaRole: "button", ariaLabel: `${category(node)}: ${impactTitle(node)}`,
@@ -88,6 +97,7 @@ function GraphView({ graph, demo }: { graph: ImpactProjection; demo: boolean }) 
   return <section className={styles.workspace} aria-label="Decision impact graph">
     <div className={styles.header}><div><span className="eyebrow">IMPACT MAP</span><h2>Follow the ripple</h2></div>
       <span>{graph.nodes.length - 2} downstream {graph.nodes.length === 3 ? "decision" : "decisions"}</span></div>
+    {graph.affectedPaths.length === 0 && <p className={styles.emptyPath}>No downstream decisions are recorded for this alert. The challenged decision still needs review.</p>}
     <div className={styles.legend}><span className={styles.triggerKey}>Evidence trigger</span><span className={styles.challengeKey}>Direct challenge</span><span className={styles.downstreamKey}>Downstream effect</span></div>
     <p className={styles.help}>Drag the background to pan. Use + / − to zoom. Tab to a node and press Enter or Space to inspect it.</p>
     <div className={styles.layout}>
@@ -106,8 +116,15 @@ function GraphView({ graph, demo }: { graph: ImpactProjection; demo: boolean }) 
         <p className="sr-only" role="status">Selected {category(selected)}: {impactTitle(selected)}</p>
         <span className={styles.category}>{category(selected)}</span><h3>{impactTitle(selected)}</h3>
         {selected.nodeType === "decision" && <><p className={styles.owner}>Owner: {selected.decision.owner}</p><p>{selected.decision.rationale}</p></>}
+        {explanation && <section className={styles.explanation} aria-label="Impact explanation">
+          <h4>Why this path matters</h4><p>{explanation.summary}</p>
+          <p><strong>{selected.impact === "downstream_impact" ? "Projected impact" : "Direct challenge"}:</strong> {explanation.evidenceBasis}</p>
+          <p><strong>Review priority:</strong> {explanation.reviewReason}</p>
+          <button className="button button--secondary" type="button" onClick={() => void copyExplanation()}>Copy path summary</button>
+          {copyStatus && <p role="status">{copyStatus}</p>}
+        </section>}
         <h4>Ordered impact path</h4>
-        {paths.length > 1 && <><label htmlFor={pathSelectId}>Path to this decision</label><select id={pathSelectId} value={pathIndex} onChange={(event) => setPathIndex(Number(event.target.value))}>
+        {paths.length > 1 && <><label htmlFor={pathSelectId}>Path to this decision</label><select id={pathSelectId} value={pathIndex} onChange={(event) => { setPathIndex(Number(event.target.value)); setCopyStatus(""); }}>
           {paths.map((item, index) => <option key={item.edgeIds.join("_")} value={index}>Path {index + 1} of {paths.length} · {item.edgeIds.length} steps</option>)}
         </select></>}
         <ol className={styles.path}>{path?.nodeIds.map((id, index) => {
