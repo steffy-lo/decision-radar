@@ -2,6 +2,7 @@
 .header { padding: 22px 24px 12px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .header h2 { font-size: 23px; margin: 6px 0; letter-spacing: -.7px; }
 .header > span { color: #567081; font-size: 12px; }
+.emptyPath { margin: 0 24px 12px; color: #526676; font-size: 12px; }
 .legend { padding: 0 24px; display: flex; flex-wrap: wrap; gap: 18px; font-size: 11px; color: #526474; }
 .legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 3px; }
 .triggerKey::before { background: #b86e1e; }
@@ -28,6 +29,10 @@
 .detail h4 { font-size: 12px; margin: 24px 0 10px; }
 .detail p { font-size: 12px; line-height: 1.65; color: #526676; overflow-wrap: anywhere; }
 .owner { color: #294758 !important; font-weight: 650; }
+.explanation { padding: 14px; border: 1px solid #c9dce7; border-radius: 8px; background: #f4f9fc; }
+.explanation h4 { margin: 0 0 8px; }
+.explanation p { margin: 8px 0; }
+.explanation button { margin-top: 8px; white-space: normal; }
 .detail label { display: block; font-size: 11px; margin-bottom: 6px; }
 .detail select { width: 100%; font: inherit; font-size: 12px; background: white; padding: 8px; border: 1px solid var(--line); border-radius: 5px; }
 .path { padding: 0; list-style: none; }

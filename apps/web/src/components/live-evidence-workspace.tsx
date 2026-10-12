@@ -160,7 +160,7 @@ export function LiveReviewsWorkspace({ projectId, alertId }: { projectId: string
     {analysisJob && <p role="status" className="notice notice--info">Evidence analysis: {analysisJob.status}.
       {analysisJob.status === "failed" && <button className="button button--secondary" disabled={busy} onClick={() => void retryAnalysis()}>Retry analysis</button>}
     </p>}
-    {alertId && <ImpactGraph key={`${projectId}/${alertId}`} projectId={projectId} alertId={alertId} />}
+    {alertId && <ImpactGraph key={`${projectId}/${alertId}`} projectId={projectId} alertId={alertId} severity={data?.alerts.find((alert) => alert.id === alertId)?.severity} />}
     {error && <p role="alert" className="notice notice--error">{error}</p>}
     {driftedTables.length > 0 && <p role="status" className="notice notice--warning">Coverage gap: {driftedTables.map((source) => source.name).join(", ")} {driftedTables.length === 1 ? "has" : "have"} a paused table mapping. Repair the header or column values and refresh the folder before relying on this assessment.</p>}
     <div className="review-summary workspace-card"><div><span className="section-kicker">LATEST ASSESSMENT</span><h2>{reviewState}</h2><p>{data?.latestRun ? `${data.latestRun.findingCount} ${data.latestRun.findingCount === 1 ? "finding" : "findings"} checked · ${data.latestRun.alertCount} ${data.latestRun.alertCount === 1 ? "alert" : "alerts"} · ${uncertainCount} ${uncertainCount === 1 ? "assumption" : "assumptions"} with incomplete coverage.` : "Run an assessment after you confirm decisions and extract source facts."}</p></div><span className="review-summary__symbol" aria-hidden="true">◇</span></div>
