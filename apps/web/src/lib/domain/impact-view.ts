@@ -54,7 +54,7 @@ export function explainImpactPath(graph: ImpactProjection, nodeId: string, path:
 
   const change = `${impactValue(trigger.finding.baselineValue)} → ${impactValue(trigger.finding.extractedValue)}`;
   const delta = trigger.finding.deltaDays === null ? "" :
-    ` (${trigger.finding.deltaDays > 0 ? "+" : ""}${trigger.finding.deltaDays} days)`;
+    ` (${trigger.finding.deltaDays > 0 ? "+" : ""}${trigger.finding.deltaDays} ${Math.abs(trigger.finding.deltaDays) === 1 ? "day" : "days"})`;
   const direct = selected.nodeType === "finding" || selected.id === graph.rootId;
   const steps = path.edgeIds.slice(1).map((edgeId) => {
     const edge = graph.edges.find((row) => row.id === edgeId);
