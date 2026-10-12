@@ -232,7 +232,7 @@ async def get_source_span(
         raise HTTPException(status_code=409, detail="The stored citation no longer resolves.")
     return {"id": span.id, "sourceVersionId": version_id, "quote": span.quote,
             "start": span.start, "end": span.end, "line": span.line,
-            "column": span.column, "locator": span.locator}
+            "column": span.column, "locator": evidence.get("locator") or span.locator}
 
 
 @router.post("/{source_id}/extract")
