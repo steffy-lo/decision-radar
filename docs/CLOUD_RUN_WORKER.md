@@ -63,7 +63,8 @@ Cloud Run environment variables or IAM settings.
    Firestore emulator.
 
 Cloud Tasks controls retries; the application has no three-attempt cap. The
-queue can use 100 total attempts. Failed handler callbacks return 503, and an
+staging `radar-jobs` queue was configured for three total attempts on
+12 October 2026. Failed handler callbacks return 503, and an
 unfinished job becomes failed on the next status read after its task is removed.
 
 For a development service that follows the current KAN-8 branch, use a separate
