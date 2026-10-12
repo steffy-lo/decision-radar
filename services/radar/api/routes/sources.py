@@ -19,6 +19,8 @@ from services.radar.pipeline.extraction import Extractor, ExtractionError
 from services.radar.pipeline.gemini import VertexGeminiGenerator
 from services.radar.services.connections import ConnectionService
 from services.radar.services.drive_ingestion import DriveIngestionError, HttpDriveGateway, SourceService
+from services.radar.services.drive_ingestion import TABLE_MIME, SHEET_MIME
+from services.radar.services.table_mapping import TableMapping, TableMappingError, canonical_table, mapped_facts
 from services.radar.services.source_versions import resolve_quote
 
 router = APIRouter(prefix="/projects/{project_id}/sources", tags=["Sources"])
@@ -44,6 +46,44 @@ class SourceSummary(BaseModel):
     native_url: str
     status: str
     failure_reason: str | None = None
+    table_mapping: dict[str, Any] | None = None
+
+
+@router.put("/{source_id}/sheet-mapping")
+async def put_sheet_mapping(
+    project_id: str, source_id: str, body: TableMapping,
+    _: AuthenticatedProjectMember = Depends(require_project_admin),
+    connection: ConnectionService = Depends(get_connection_service),
+    store: FirestoreSourceStore = Depends(get_source_store),
+) -> dict[str, Any]:
+    source = await store.get(project_id, source_id)
+    selected = (await connection.get_connection(project_id)).selected_folder_id
+    if not source or not selected or source.get("rootFolderId") != selected:
+        raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
+    if source["mimeType"] not in TABLE_MIME:
+        raise HTTPException(status_code=422, detail="Only Sheets, CSV, and XLSX sources accept table mappings.")
+    if source["mimeType"] == SHEET_MIME and (not body.sheet_name or not body.a1_range):
+        raise HTTPException(status_code=422, detail="Google Sheets mapping needs a sheet name and A1 range.")
+    token = await connection.get_access_token(project_id)
+    async with httpx.AsyncClient(timeout=30) as client:
+        drive = HttpDriveGateway(token.token, client)
+        try:
+            file = await drive.get_file(source["nativeId"])
+            if file.mime_type != source["mimeType"] or file.parent_id != source["parentFolderId"]:
+                raise TableMappingError("Source changed in Drive. Refresh the selected folder first.")
+            values, formulas, sheet_name, start_row, start_col = await drive.read_table(file, body)
+            body.sheet_name = sheet_name
+            preview = {**source, "contentSnapshot": canonical_table(values, formulas, start_row=start_row, start_col=start_col)}
+            mapped_facts(project_id, preview, body, values, start_row=start_row, start_col=start_col)
+        except (DriveIngestionError, TableMappingError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        await store.put_table_mapping(project_id, source_id, source["mimeType"], body.model_dump(mode="json"))
+        try:
+            await SourceService(drive, store).refresh(project_id, selected)
+        except (DriveIngestionError, TableMappingError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=f"Mapping saved, but refresh failed: {exc}") from exc
+    current = await store.get(project_id, source_id)
+    return {"sourceId": source_id, "status": current["status"], "versionId": current.get("versionId")}
 
 
 class ExtractRequest(BaseModel):
@@ -100,6 +140,7 @@ async def list_sources(
                 id=row["id"], name=row["name"], mime_type=row["mimeType"],
                 native_url=row["nativeUrl"], status=row["status"],
                 failure_reason=row.get("failureReason"),
+                table_mapping=row.get("tableMapping"),
             )
             for row in records if row.get("rootFolderId") == selected
         ),
@@ -191,7 +232,7 @@ async def get_source_span(
         raise HTTPException(status_code=409, detail="The stored citation no longer resolves.")
     return {"id": span.id, "sourceVersionId": version_id, "quote": span.quote,
             "start": span.start, "end": span.end, "line": span.line,
-            "column": span.column, "locator": span.locator}
+            "column": span.column, "locator": evidence.get("locator") or span.locator}
 
 
 @router.post("/{source_id}/extract")

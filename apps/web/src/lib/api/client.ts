@@ -32,6 +32,25 @@ export interface SourceSummary {
   native_url: string;
   status: string;
   failure_reason: string | null;
+  table_mapping: TableMapping | null;
+}
+
+export interface TableMapping {
+  sheet_name: string | null;
+  a1_range: string | null;
+  header_row: number;
+  row_business_key: string;
+  columns: { header: string; predicate: string; type: "date" | "decimal" | "enum"; unit: string | null; enum_values: string[] | null }[];
+}
+
+export async function putTableMapping(projectId: string, sourceId: string, mapping: TableMapping): Promise<void> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/sheet-mapping`, {
+    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(mapping),
+  });
+  if (!response.ok) {
+    const payload: { detail?: string } = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Table mapping failed with status ${response.status}.`);
+  }
 }
 
 export interface MonitoredAssumption {
