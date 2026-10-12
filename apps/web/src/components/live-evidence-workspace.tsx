@@ -5,6 +5,7 @@ import { DriveConnectionPanel } from "@/components/connections/drive-connection-
 import { EvidenceReference } from "@/components/evidence-reference";
 import { ImpactGraph } from "@/components/graph/impact-graph";
 import { ReviewActionPanel } from "@/components/review-action-panel";
+import { TableMappingForm } from "@/components/table-mapping-form";
 import {
   extractSource, getAssessmentResults, getCurrentProjectMembership, getExtraction,
   getJob, listMonitoredAssumptions, listSources, retryJob, submitAnalysisJob,
@@ -95,7 +96,9 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
         const result = extractions[source.id];
         return <Panel className="workspace-card source-item" key={source.id}>
           <div className="source-item__head"><div><h3>{source.name}</h3><a href={source.native_url} target="_blank" rel="noopener noreferrer" className="text-link">Open source ↗</a></div><StatusPill tone={source.status === "ready" ? "success" : "warning"}>{source.failure_reason === "removed_from_folder" ? "Removed from folder" : source.status}</StatusPill></div>
-          {membership?.role !== "viewer" && <button className="button button--primary" disabled={busySource !== null || !selected || source.status !== "ready"} onClick={() => void runExtraction(source.id)}>{busySource === source.id ? "Extracting…" : "Extract with Gemini"}</button>}
+          {source.failure_reason && <p role="status" className="notice notice--warning">{source.failure_reason}</p>}
+          {membership?.role !== "viewer" && ["application/vnd.google-apps.spreadsheet", "text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"].includes(source.mime_type) && <TableMappingForm projectId={projectId} source={source} onSaved={load} />}
+          {membership?.role !== "viewer" && !["application/vnd.google-apps.spreadsheet", "text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"].includes(source.mime_type) && <button className="button button--primary" disabled={busySource !== null || !selected || source.status !== "ready"} onClick={() => void runExtraction(source.id)}>{busySource === source.id ? "Extracting…" : "Extract with Gemini"}</button>}
           {result && <div className="source-item__results"><p role="status" className={`notice ${result.publishedFactCount ? "notice--success" : "notice--warning"}`}>{result.publishedFactCount} verified facts ready for assessment</p>
             {result.facts.map((fact, index) => <div key={`${source.id}-${index}`} className="fact-card"><div><strong>{fact.entity} · {fact.predicate}</strong><StatusPill>{fact.state}</StatusPill></div><blockquote>“{fact.quote}”</blockquote>{fact.uncertainReason && <p className="notice notice--warning">{fact.uncertainReason}</p>}{fact.uncertainReason?.includes("unresolved") && membership?.role !== "viewer" && <div className="fact-card__actions"><button className="button button--secondary" type="button" onClick={() => setEntityAlias(fact.entity)}>Use entity wording</button><button className="button button--secondary" type="button" onClick={() => setPredicateAlias(fact.predicate)}>Use predicate wording</button></div>}</div>)}
             {result.decisions.map((decision, index) => <div key={`decision-${index}`} className="fact-card"><strong>Suggested decision</strong><p>{decision.statement}</p>{decision.uncertainReason && <p className="notice notice--warning">{decision.uncertainReason}</p>}</div>)}
@@ -149,7 +152,8 @@ export function LiveReviewsWorkspace({ projectId, alertId }: { projectId: string
   }
   const coverage = data?.latestRun?.coverage ?? [];
   const uncertainCount = coverage.filter((row) => row.state !== "assessed").length;
-  const reviewState = data?.alerts.length ? "Needs review" : !data?.latestRun ? "Ready to assess" : uncertainCount ? "Evidence unclear" : "No detected issue in assessed sources";
+  const driftedTables = sources.filter((source) => source.status === "schema_drift");
+  const reviewState = data?.alerts.length ? "Needs review" : !data?.latestRun ? "Ready to assess" : uncertainCount || driftedTables.length ? "Evidence unclear" : "No detected issue in assessed sources";
   return <>
     <PageHeading eyebrow="REVIEW QUEUE" title="Reviews" description="Check confirmed decisions against verified source facts." action={membership && membership.role !== "viewer" && <button className="button button--primary" disabled={busy} onClick={() => void assess()}>{busy ? "Running assessment…" : "Run assessment"}</button>} />
     {analysisJob && <p role="status" className="notice notice--info">Evidence analysis: {analysisJob.status}.
@@ -157,6 +161,7 @@ export function LiveReviewsWorkspace({ projectId, alertId }: { projectId: string
     </p>}
     {alertId && <ImpactGraph key={`${projectId}/${alertId}`} projectId={projectId} alertId={alertId} />}
     {error && <p role="alert" className="notice notice--error">{error}</p>}
+    {driftedTables.length > 0 && <p role="status" className="notice notice--warning">Coverage gap: {driftedTables.map((source) => source.name).join(", ")} {driftedTables.length === 1 ? "has" : "have"} a paused table mapping. Repair the header or column values and refresh the folder before relying on this assessment.</p>}
     <div className="review-summary workspace-card"><div><span className="section-kicker">LATEST ASSESSMENT</span><h2>{reviewState}</h2><p>{data?.latestRun ? `${data.latestRun.findingCount} ${data.latestRun.findingCount === 1 ? "finding" : "findings"} checked · ${data.latestRun.alertCount} ${data.latestRun.alertCount === 1 ? "alert" : "alerts"} · ${uncertainCount} ${uncertainCount === 1 ? "assumption" : "assumptions"} with incomplete coverage.` : "Run an assessment after you confirm decisions and extract source facts."}</p></div><span className="review-summary__symbol" aria-hidden="true">◇</span></div>
     {coverage.length > 0 && <Panel className="workspace-card coverage-panel"><span className="section-kicker">COVERAGE</span><h2>What the assessment checked</h2><div className="coverage-list">{coverage.map((row) => <div key={row.assumption_id} className="coverage-list__row"><StatusPill tone={row.state === "assessed" ? "success" : "warning"}>{row.state === "assessed" ? "Assessed" : "Evidence unclear"}</StatusPill><span>{row.reason}</span></div>)}</div></Panel>}
     <div className="workspace-section workspace-stack">{data?.alerts.length ? data.alerts.map((alert) => {

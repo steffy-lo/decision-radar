@@ -8,11 +8,16 @@ from typing import Any, Protocol
 
 import httpx
 from services.radar.services.source_versions import normalize_text
+from services.radar.services.table_mapping import TableMapping, TableMappingError, canonical_table, csv_rows, xlsx_rows, mapped_facts
 
 FOLDER_MIME = "application/vnd.google-apps.folder"
 DOC_MIME = "application/vnd.google-apps.document"
 TXT_MIME = "text/plain"
-SUPPORTED_MIME = frozenset((DOC_MIME, TXT_MIME))
+SHEET_MIME = "application/vnd.google-apps.spreadsheet"
+CSV_MIME = "text/csv"
+XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+TABLE_MIME = frozenset((SHEET_MIME, CSV_MIME, XLSX_MIME))
+SUPPORTED_MIME = frozenset((DOC_MIME, TXT_MIME, *TABLE_MIME))
 MAX_FILES = 100
 MAX_TEXT_BYTES = 1_000_000
 DRIVE_URL = "https://www.googleapis.com/drive/v3/files"
@@ -54,6 +59,7 @@ class DriveGateway(Protocol):
     async def get_file(self, file_id: str) -> DriveFile: ...
     async def list_children(self, folder_id: str, page_token: str | None) -> DrivePage: ...
     async def read_text(self, file: DriveFile) -> str: ...
+    async def read_table(self, file: DriveFile, mapping: TableMapping | None) -> tuple[list[list[Any]], list[list[Any]], str, int, int]: ...
 
 
 class SourceStore(Protocol):
@@ -157,6 +163,48 @@ class HttpDriveGateway:
         except UnicodeDecodeError as exc:
             raise DriveIngestionError(f"{file.name} is not UTF-8 text.") from exc
 
+    async def read_table(self, file: DriveFile, mapping: TableMapping | None) -> tuple[list[list[Any]], list[list[Any]], str, int, int]:
+        if not file.can_download:
+            raise DriveIngestionError(f"Download is disabled for {file.name}.")
+        if file.mime_type == SHEET_MIME:
+            if mapping is None or not mapping.sheet_name or not mapping.a1_range:
+                raise TableMappingError("Choose a sheet and A1 range before mapping this source.")
+            import re
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_ ]{0,99}", mapping.sheet_name):
+                raise TableMappingError("Sheet name contains unsupported characters.")
+            if not re.fullmatch(r"[A-Z]{1,3}[1-9][0-9]*:[A-Z]{1,3}[1-9][0-9]*", mapping.a1_range):
+                raise TableMappingError("Use a bounded A1 range such as A1:D100.")
+            from urllib.parse import quote
+            from re import search
+            first_row = int(search(r"[1-9][0-9]*", mapping.a1_range).group())
+            first_col_name = mapping.a1_range.split(":", 1)[0].rstrip("0123456789")
+            first_col = 0
+            for char in first_col_name:
+                first_col = first_col * 26 + ord(char) - 64
+            range_name = f"'{mapping.sheet_name}'!{mapping.a1_range}"
+            url = f"https://sheets.googleapis.com/v4/spreadsheets/{file.id}/values/{quote(range_name, safe='')}"
+            async def values(render: str) -> list[list[Any]]:
+                response = await self._get(url, {"valueRenderOption": render, "dateTimeRenderOption": "SERIAL_NUMBER"})
+                result = response.json().get("values", [])
+                if not isinstance(result, list):
+                    raise DriveIngestionError("Google Sheets returned invalid values.")
+                return result
+            effective = await values("UNFORMATTED_VALUE")
+            formulas = await values("FORMULA")
+            # Google Sheets omits trailing empty cells and rows.
+            formulas += [[] for _ in range(max(0, len(effective) - len(formulas)))]
+            return effective, formulas, mapping.sheet_name, first_row, first_col
+        if file.mime_type not in (CSV_MIME, XLSX_MIME):
+            raise DriveIngestionError(f"Unsupported table type for {file.name}.")
+        response = await self._get(f"{DRIVE_URL}/{file.id}", {"alt": "media"})
+        if len(response.content) > MAX_TEXT_BYTES:
+            raise DriveIngestionError(f"{file.name} exceeds the table snapshot limit.")
+        if file.mime_type == CSV_MIME:
+            rows = csv_rows(response.content)
+            return rows, rows, file.name, 1, 1
+        rows, formulas, name = xlsx_rows(response.content, mapping.sheet_name if mapping else None)
+        return rows, formulas, name, 1, 1
+
 
 class SourceService:
     def __init__(self, drive: DriveGateway, store: SourceStore):
@@ -224,7 +272,7 @@ class SourceService:
             sid = source_id(file.id)
             prior = await self.store.get(project_id, sid)
             backfill = getattr(self.store, "backfill_legacy_citations", None)
-            if (prior and prior.get("lastModified") == file.modified_time
+            if (prior and file.mime_type not in TABLE_MIME and prior.get("lastModified") == file.modified_time
                     and prior.get("rootFolderId") == folder_id
                     and prior.get("parentFolderId") == file.parent_id
                     and prior.get("status") == "ready"):
@@ -245,7 +293,45 @@ class SourceService:
             elif (prior and prior.get("versionId") and backfill
                   and (not prior.get("citationsBackfilled") or prior.get("citationBackfillSchema") != 2)):
                 await backfill(project_id, sid, prior)
-            content = normalize_text(await self.drive.read_text(file))
+            mapping = None
+            if file.mime_type in TABLE_MIME:
+                get_mapping = getattr(self.store, "get_table_mapping", None)
+                mapping_data = await get_mapping(project_id, sid, file.mime_type) if get_mapping else None
+                mapping = TableMapping.model_validate(mapping_data) if mapping_data else None
+                if mapping is None:
+                    await self.store.put(project_id, sid, {
+                        "id": sid, "projectId": project_id, "nativeId": file.id,
+                        "name": file.name, "mimeType": file.mime_type,
+                        "parentFolderId": file.parent_id, "folderDepth": depth,
+                        "rootFolderId": folder_id, "lastModified": file.modified_time,
+                        "nativeUrl": file.native_url, "contentSnapshot": "",
+                        "status": "mapping_required", "failureReason": "Configure table columns to ingest this source.",
+                        "updatedAt": datetime.now(timezone.utc).isoformat(),
+                    })
+                    if prior: updated += 1
+                    else: created += 1
+                    continue
+                try:
+                    values, formulas, sheet_name, start_row, start_col = await self.drive.read_table(file, mapping)
+                    mapping.sheet_name = sheet_name
+                    content = normalize_text(canonical_table(values, formulas, start_row=start_row, start_col=start_col))
+                    preview = {"id": sid, "name": file.name, "nativeUrl": file.native_url,
+                               "contentSnapshot": content}
+                    facts = mapped_facts(project_id, preview, mapping, values, start_row=start_row, start_col=start_col)
+                    effective_hash = sha256(json.dumps({
+                        "mapping": mapping.model_dump(mode="json"), "values": values,
+                    }, sort_keys=True, default=str, separators=(",", ":")).encode()).hexdigest()
+                except TableMappingError as exc:
+                    if prior:
+                        await self.store.put(project_id, sid, {**prior, "status": "schema_drift",
+                            "failureReason": str(exc), "lastModified": file.modified_time,
+                            "updatedAt": datetime.now(timezone.utc).isoformat()})
+                    else:
+                        raise DriveIngestionError(str(exc)) from exc
+                    updated += 1
+                    continue
+            else:
+                content = normalize_text(await self.drive.read_text(file))
             record = {
                 "id": sid, "projectId": project_id, "nativeId": file.id,
                 "name": file.name, "mimeType": file.mime_type,
@@ -255,10 +341,31 @@ class SourceService:
                 "contentSnapshot": content, "status": "ready",
                 "updatedAt": datetime.now(timezone.utc).isoformat(),
             }
+            if file.mime_type in TABLE_MIME:
+                record["effectiveHash"] = effective_hash
+                record["tableMapping"] = mapping.model_dump(mode="json")
             if versioned_put:
                 await versioned_put(project_id, sid, record)
             else:
                 await self.store.put(project_id, sid, record)
+            if file.mime_type in TABLE_MIME:
+                reuse = getattr(self.store, "reuse_table_extraction", None)
+                if (prior and prior.get("status") == "ready"
+                        and prior.get("effectiveHash") == effective_hash and reuse
+                        and await reuse(project_id, sid, content)):
+                    if prior: updated += 1
+                    else: created += 1
+                    continue
+                publish = getattr(self.store, "publish_extraction", None)
+                if publish:
+                    await publish(project_id, sid, content, facts, {
+                        "sourceId": sid, "snapshotHash": sha256(content.encode()).hexdigest(),
+                        "mappingType": "table", "createdAt": record["updatedAt"],
+                        "facts": [{"entity": fact["entityId"], "predicate": fact["predicate"],
+                                   "value": fact["value"], "quote": fact["evidence"]["quote"],
+                                   "state": "ready", "uncertainReason": None} for fact in facts],
+                        "decisions": [], "publishedFactCount": len(facts),
+                    })
             if prior:
                 updated += 1
             else:

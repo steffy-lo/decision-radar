@@ -153,6 +153,42 @@ class FirestoreSourceStore:
         collection = self.client.collection("projects").document(project_id).collection("sources")
         return [snapshot.to_dict() or {} async for snapshot in collection.stream()]
 
+    def _mapping_ref(self, project_id: str, source_id: str, mime_type: str):
+        name = "sheetMappings" if mime_type == "application/vnd.google-apps.spreadsheet" else "fileTableMappings"
+        return self.client.collection("projects").document(project_id).collection(name).document(source_id)
+
+    async def get_table_mapping(self, project_id: str, source_id: str, mime_type: str) -> dict[str, Any] | None:
+        snapshot = await self._mapping_ref(project_id, source_id, mime_type).get()
+        return snapshot.to_dict() if snapshot.exists else None
+
+    async def put_table_mapping(self, project_id: str, source_id: str, mime_type: str,
+                                mapping: dict[str, Any]) -> None:
+        await self._mapping_ref(project_id, source_id, mime_type).set(mapping)
+
+    async def reuse_table_extraction(self, project_id: str, source_id: str,
+                                     snapshot: str) -> bool:
+        """Keep cited facts when only formula text changed, while advancing the snapshot."""
+        project = self.client.collection("projects").document(project_id)
+        source_ref = project.collection("sources").document(source_id)
+        extraction_ref = project.collection("sourceExtractions").document(source_id)
+        transaction = self.client.transaction()
+
+        @firestore.async_transactional
+        async def advance(tx: Any) -> bool:
+            current = await source_ref.get(transaction=tx)
+            previous = await extraction_ref.get(transaction=tx)
+            if not current.exists or (current.to_dict() or {}).get("contentSnapshot") != snapshot:
+                return False
+            if not previous.exists or (previous.to_dict() or {}).get("mappingType") != "table":
+                return False
+            old = previous.to_dict() or {}
+            if len(old.get("factIds", [])) != old.get("publishedFactCount"):
+                return False
+            tx.update(extraction_ref, {"snapshotHash": sha256(snapshot.encode()).hexdigest()})
+            return True
+
+        return await advance(transaction)
+
     async def reusable_extraction(
         self, project_id: str, source_id: str, snapshot: str,
         assumption_id: str, entity_alias: str, predicate_alias: str,
