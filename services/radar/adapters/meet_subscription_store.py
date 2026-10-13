@@ -1,7 +1,9 @@
 """Project Meet spaces and a server-only subscription lookup for event delivery."""
 
+from __future__ import annotations
+
 from hashlib import sha256
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from services.radar.adapters.firestore import get_firestore_client
@@ -25,6 +27,27 @@ class FirestoreMeetSubscriptionStore:
     async def list(self, project_id: str) -> list[dict[str, Any]]:
         rows = self.client.collection("projects").document(project_id).collection("meet_spaces").stream()
         return [snapshot.to_dict() async for snapshot in rows]
+
+    async def list_due(self, *, limit: int = 100) -> list[tuple[str, str]]:
+        """Bound one maintenance run; later runs pick up any remaining subscriptions."""
+        due: list[tuple[str, str]] = []
+        threshold = datetime.now(timezone.utc) + timedelta(days=2)
+        async for snapshot in self.client.collection_group("meet_spaces").stream():
+            row = snapshot.to_dict() or {}
+            if row.get("status") != "active":
+                continue
+            expiry = row.get("expiresAt")
+            try:
+                expires_at = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
+            except (AttributeError, TypeError, ValueError):
+                expires_at = datetime.min.replace(tzinfo=timezone.utc)
+            if row.get("renewalOperationName") or expires_at.tzinfo is None or expires_at <= threshold:
+                project_ref = snapshot.reference.parent.parent
+                if project_ref is not None:
+                    due.append((project_ref.id, snapshot.id))
+                    if len(due) >= limit:
+                        break
+        return due
 
     async def put(self, project_id: str, space_id: str, record: dict[str, Any]) -> None:
         old = await self.get(project_id, space_id)

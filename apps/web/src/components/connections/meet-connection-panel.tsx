@@ -94,15 +94,15 @@ export function MeetConnectionPanel({ projectId }: { projectId: string }) {
     <div>
       <p className="eyebrow">Meet connection</p>
       <h2 className="mt-2 text-lg font-semibold">Transcript monitoring</h2>
-      <p className="mt-1 text-sm text-slate-600">Connect an account with access to the meeting space, then add its Meet space resource name. Generated transcripts will appear in Sources.</p>
+      <p className="mt-1 text-sm text-slate-600">Connect an account with access to the meeting, then paste its Meet link or code. Generated transcripts will appear in Sources.</p>
     </div>
     {loading && <p role="status">Loading Meet connection…</p>}
     {error && <p role="alert" className="notice notice--error">{error}</p>}
     {!loading && <p role="status">Meet connection: {connection?.status ?? "unavailable"}</p>}
     {!loading && isAdmin && <button className="button button--secondary" disabled={busy} onClick={() => void connect()}>{connection?.status === "active" ? "Reconnect Meet" : "Connect Meet"}</button>}
     {connection?.status === "active" && isAdmin && <div className="flex flex-wrap items-end gap-3">
-      <label className="form-field">Meet space resource
-        <input className="form-control" value={spaceName} onChange={(event) => setSpaceName(event.target.value)} placeholder="spaces/abc123" />
+      <label className="form-field">Meet link or code
+        <input className="form-control" value={spaceName} onChange={(event) => setSpaceName(event.target.value)} placeholder="https://meet.google.com/abc-defg-hij" />
       </label>
       <button className="button button--primary" disabled={busy || !spaceName.trim() || spaces.filter((space) => ["active", "pending", "stopping"].includes(space.status)).length >= 5} onClick={() => void addSpace()}>Monitor space</button>
     </div>}
