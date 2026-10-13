@@ -58,6 +58,31 @@ class ConnectionServiceTests(unittest.IsolatedAsyncioTestCase):
             ["https://www.googleapis.com/auth/drive.readonly"],
         )
 
+    async def test_export_grant_is_separate_and_requires_both_scopes(self):
+        authorization = await self.service.start_authorization("project-a", "admin-1", export=True)
+        params = parse_qs(urlparse(authorization.authorization_url).query)
+        self.assertTrue(params["state"][0].startswith("export_"))
+        self.assertEqual(set(params["scope"][0].split()), {
+            "https://www.googleapis.com/auth/drive.readonly",
+            "https://www.googleapis.com/auth/drive.file",
+        })
+
+        async def missing_scope(_):
+            return {"refresh_token": "new-token", "scope": "https://www.googleapis.com/auth/drive.readonly"}
+        self.service._exchange_code = missing_scope
+        with self.assertRaises(HTTPException):
+            await self.service.complete_authorization("code", params["state"][0], authorization.browser_nonce)
+        self.assertNotIn("projects/test/secrets/project-a", self.tokens.tokens)
+
+        retry = await self.service.start_authorization("project-a", "admin-1", export=True)
+        retry_state = parse_qs(urlparse(retry.authorization_url).query)["state"][0]
+
+        async def full_scope(_):
+            return {"refresh_token": "new-token", "scope": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file"}
+        self.service._exchange_code = full_scope
+        await self.service.complete_authorization("code", retry_state, retry.browser_nonce)
+        self.assertTrue(self.firestore.storage["projects/project-a/connections/google-drive"]["export_scope_granted"])
+
     async def test_callback_stores_only_secret_reference_in_firestore(self):
         authorization = await self.service.start_authorization("project-a", "admin-1")
         state = parse_qs(urlparse(authorization.authorization_url).query)["state"][0]

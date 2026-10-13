@@ -1,10 +1,6 @@
-import { EmptyState, PageHeading } from "@/components/ui";
+import { BriefsWorkspace } from "@/components/briefs-workspace";
 
-export default function BriefsPage() {
-  return (
-    <>
-      <PageHeading eyebrow="DECISION SUMMARIES" title="Briefs" description="A concise record of decisions, changes, and human review." />
-      <EmptyState title="No briefs yet" description="A summary can be prepared after the team reviews a decision." />
-    </>
-  );
+export default async function BriefsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <BriefsWorkspace projectId={id} />;
 }

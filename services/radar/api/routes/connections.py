@@ -14,7 +14,7 @@ from services.radar.domain.models import (
     AuthorizeConnectionResponse,
     ConnectionStatusResponse,
 )
-from services.radar.services.connections import ConnectionService
+from services.radar.services.connections import ConnectionService, EXPORT_STATE_PREFIX
 
 router = APIRouter(tags=["Connections"])
 OAUTH_NONCE_COOKIE = "drive_oauth_nonce"
@@ -67,6 +67,7 @@ async def get_connection(
         selected_folder_id=connection.selected_folder_id,
         error_code=connection.error_code,
         authorization_pending=connection.authorization_pending,
+        export_scope_granted=connection.export_scope_granted,
         updated_at=connection.updated_at,
     )
 
@@ -109,7 +110,8 @@ async def google_oauth_callback(
 ) -> dict[str, str]:
     """Consumes Google OAuth query values server-side; called by the Next.js callback route."""
     project_id = await service.complete_authorization(code, state, browser_nonce)
-    return {"project_id": project_id, "status": "active"}
+    return {"project_id": project_id, "status": "active",
+            "purpose": "brief_export" if state.startswith(EXPORT_STATE_PREFIX) else "drive"}
 
 
 def _set_oauth_nonce_cookie(response: Response, browser_nonce: str) -> None:

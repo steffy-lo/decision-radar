@@ -22,6 +22,7 @@ export interface Connection {
   selected_folder_id: string | null;
   error_code: string | null;
   authorization_pending: boolean;
+  export_scope_granted: boolean;
   updated_at: string | null;
 }
 
@@ -75,6 +76,69 @@ export interface AssessmentResults {
   latestRun: { runId: string; findingCount: number; alertCount: number; coverage: { assumption_id: string; state: string; reason: string }[] } | null;
   findings: { id: string; assumptionId: string; classification: string; reasonCode: string; deltaDays: number | null; baselineEvidence: EvidenceRef; updateEvidence: EvidenceRef }[];
   alerts: { id: string; findingId: string; decisionId: string; severity: string; reviewState: string }[];
+}
+
+export interface BriefPreview {
+  id: string;
+  projectId: string;
+  runId: string;
+  alertIds: string[];
+  content: string;
+  digest: string;
+  createdAt: string;
+  items: { alertId: string; decisionStatement: string; severity: string; review: { action: string; rationale: string } }[];
+}
+
+export interface BriefExport {
+  status: "not_started" | "in_progress" | "completed" | "failed";
+  nativeUrl?: string | null;
+  documentId?: string | null;
+  attempts?: number;
+}
+
+export async function getBriefExport(projectId: string, briefId: string): Promise<BriefExport> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/briefs/${encodeURIComponent(briefId)}/exports`);
+  if (!response.ok) throw new Error(`Export lookup failed with status ${response.status}.`);
+  return response.json();
+}
+
+export async function exportBrief(projectId: string, briefId: string): Promise<BriefExport> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/briefs/${encodeURIComponent(briefId)}/exports`, { method: "POST" });
+  if (!response.ok) {
+    const payload: { detail?: string } = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Export failed with status ${response.status}.`);
+  }
+  return response.json();
+}
+
+export async function beginBriefExportAuthorization(projectId: string): Promise<{ authorization_url: string }> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/briefs/export-authorization`, { method: "POST" });
+  if (!response.ok) throw new Error(`Export authorization failed with status ${response.status}.`);
+  return response.json();
+}
+
+export async function listBriefs(projectId: string): Promise<BriefPreview[]> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/briefs`);
+  if (!response.ok) throw new Error(`Brief list failed with status ${response.status}.`);
+  return response.json();
+}
+
+export async function getBrief(projectId: string, briefId: string): Promise<BriefPreview> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/briefs/${encodeURIComponent(briefId)}`);
+  if (!response.ok) throw new Error(`Brief lookup failed with status ${response.status}.`);
+  return response.json();
+}
+
+export async function createBrief(projectId: string, runId: string, alertIds: string[], requestKey: string): Promise<BriefPreview> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/briefs`, {
+    method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": requestKey },
+    body: JSON.stringify({ runId, alertIds }),
+  });
+  if (!response.ok) {
+    const payload: { detail?: string } = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Brief creation failed with status ${response.status}.`);
+  }
+  return response.json();
 }
 
 export type ReviewAction = "keep" | "revise" | "retire" | "dismiss" | "request_clarification";

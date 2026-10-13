@@ -61,6 +61,7 @@ class FakeTransaction:
 
     def __init__(self):
         self.deletes: list[FakeDocument] = []
+        self.sets: list[tuple[FakeDocument, dict[str, Any]]] = []
         self._id = None
         self._max_attempts = 5
         self._read_only = False
@@ -74,10 +75,16 @@ class FakeTransaction:
     def delete(self, document: FakeDocument) -> None:
         self.deletes.append(document)
 
+    def set(self, document: FakeDocument, data: dict[str, Any]) -> None:
+        self.sets.append((document, data))
+
     async def _commit(self) -> list:
+        for document, data in self.sets:
+            await document.set(data)
         for document in self.deletes:
             await document.delete()
         return []
 
     async def _rollback(self) -> None:
+        self.sets.clear()
         self.deletes.clear()

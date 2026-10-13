@@ -23,6 +23,8 @@ from services.radar.domain.models import (
 )
 
 DRIVE_READONLY_SCOPE = "https://www.googleapis.com/auth/drive.readonly"
+DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
+EXPORT_STATE_PREFIX = "export_"
 GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke"
@@ -70,10 +72,10 @@ class ConnectionService:
         return self.firestore.collection("oauth_states").document(oauth_state)
 
     async def start_authorization(
-        self, project_id: str, uid: str
+        self, project_id: str, uid: str, *, export: bool = False
     ) -> AuthorizationStart:
         self._require_oauth_config()
-        oauth_state = secrets.token_urlsafe(32)
+        oauth_state = (EXPORT_STATE_PREFIX if export else "") + secrets.token_urlsafe(32)
         browser_nonce = secrets.token_urlsafe(32)
         expires_at = datetime.now(timezone.utc) + timedelta(
             seconds=self.settings.GOOGLE_OAUTH_STATE_TTL_SECONDS
@@ -106,7 +108,7 @@ class ConnectionService:
                 "client_id": self.settings.GOOGLE_OAUTH_CLIENT_ID,
                 "redirect_uri": self.settings.GOOGLE_OAUTH_REDIRECT_URI,
                 "response_type": "code",
-                "scope": DRIVE_READONLY_SCOPE,
+                "scope": f"{DRIVE_READONLY_SCOPE} {DRIVE_FILE_SCOPE}" if export else DRIVE_READONLY_SCOPE,
                 "access_type": "offline",
                 "prompt": "consent",
                 "state": oauth_state,
@@ -146,6 +148,11 @@ class ConnectionService:
             )
             raise
         refresh_token = token_payload.get("refresh_token")
+        export_grant = oauth_state.startswith(EXPORT_STATE_PREFIX)
+        granted_scopes = set(str(token_payload.get("scope", "")).split())
+        if export_grant and not {DRIVE_READONLY_SCOPE, DRIVE_FILE_SCOPE}.issubset(granted_scopes):
+            await self._set_authorization_error(state_data.project_id, "export_scope_missing")
+            raise HTTPException(status_code=400, detail="Google did not grant Drive file export access.")
         if not isinstance(refresh_token, str) or not refresh_token:
             await self._set_authorization_error(
                 state_data.project_id, "refresh_token_missing"
@@ -177,6 +184,7 @@ class ConnectionService:
             "error_code": None,
             "connected_by_uid": state_data.initiating_uid,
             "authorization_pending": False,
+            "export_scope_granted": export_grant,
             "updated_at": now,
         }
         if connection.created_at is None:
