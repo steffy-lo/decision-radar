@@ -123,7 +123,7 @@ export function BriefDetailWorkspace({ projectId, briefId }: { projectId: string
   }
   return <>
     <PageHeading eyebrow="DECISION SUMMARIES" title="Brief preview" description="This content is fixed to the assessment and reviews shown below." />
-    {loading ? <p role="status">Loading brief…</p> : error ? <EmptyState title="Brief could not be loaded" description={error} /> : brief && <>
+    {loading ? <p role="status">Loading brief…</p> : !brief ? <EmptyState title="Brief could not be loaded" description={error ?? "This brief is unavailable."} /> : <>
       <Panel className="p-6"><pre className="whitespace-pre-wrap break-words font-sans text-sm leading-7">{brief.content}</pre></Panel>
       <Panel className="mt-5 space-y-3 p-6">
         <h2 className="text-lg font-semibold">Google Docs export</h2>
