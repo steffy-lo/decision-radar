@@ -131,10 +131,10 @@ export function BriefDetailWorkspace({ projectId, briefId }: { projectId: string
         {!exportAccess ? canConnectExport ? <button className="button button--primary" disabled={busy} onClick={() => void authorize()}>Connect Google Docs export</button> : <p>Ask a project administrator to connect Google Docs export.</p> :
           exportResult?.status === "completed" && exportResult.nativeUrl ?
             <a className="text-link" href={exportResult.nativeUrl} target="_blank" rel="noopener noreferrer">Open exported Google Doc ↗</a> :
-            <button className="button button--primary" disabled={busy || exportResult?.status === "in_progress"} onClick={() => void runExport()}>
-              {busy ? "Exporting…" : exportResult?.status === "failed" ? "Retry export" : "Export to Google Docs"}
+            <button className="button button--primary" disabled={busy} onClick={() => void runExport()}>
+              {busy ? "Exporting…" : exportResult?.status === "failed" ? "Retry export" : exportResult?.status === "in_progress" ? "Check or retry export" : "Export to Google Docs"}
             </button>}
-        {exportResult?.status === "in_progress" && <p role="status">Export in progress. Reload this page to check its status.</p>}
+        {exportResult?.status === "in_progress" && <p role="status">Export in progress. Check again here; if delivery stopped, retry becomes available after two minutes.</p>}
         {exportResult?.status === "failed" && <p role="status">The export failed. Retry will look for the same document.</p>}
       </Panel>
       {error && <p role="alert" className="notice notice--error">{error}</p>}
