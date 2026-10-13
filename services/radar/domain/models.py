@@ -47,6 +47,7 @@ class Connection(BaseModel):
     error_code: Optional[str] = None
     connected_by_uid: Optional[str] = None
     authorization_pending: bool = False
+    export_scope_granted: bool = False
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -61,6 +62,7 @@ class ConnectionStatusResponse(BaseModel):
     selected_folder_id: Optional[str] = None
     error_code: Optional[str] = None
     authorization_pending: bool = False
+    export_scope_granted: bool = False
     updated_at: Optional[datetime] = None
 
 

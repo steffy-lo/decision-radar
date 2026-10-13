@@ -45,13 +45,17 @@ export async function GET(request: NextRequest) {
     const response = await fetch(callbackUrl, { cache: "no-store", headers });
     if (!response.ok) {
       const reason = response.status === 503 ? "storage_unavailable" : "authorization_failed";
-      return callbackRedirect(request, `/?connection=failed&reason=${reason}`);
+      return callbackRedirect(request, request.nextUrl.searchParams.get("state")?.startsWith("export_")
+        ? `/?export=failed&reason=${reason}`
+        : `/?connection=failed&reason=${reason}`);
     }
 
-    const result = (await response.json()) as { project_id: string };
+    const result = (await response.json()) as { project_id: string; purpose?: string };
     return callbackRedirect(
       request,
-      `/projects/${encodeURIComponent(result.project_id)}/sources?connection=active`,
+      result.purpose === "brief_export"
+        ? `/projects/${encodeURIComponent(result.project_id)}/briefs?export=authorized`
+        : `/projects/${encodeURIComponent(result.project_id)}/sources?connection=active`,
     );
   } catch {
     return callbackRedirect(request, "/?connection=failed");
