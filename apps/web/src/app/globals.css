@@ -315,6 +315,7 @@ textarea.form-control { resize: vertical; min-height: 76px; }
 @media (max-width: 530px) {
   .auth-session { right: 9px; top: 10px; min-height: 38px; padding: 0 9px; gap: 7px; }
   .auth-session__email { max-width: 100px; }
+  .topbar__crumbs strong, .topbar__crumbs span[aria-hidden] { display: none; }
   .workspace-card { padding: 19px; }
   .form-grid--two, .form-grid--three { grid-template-columns: 1fr; }
   .field-action-row { align-items: stretch; flex-direction: column; }
