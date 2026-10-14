@@ -24,9 +24,11 @@ grant either private service `allUsers` access.
 1. Enable Cloud Run, Cloud Build, Artifact Registry, Firestore, Cloud Tasks,
    Firebase Authentication, Secret Manager, Cloud Storage, Drive, Sheets, and
    Vertex AI APIs. Enable Pub/Sub and Cloud Scheduler before the Meet event and
-   subscription-renewal track is deployed. In the current staging project,
-   Pub/Sub is enabled but Meet, Workspace Events, and Scheduler are not yet
-   enabled. Do not treat that track as operational.
+   subscription-renewal track is deployed. As of 14 October, Meet, Workspace
+   Events, Pub/Sub, and Scheduler APIs are enabled in the staging project.
+   The KAN-7 UAT topic, push subscription, and renewal job exist, but no real
+   transcript event has passed through them yet. Do not treat that track as
+   operational until its end-to-end event and retry checks pass.
 2. Create a Firestore Native database named `decision-radar`, a private source
    snapshot bucket, an Artifact Registry Docker repository, and a Cloud Tasks
    queue named `radar-jobs` in `asia-southeast1`. Give the API and worker
@@ -138,8 +140,11 @@ completed jobs have no new worker duration. Native Meet freshness and
 automatic Drive change capture remain unmeasured; the current Drive path is
 manual refresh.
 
-As of 12 October, public web and same-origin health returned 200; direct
-unauthenticated API and worker requests returned 403. The API and worker
-currently share one runtime identity, Scheduler is disabled, and no
-Decision Radar Pub/Sub topic exists. KAN-7 and the full KAN-12/25 platform
-rehearsal must close those gaps before production readiness is claimed.
+On 14 October, the health script again returned 200 for public web and its
+same-origin API proxy, and 403 for direct unauthenticated API and worker
+requests. The API and worker still share one runtime identity. The
+`decision-radar-meet-events` topic, `decision-radar-meet-events-kan7-uat`
+subscription, and enabled `decision-radar-meet-renewal-kan7-uat` Scheduler job
+exist for isolated KAN-7 testing. A real transcript delivery and subscription
+renewal have not been verified. KAN-7 and the full KAN-12/25 platform rehearsal
+must close those gaps before production readiness is claimed.
