@@ -41,16 +41,23 @@ grant either private service `allUsers` access.
    identities the permissions their adapters require. Verify project IAM and
    secret-level IAM separately; a human's Secret Manager Admin role does not
    grant a service account runtime access.
-   Before first OAuth authorization for each project and connection kind,
-   create `decision-radar-drive-<project-id>` or
-   `decision-radar-meet-<project-id>` in Secret Manager. Grant the API runtime
-   identity `secretAccessor`, `secretVersionManager`, and `viewer` on that
-   individual secret. The staging API identity has no project-wide Secret
-   Manager create permission. On 15 October, a new-project Drive callback
-   returned `storage_unavailable` until its secret and bindings were created;
-   retrying authorization then succeeded. Keep this bootstrap in the trusted
-   project-provisioning process instead of granting the runtime broad access
-   to every project secret.
+   Before first OAuth authorization, run the trusted provisioning script for
+   each new Decision Radar project:
+
+   ```bash
+   RADAR_PROJECT_ID=<project-id> bash scripts/bootstrap-project-secrets.sh
+   ```
+
+   It creates `decision-radar-drive-<project-id>` and
+   `decision-radar-meet-<project-id>` without adding secret values, gives the
+   API runtime `secretAccessor`, `secretVersionManager`, and `viewer` on each,
+   and gives the worker runtime `secretAccessor`. The caller needs permission
+   to create secrets and manage their IAM policies. The staging API identity
+   has no project-wide Secret Manager create permission. On 15 October, a
+   new-project Drive callback returned `storage_unavailable` until its secret
+   and bindings were created; retrying authorization then succeeded. Keep this
+   step in the trusted project-provisioning process instead of granting the
+   runtime broad access to every project secret.
 3. Set up Firebase Google sign-in and add the public web hostname to its
    authorized domains. Configure the separate Google Drive OAuth client with
    the exact public `/oauth/google/callback` redirect URI. Store its client
