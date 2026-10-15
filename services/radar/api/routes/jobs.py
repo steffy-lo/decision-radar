@@ -150,6 +150,12 @@ async def retry_job(
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found.")
     authorize_work(member, job.request.kind)
+    if job.generation == body.generation and job.status == "failed":
+        current_version = (await current_refresh_version(project_id, job.request.target_id)
+                           if job.request.kind == "refresh" else await current_analysis_version(project_id))
+        if current_version != job.request.source_version:
+            action = "refresh" if job.request.kind == "refresh" else "analysis"
+            raise HTTPException(status_code=409, detail=f"Job inputs changed. Submit a new {action} request.")
     try:
         return await service.retry(project_id, job_id, body.generation)
     except JobConflict as exc:

@@ -157,6 +157,20 @@ class JobApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(len(self.queue.tasks), 0)
 
+    def test_retry_rejects_a_refresh_whose_drive_inputs_changed(self):
+        job = self.submit().json()
+        asyncio.run(self.store.change("project_a", job["id"],
+                                      lambda current: current.model_copy(update={"status": "failed"})))
+        before = len(self.queue.tasks)
+        with patch("services.radar.api.routes.jobs.current_refresh_version", new_callable=AsyncMock,
+                   return_value="v2"):
+            response = self.client.post("/api/v1/projects/project_a/jobs/" + job["id"] + "/retry",
+                                        json={"generation": 1})
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["detail"], "Job inputs changed. Submit a new refresh request.")
+        self.assertEqual(len(self.queue.tasks), before)
+        self.assertEqual(asyncio.run(self.store.get("project_a", job["id"])).generation, 1)
+
     def test_wrong_queue_is_rejected_and_worker_is_not_on_public_api(self):
         worker.dependency_overrides[require_task_identity] = lambda: None
         job = self.submit().json()
