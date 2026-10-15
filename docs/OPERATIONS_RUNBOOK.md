@@ -11,11 +11,14 @@ in the repository, image, build substitutions, or command history.
 | --- | --- | --- | --- |
 | `decision-radar-web` | Public | `decision-radar-web@...` | Next.js and same-origin API proxy |
 | `decision-radar-api-staging` | Cloud Run IAM private | `decision-radar-api-staging@...` | Firebase/project authorization and job admission |
-| `radar-worker-dev` | Cloud Run IAM private | `decision-radar-api-staging@...` | Cloud Tasks callbacks, Drive refresh, assessment |
+| `radar-worker-dev` | Cloud Run IAM private | `radar-worker-runtime@...` | Cloud Tasks callbacks, Drive refresh, assessment |
 
-The worker currently shares the API runtime identity. Split it before a
-production release and grant each identity only its required Firestore,
-Storage, Secret Manager, and Vertex permissions. The web identity has Invoker
+The worker uses a separate runtime identity with Firestore access, source
+snapshot bucket object access, and access to individual connection secrets.
+Verify each new project secret grants this worker `secretAccessor` before its
+first refresh; the API identity needs its own secret metadata and version
+permissions for OAuth. Review whether assessment needs Vertex permissions
+under the worker identity before a production release. The web identity has Invoker
 on the API service. `radar-task-invoker@...` has Invoker on the worker. Do not
 grant either private service `allUsers` access.
 
@@ -29,8 +32,9 @@ grant either private service `allUsers` access.
    On 15 October, the isolated KAN-7 worker ingested a nonempty real Meet
    transcript through Pub/Sub. Replaying the event kept one source version,
    an empty transcript was acknowledged without an endless retry, and the
-   Scheduler renewed the subscription. The standard worker still needs an
-   integrated deployment and release check.
+   Scheduler renewed the subscription. On 15 October, the standard worker
+   revision `radar-worker-dev-00012-trj` ran under its separate identity and
+   completed a first-time, browser-initiated Drive crawl of 11 sources.
 2. Create a Firestore Native database named `decision-radar`, a private source
    snapshot bucket, an Artifact Registry Docker repository, and a Cloud Tasks
    queue named `radar-jobs` in `asia-southeast1`. Give the API and worker
@@ -156,10 +160,15 @@ manual refresh.
 
 On 14 October, the health script again returned 200 for public web and its
 same-origin API proxy, and 403 for direct unauthenticated API and worker
-requests. The API and worker still share one runtime identity. The
+requests. The worker identity was split on 15 October. Its first revision
+failed deployment because an existing OAuth client secret was injected as an
+environment secret without `secretAccessor`; the narrow secret grant allowed
+revision `00012-trj` to become Ready. A fresh Cloud Tasks refresh then
+completed and populated 11 Drive sources in a separate test project. The
 `decision-radar-meet-events` topic, `decision-radar-meet-events-kan7-uat`
 subscription, and enabled `decision-radar-meet-renewal-kan7-uat` Scheduler job
 were exercised with a real transcript, duplicate event, empty transcript, and
 subscription renewal on 15 October. KAN-7 is merged. The full KAN-12/25
-platform rehearsal still needs a clean integrated deployment, separate API
-and worker identities, and a post-deploy browser pass.
+platform rehearsal still needs a clean integrated deployment and a post-deploy
+browser pass covering extraction, assessment, graph, and review under the new
+worker identity.
