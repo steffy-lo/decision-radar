@@ -19,6 +19,10 @@ class MeetIngestionError(ValueError):
     """The transcript cannot be safely fetched or published."""
 
 
+class EmptyMeetTranscript(MeetIngestionError):
+    """A generated transcript has no speech to publish."""
+
+
 class MeetGateway(Protocol):
     async def transcript(self, name: str) -> dict[str, Any]: ...
     async def entries(self, name: str, page_token: str | None) -> tuple[list[dict[str, Any]], str | None]: ...
@@ -128,7 +132,7 @@ class MeetTranscriptService:
                 raise MeetIngestionError("Google Meet returned an invalid participant.")
             lines.append(f"[{time_label}] Speaker {speaker}: {' '.join(value.split())}")
         if not lines:
-            raise MeetIngestionError("The generated Meet transcript has no entries.")
+            raise EmptyMeetTranscript("The generated Meet transcript has no entries.")
         content = normalize_text("\n".join(lines))
         if len(content.encode("utf-8")) > MAX_TEXT_BYTES:
             raise MeetIngestionError("The Meet transcript exceeds the text snapshot limit.")

@@ -20,7 +20,7 @@ from services.radar.config import settings
 from services.radar.domain.jobs import TaskDelivery
 from services.radar.services.jobs import HandlerRetry, JobConflict, JobService
 from services.radar.services.meet_events import MeetEventError, parse_transcript_event
-from services.radar.services.meet_ingestion import HttpMeetGateway, MeetIngestionError, MeetTranscriptService
+from services.radar.services.meet_ingestion import EmptyMeetTranscript, HttpMeetGateway, MeetIngestionError, MeetTranscriptService
 from services.radar.services.meet_subscriptions import HttpWorkspaceEventsGateway, MeetSubscriptionError, MeetSubscriptionService
 
 app = FastAPI(title="Decision Radar task worker", docs_url=None, redoc_url=None, openapi_url=None)
@@ -123,6 +123,8 @@ async def receive_meet_event(envelope: dict) -> dict:
             source_id, changed = await MeetTranscriptService(
                 HttpMeetGateway(token.token, client), get_source_store()
             ).ingest(project_id, transcript_name)
+    except EmptyMeetTranscript:
+        return {"status": "ignored_empty"}
     except (MeetIngestionError, HTTPException) as exc:
         raise HTTPException(status_code=503, detail="Meet transcript ingestion will be retried.") from exc
     return {"status": "ingested" if changed else "unchanged", "sourceId": source_id}

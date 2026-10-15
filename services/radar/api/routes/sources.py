@@ -131,8 +131,6 @@ async def list_sources(
     store: FirestoreSourceStore = Depends(get_source_store),
 ) -> list[SourceSummary]:
     selected = (await connection.get_connection(project_id)).selected_folder_id
-    if not selected:
-        return []
     records: list[dict[str, Any]] = await store.list(project_id)
     return sorted(
         (
@@ -142,7 +140,9 @@ async def list_sources(
                 failure_reason=row.get("failureReason"),
                 table_mapping=row.get("tableMapping"),
             )
-            for row in records if row.get("rootFolderId") == selected
+            for row in records
+            if row.get("sourceKind") == "meet-transcript"
+            or (selected and row.get("rootFolderId") == selected)
         ),
         key=lambda row: row.name.casefold(),
     )

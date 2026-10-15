@@ -1,6 +1,6 @@
 import unittest
 
-from services.radar.services.meet_ingestion import MeetIngestionError, MeetTranscriptService
+from services.radar.services.meet_ingestion import EmptyMeetTranscript, MeetIngestionError, MeetTranscriptService
 
 
 NAME = "conferenceRecords/conf_1/transcripts/transcript_2"
@@ -65,3 +65,10 @@ class MeetIngestionTests(unittest.IsolatedAsyncioTestCase):
         gateway.pages = [([], "repeat"), ([], "repeat")]
         with self.assertRaisesRegex(MeetIngestionError, "repeated"):
             await MeetTranscriptService(gateway, Store()).ingest("proj_demo", NAME)
+
+    async def test_generated_empty_transcript_is_terminal_and_creates_no_source(self):
+        gateway, store = Gateway(), Store()
+        gateway.pages = [([], None)]
+        with self.assertRaisesRegex(EmptyMeetTranscript, "no entries"):
+            await MeetTranscriptService(gateway, store).ingest("proj_demo", NAME)
+        self.assertEqual(store.writes, 0)

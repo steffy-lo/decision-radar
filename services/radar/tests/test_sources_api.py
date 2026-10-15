@@ -94,3 +94,32 @@ class SourcesApiTests(unittest.TestCase):
                 app.dependency_overrides.clear()
 
         asyncio.run(check())
+
+    def test_list_includes_meet_transcripts_outside_the_drive_folder(self):
+        async def check():
+            connection, store = FakeConnection(), FakeStore()
+            store.records[("project-a", "meet-1")] = {
+                "id": "meet-1", "name": "Meet transcript", "mimeType": "text/plain",
+                "nativeUrl": "https://docs.google.com/document/d/transcript/view",
+                "status": "ready", "sourceKind": "meet-transcript",
+            }
+            store.records[("project-a", "other-folder")] = {
+                "id": "other-folder", "name": "Other folder note", "mimeType": "text/plain",
+                "nativeUrl": "https://drive.google.com/file/d/other/view",
+                "status": "ready", "rootFolderId": "folder-2",
+            }
+            app.dependency_overrides[require_project_member] = lambda: AuthenticatedProjectMember(
+                uid="admin", role="admin", project_id="project-a")
+            app.dependency_overrides[get_connection_service] = lambda: connection
+            app.dependency_overrides[get_source_store] = lambda: store
+            try:
+                async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+                    without_drive = await client.get("/api/v1/projects/project-a/sources")
+                    connection.folder_id = "folder-1"
+                    with_drive = await client.get("/api/v1/projects/project-a/sources")
+                self.assertEqual([row["id"] for row in without_drive.json()], ["meet-1"])
+                self.assertEqual([row["id"] for row in with_drive.json()], ["meet-1"])
+            finally:
+                app.dependency_overrides.clear()
+
+        asyncio.run(check())
