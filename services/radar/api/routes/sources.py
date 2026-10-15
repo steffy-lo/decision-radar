@@ -47,6 +47,14 @@ class SourceSummary(BaseModel):
     status: str
     failure_reason: str | None = None
     table_mapping: dict[str, Any] | None = None
+    updated_at: str | None = None
+    last_modified: str | None = None
+    monitoring_paused: bool = False
+    source_kind: str = "drive"
+
+
+class SourceMonitoringRequest(BaseModel):
+    paused: bool
 
 
 def _source_in_scope(source: dict[str, Any] | None, selected_folder_id: str | None) -> bool:
@@ -146,11 +154,38 @@ async def list_sources(
                 native_url=row["nativeUrl"], status=row["status"],
                 failure_reason=row.get("failureReason"),
                 table_mapping=row.get("tableMapping"),
+                updated_at=row.get("updatedAt"), last_modified=row.get("lastModified"),
+                monitoring_paused=row.get("monitoringPaused", False),
+                source_kind=row.get("sourceKind", "drive"),
             )
             for row in records
             if _source_in_scope(row, selected)
         ),
         key=lambda row: row.name.casefold(),
+    )
+
+
+@router.patch("/{source_id}/monitoring", response_model=SourceSummary)
+async def set_source_monitoring(
+    project_id: str, source_id: str, body: SourceMonitoringRequest,
+    _: AuthenticatedProjectMember = Depends(require_project_admin),
+    connection: ConnectionService = Depends(get_connection_service),
+    store: FirestoreSourceStore = Depends(get_source_store),
+) -> SourceSummary:
+    source = await store.get(project_id, source_id)
+    selected = (await connection.get_connection(project_id)).selected_folder_id
+    if not _source_in_scope(source, selected):
+        raise HTTPException(status_code=404, detail="Source not found in this project scope.")
+    if not body.paused and source.get("status") != "ready":
+        raise HTTPException(status_code=409, detail="Repair or refresh this source before resuming monitoring.")
+    await store.put(project_id, source_id, {**source, "monitoringPaused": body.paused,
+                                            "monitoringUpdatedAt": datetime.now(timezone.utc).isoformat()})
+    return SourceSummary(
+        id=source["id"], name=source["name"], mime_type=source["mimeType"],
+        native_url=source["nativeUrl"], status=source["status"],
+        failure_reason=source.get("failureReason"), table_mapping=source.get("tableMapping"),
+        updated_at=source.get("updatedAt"), last_modified=source.get("lastModified"),
+        monitoring_paused=body.paused, source_kind=source.get("sourceKind", "drive"),
     )
 
 
@@ -255,6 +290,8 @@ async def extract_source(
     selected = (await connection.get_connection(project_id)).selected_folder_id
     if not _source_in_scope(source, selected):
         raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
+    if source.get("monitoringPaused"):
+        raise HTTPException(status_code=409, detail="Source monitoring is paused. Resume it before extraction.")
     if source.get("status") != "ready":
         raise HTTPException(status_code=409, detail="Source is not ready for extraction.")
     if not source.get("versionId") and getattr(store, "snapshot_bucket", None) is not None:

@@ -66,6 +66,21 @@ export interface SourceSummary {
   status: string;
   failure_reason: string | null;
   table_mapping: TableMapping | null;
+  updated_at: string | null;
+  last_modified: string | null;
+  monitoring_paused: boolean;
+  source_kind: string;
+}
+
+export async function setSourceMonitoring(projectId: string, sourceId: string, paused: boolean): Promise<SourceSummary> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/monitoring`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paused }),
+  });
+  if (!response.ok) {
+    const payload: { detail?: string } = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Source monitoring failed with status ${response.status}.`);
+  }
+  return response.json();
 }
 
 export interface TableMapping {

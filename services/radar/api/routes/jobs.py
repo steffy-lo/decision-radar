@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from pydantic import BaseModel, Field
 
 from services.radar.adapters.cloud_tasks import get_task_queue, TaskConfigurationError
-from services.radar.adapters.assessment_store import get_assessment_store
+from services.radar.adapters.assessment_store import AssessmentConflict, get_assessment_store
 from services.radar.adapters.job_store import get_job_store
 from services.radar.adapters.firestore import get_firestore_client
 from services.radar.adapters.source_store import get_source_store
@@ -86,9 +86,15 @@ async def submit_analysis(
 ) -> Job:
     """Derive the immutable version on the server before admitting analysis."""
     authorize_work(member, "analysis")
-    return await service.submit(project_id, JobRequest(
+    job = await service.submit(project_id, JobRequest(
         kind="analysis", target_id="assessment", source_version=await current_analysis_version(project_id),
     ))
+    if job.status == "completed":
+        try:
+            await get_assessment_store().activate_completed_run(project_id, job.request.source_version)
+        except AssessmentConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return job
 
 
 @router.get("", response_model=list[Job])
@@ -144,6 +150,12 @@ async def retry_job(
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found.")
     authorize_work(member, job.request.kind)
+    if job.generation == body.generation and job.status == "failed":
+        current_version = (await current_refresh_version(project_id, job.request.target_id)
+                           if job.request.kind == "refresh" else await current_analysis_version(project_id))
+        if current_version != job.request.source_version:
+            action = "refresh" if job.request.kind == "refresh" else "analysis"
+            raise HTTPException(status_code=409, detail=f"Job inputs changed. Submit a new {action} request.")
     try:
         return await service.retry(project_id, job_id, body.generation)
     except JobConflict as exc:

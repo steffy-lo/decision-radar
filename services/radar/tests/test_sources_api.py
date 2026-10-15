@@ -56,6 +56,38 @@ class FakeDrive:
 
 
 class SourcesApiTests(unittest.TestCase):
+    def test_monitoring_pause_survives_refresh_and_resume_requires_ready_source(self):
+        async def check():
+            connection, store = FakeConnection(), FakeStore()
+            app.dependency_overrides[require_project_admin] = lambda: AuthenticatedProjectMember(
+                uid="admin", role="admin", project_id="project-a")
+            app.dependency_overrides[require_project_member] = lambda: AuthenticatedProjectMember(
+                uid="admin", role="admin", project_id="project-a")
+            app.dependency_overrides[get_connection_service] = lambda: connection
+            app.dependency_overrides[get_source_store] = lambda: store
+            try:
+                with patch.object(sources, "HttpDriveGateway", return_value=FakeDrive()):
+                    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+                        path = "/api/v1/projects/project-a/sources"
+                        self.assertEqual((await client.post(f"{path}/refresh", json={"folder_id": "folder-1"})).status_code, 200)
+                        source_id = (await client.get(path)).json()[0]["id"]
+                        endpoint = f"{path}/{source_id}/monitoring"
+                        paused = await client.patch(endpoint, json={"paused": True})
+                        self.assertEqual(paused.status_code, 200)
+                        self.assertTrue(paused.json()["monitoring_paused"])
+                        self.assertEqual((await client.post(f"{path}/refresh", json={"folder_id": "folder-1"})).status_code, 200)
+                        self.assertTrue((await client.get(path)).json()[0]["monitoring_paused"])
+                        store.records[("project-a", source_id)]["status"] = "failed"
+                        self.assertEqual((await client.patch(endpoint, json={"paused": False})).status_code, 409)
+                        store.records[("project-a", source_id)]["status"] = "ready"
+                        resumed = await client.patch(endpoint, json={"paused": False})
+                        self.assertEqual(resumed.status_code, 200)
+                        self.assertFalse(resumed.json()["monitoring_paused"])
+            finally:
+                app.dependency_overrides.clear()
+
+        asyncio.run(check())
+
     def test_refresh_stores_a_selected_folder_and_lists_its_source(self):
         async def check():
             connection, store = FakeConnection(), FakeStore()
@@ -110,18 +142,29 @@ class SourcesApiTests(unittest.TestCase):
             }
             app.dependency_overrides[require_project_member] = lambda: AuthenticatedProjectMember(
                 uid="admin", role="admin", project_id="project-a")
+            app.dependency_overrides[require_project_admin] = lambda: AuthenticatedProjectMember(
+                uid="admin", role="admin", project_id="project-a")
             app.dependency_overrides[get_connection_service] = lambda: connection
             app.dependency_overrides[get_source_store] = lambda: store
             try:
                 async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
                     without_drive = await client.get("/api/v1/projects/project-a/sources")
                     meet_without_drive = await client.get("/api/v1/projects/project-a/sources/meet-1")
+                    paused = await client.patch("/api/v1/projects/project-a/sources/meet-1/monitoring", json={"paused": True})
+                    paused_listing = await client.get("/api/v1/projects/project-a/sources")
                     connection.folder_id = "folder-1"
                     with_drive = await client.get("/api/v1/projects/project-a/sources")
+                    resumed = await client.patch("/api/v1/projects/project-a/sources/meet-1/monitoring", json={"paused": False})
                     meet_with_drive = await client.get("/api/v1/projects/project-a/sources/meet-1")
                     unrelated = await client.get("/api/v1/projects/project-a/sources/other-folder")
                 self.assertEqual([row["id"] for row in without_drive.json()], ["meet-1"])
+                self.assertEqual(without_drive.json()[0]["source_kind"], "meet-transcript")
+                self.assertEqual(paused.status_code, 200)
+                self.assertTrue(paused.json()["monitoring_paused"])
+                self.assertTrue(paused_listing.json()[0]["monitoring_paused"])
                 self.assertEqual([row["id"] for row in with_drive.json()], ["meet-1"])
+                self.assertEqual(resumed.status_code, 200)
+                self.assertFalse(resumed.json()["monitoring_paused"])
                 self.assertEqual(meet_without_drive.json()["contentSnapshot"], "Speaker: meeting update")
                 self.assertEqual(meet_with_drive.json()["contentSnapshot"], "Speaker: meeting update")
                 self.assertEqual(unrelated.status_code, 404)
