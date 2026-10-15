@@ -31,6 +31,27 @@ def fact(quote, value, modality="confirmed", entity="vendor", predicate="deliver
 
 
 class ExtractionTests(unittest.TestCase):
+    def test_model_quote_can_cross_document_line_breaks_without_changing_words(self):
+        source = PRD.model_copy(update={"version_id": None, "content_snapshot": (
+            "Decision: Launch after Acme Logistics delivers the integration package.\n"
+            "Owner: Mike (synthetic test persona)\n"
+            "Rationale: The integration package is required for the launch checklist."
+        )})
+        model_quote = (
+            "Decision: Launch after Acme Logistics delivers the integration package. "
+            "Owner: Mike (synthetic test persona) "
+            "Rationale: The integration package is required for the launch checklist."
+        )
+        evidence = EvidenceValidator().verify(source, model_quote, PRD_URL)
+        self.assertEqual(evidence.ref.quote, source.content_snapshot)
+        self.assertEqual(source.content_snapshot[evidence.start_offset:evidence.end_offset], evidence.ref.quote)
+        with self.assertRaisesRegex(ExtractionError, "absent"):
+            EvidenceValidator().verify(source, model_quote.replace("required", "optional"), PRD_URL)
+
+        repeated = source.model_copy(update={"content_snapshot": source.content_snapshot + "\n" + source.content_snapshot})
+        with self.assertRaisesRegex(ExtractionError, "absent"):
+            EvidenceValidator().verify(repeated, model_quote, PRD_URL)
+
     def test_fixture_facts_keep_exact_spans_and_uncertainty(self):
         payload = {"decisions": [], "facts": [
             fact("Confirmed vendor fee is USD 4500.", {"type": "decimal", "value": "4500", "unit": "USD"}, predicate="vendor_fee"),

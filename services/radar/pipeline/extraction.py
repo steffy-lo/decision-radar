@@ -10,7 +10,7 @@ from decimal import Decimal
 from pydantic import Field, TypeAdapter, ValidationError
 
 from services.radar.domain.models import DateValue, DecimalValue, EnumValue, EvidenceRef, Fact, Id, RadarModel, Source, TypedValue
-from services.radar.services.source_versions import resolve_quote
+from services.radar.services.source_versions import normalize_text, resolve_quote
 
 
 class ExtractionError(ValueError):
@@ -117,13 +117,24 @@ class EvidenceValidator:
             span = resolve_quote(source.id, source.content_snapshot, quote,
                                  document=source.mime_type == "application/vnd.google-apps.document")
         except ValueError as exc:
-            raise ExtractionError(str(exc)) from exc
+            if str(exc) != "evidence quote is absent from the source snapshot":
+                raise ExtractionError(str(exc)) from exc
+            # Gemini sometimes replaces document line breaks with spaces. Only
+            # accept an otherwise identical quote at one source location, and
+            # store the actual source characters in the citation.
+            words = re.split(r"\s+", quote.strip())
+            pattern = r"\s+".join(re.escape(word) for word in words)
+            matches = list(re.finditer(pattern, normalize_text(source.content_snapshot)))
+            if len(matches) != 1:
+                raise ExtractionError(str(exc)) from exc
+            span = resolve_quote(source.id, source.content_snapshot, matches[0].group(),
+                                 document=source.mime_type == "application/vnd.google-apps.document")
         if source.version_id and source.version_id != span.version_id:
             raise ExtractionError("source version does not match the text being extracted")
         return VerifiedEvidence(
             ref=EvidenceRef(
                 source_id=source.id, source_title=source.name, native_url=native_url,
-                quote=quote, locator=span.locator,
+                quote=span.quote, locator=span.locator,
                 source_version_id=span.version_id, span_id=span.id,
             ),
             span_id=span.id, start_offset=span.start, end_offset=span.end,
