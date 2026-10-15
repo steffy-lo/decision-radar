@@ -101,7 +101,7 @@ class SourcesApiTests(unittest.TestCase):
             store.records[("project-a", "meet-1")] = {
                 "id": "meet-1", "name": "Meet transcript", "mimeType": "text/plain",
                 "nativeUrl": "https://docs.google.com/document/d/transcript/view",
-                "status": "ready", "sourceKind": "meet-transcript",
+                "status": "ready", "sourceKind": "meet-transcript", "contentSnapshot": "Speaker: meeting update",
             }
             store.records[("project-a", "other-folder")] = {
                 "id": "other-folder", "name": "Other folder note", "mimeType": "text/plain",
@@ -115,10 +115,16 @@ class SourcesApiTests(unittest.TestCase):
             try:
                 async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
                     without_drive = await client.get("/api/v1/projects/project-a/sources")
+                    meet_without_drive = await client.get("/api/v1/projects/project-a/sources/meet-1")
                     connection.folder_id = "folder-1"
                     with_drive = await client.get("/api/v1/projects/project-a/sources")
+                    meet_with_drive = await client.get("/api/v1/projects/project-a/sources/meet-1")
+                    unrelated = await client.get("/api/v1/projects/project-a/sources/other-folder")
                 self.assertEqual([row["id"] for row in without_drive.json()], ["meet-1"])
                 self.assertEqual([row["id"] for row in with_drive.json()], ["meet-1"])
+                self.assertEqual(meet_without_drive.json()["contentSnapshot"], "Speaker: meeting update")
+                self.assertEqual(meet_with_drive.json()["contentSnapshot"], "Speaker: meeting update")
+                self.assertEqual(unrelated.status_code, 404)
             finally:
                 app.dependency_overrides.clear()
 
