@@ -26,15 +26,27 @@ grant either private service `allUsers` access.
    Vertex AI APIs. Enable Pub/Sub and Cloud Scheduler before the Meet event and
    subscription-renewal track is deployed. As of 14 October, Meet, Workspace
    Events, Pub/Sub, and Scheduler APIs are enabled in the staging project.
-   The KAN-7 UAT topic, push subscription, and renewal job exist, but no real
-   transcript event has passed through them yet. Do not treat that track as
-   operational until its end-to-end event and retry checks pass.
+   On 15 October, the isolated KAN-7 worker ingested a nonempty real Meet
+   transcript through Pub/Sub. Replaying the event kept one source version,
+   an empty transcript was acknowledged without an endless retry, and the
+   Scheduler renewed the subscription. The standard worker still needs an
+   integrated deployment and release check.
 2. Create a Firestore Native database named `decision-radar`, a private source
    snapshot bucket, an Artifact Registry Docker repository, and a Cloud Tasks
    queue named `radar-jobs` in `asia-southeast1`. Give the API and worker
    identities the permissions their adapters require. Verify project IAM and
    secret-level IAM separately; a human's Secret Manager Admin role does not
    grant a service account runtime access.
+   Before first OAuth authorization for each project and connection kind,
+   create `decision-radar-drive-<project-id>` or
+   `decision-radar-meet-<project-id>` in Secret Manager. Grant the API runtime
+   identity `secretAccessor`, `secretVersionManager`, and `viewer` on that
+   individual secret. The staging API identity has no project-wide Secret
+   Manager create permission. On 15 October, a new-project Drive callback
+   returned `storage_unavailable` until its secret and bindings were created;
+   retrying authorization then succeeded. Keep this bootstrap in the trusted
+   project-provisioning process instead of granting the runtime broad access
+   to every project secret.
 3. Set up Firebase Google sign-in and add the public web hostname to its
    authorized domains. Configure the separate Google Drive OAuth client with
    the exact public `/oauth/google/callback` redirect URI. Store its client
@@ -117,7 +129,9 @@ bound to its original input version.
 3. **Drive grant failure:** The admin uses Reconnect Drive in the deployed app.
    Confirm the OAuth return reaches the public hostname, the connection is
    `active`, and a fresh folder refresh completes. If token storage fails,
-   check the API identity's secret-level metadata and version permissions.
+   check that the project's Drive secret exists and that the API identity has
+   its secret-level metadata and version permissions. The browser may show
+   `needs_reconnect` after a storage failure; provision the secret and retry.
    A reconnect may rotate the refresh token; do not copy it into logs.
 4. **Firestore or source snapshot failure:** Stop submitting new work, inspect
    service identity permissions and database/bucket availability, then retry
@@ -145,6 +159,7 @@ same-origin API proxy, and 403 for direct unauthenticated API and worker
 requests. The API and worker still share one runtime identity. The
 `decision-radar-meet-events` topic, `decision-radar-meet-events-kan7-uat`
 subscription, and enabled `decision-radar-meet-renewal-kan7-uat` Scheduler job
-exist for isolated KAN-7 testing. A real transcript delivery and subscription
-renewal have not been verified. KAN-7 and the full KAN-12/25 platform rehearsal
-must close those gaps before production readiness is claimed.
+were exercised with a real transcript, duplicate event, empty transcript, and
+subscription renewal on 15 October. KAN-7 is merged. The full KAN-12/25
+platform rehearsal still needs a clean integrated deployment, separate API
+and worker identities, and a post-deploy browser pass.
