@@ -69,6 +69,7 @@ export interface SourceSummary {
   updated_at: string | null;
   last_modified: string | null;
   monitoring_paused: boolean;
+  source_kind: string;
 }
 
 export async function setSourceMonitoring(projectId: string, sourceId: string, paused: boolean): Promise<SourceSummary> {

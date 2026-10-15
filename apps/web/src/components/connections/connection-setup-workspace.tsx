@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import { DriveConnectionPanel } from "@/components/connections/drive-connection-panel";
+import { MeetConnectionPanel } from "@/components/connections/meet-connection-panel";
 import { PageHeading, Panel, StatusPill } from "@/components/ui";
 import { getCurrentProjectMembership, listSources, setSourceMonitoring } from "@/lib/api/client";
 import type { ProjectMembership, SourceSummary } from "@/lib/api/client";
@@ -43,24 +44,25 @@ export function ConnectionSetupWorkspace({ projectId }: { projectId: string }) {
   }
 
   return <>
-    <PageHeading eyebrow="SOURCE SETUP" title="Connections" description="Choose the Drive folder to monitor and check each source before assessment." />
+    <PageHeading eyebrow="SOURCE SETUP" title="Connections" description="Choose a Drive folder or Meet space and check each source before assessment." />
     <DriveConnectionPanel projectId={projectId} onSourcesChanged={() => void load()} />
+    <MeetConnectionPanel projectId={projectId} />
     <Panel className="workspace-card workspace-card--spaced">
-      <div className="flow-card-heading"><div className="flow-card-heading__copy"><span className="section-kicker">MONITORED SCOPE</span><h2>Folder inventory</h2><p>Refresh the connected folder to discover files. A source is assessed only after it is ready and monitoring is active.</p></div></div>
+      <div className="flow-card-heading"><div className="flow-card-heading__copy"><span className="section-kicker">MONITORED SCOPE</span><h2>Source inventory</h2><p>Refresh Drive to discover files; generated transcripts arrive from monitored Meet spaces. A source is assessed only after it is ready and monitoring is active.</p></div></div>
       {error && <p role="alert" className="notice notice--error">{error}</p>}
-      {loading ? <p role="status">Loading source status…</p> : sources.length === 0 ? <p>No files are monitored yet. Connect Drive and refresh a folder above.</p> : <>
-        <p role="status">{sources.length} {sources.length === 1 ? "source" : "sources"} in the selected folder · {sources.filter((row) => row.status === "ready" && !row.monitoring_paused).length} ready for monitoring.</p>
+      {loading ? <p role="status">Loading source status…</p> : sources.length === 0 ? <p>No sources yet. Connect Drive or monitor a Meet space above.</p> : <>
+        <p role="status">{sources.length} {sources.length === 1 ? "source" : "sources"} · {sources.filter((row) => row.status === "ready" && !row.monitoring_paused).length} ready for assessment · {sources.filter((row) => row.source_kind === "meet-transcript").length} Meet transcripts.</p>
         <ul className="workspace-stack">{sources.map((source) => <li key={source.id}>
           <Panel className="workspace-card source-item">
-            <div className="source-item__head"><div><h3>{source.name}</h3><p>Drive modified: {dateLabel(source.last_modified)} · Last refreshed: {dateLabel(source.updated_at)}</p></div><StatusPill tone={source.monitoring_paused || source.status !== "ready" ? "warning" : "success"}>{source.monitoring_paused ? "Paused" : source.status}</StatusPill></div>
+            <div className="source-item__head"><div><h3>{source.name}</h3><p>{source.source_kind === "meet-transcript" ? "Meeting ended" : "Drive modified"}: {dateLabel(source.last_modified)} · {source.source_kind === "meet-transcript" ? "Ingested" : "Last refreshed"}: {dateLabel(source.updated_at)}</p></div><StatusPill tone={source.monitoring_paused || source.status !== "ready" ? "warning" : "success"}>{source.monitoring_paused ? "Paused" : source.status}</StatusPill></div>
             {source.failure_reason && <p role="status" className="notice notice--warning">{source.failure_reason}</p>}
             <div className="flex flex-wrap gap-3">
               <Link className="button button--secondary" href={`/projects/${encodeURIComponent(projectId)}/sources`}>{source.table_mapping || ["application/vnd.google-apps.spreadsheet", "text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"].includes(source.mime_type) ? "Configure table mapping" : "Inspect source"}</Link>
-              {membership?.role === "admin" && <button type="button" className="button button--secondary" disabled={busySource !== null || (source.monitoring_paused && source.status !== "ready")} onClick={() => void setPaused(source, !source.monitoring_paused)}>{busySource === source.id ? "Saving…" : source.monitoring_paused ? "Resume monitoring" : "Pause monitoring"}</button>}
+              {membership?.role === "admin" && <button type="button" className="button button--secondary" disabled={busySource !== null || (source.monitoring_paused && source.status !== "ready")} onClick={() => void setPaused(source, !source.monitoring_paused)}>{busySource === source.id ? "Saving…" : source.monitoring_paused ? "Resume assessment" : "Pause assessment"}</button>}
             </div>
           </Panel>
         </li>)}</ul>
-        <p className="supporting-copy">Pausing a source removes its facts from the next assessment. Existing alerts remain in history until you run a new assessment.</p>
+        <p className="supporting-copy">Pausing assessment removes a source&apos;s facts from the next run. It does not stop Meet transcript delivery; use Stop monitoring in the Meet panel for that. Existing alerts remain in history until you run a new assessment.</p>
       </>}
     </Panel>
   </>;

@@ -50,6 +50,7 @@ class SourceSummary(BaseModel):
     updated_at: str | None = None
     last_modified: str | None = None
     monitoring_paused: bool = False
+    source_kind: str = "drive"
 
 
 class SourceMonitoringRequest(BaseModel):
@@ -155,6 +156,7 @@ async def list_sources(
                 table_mapping=row.get("tableMapping"),
                 updated_at=row.get("updatedAt"), last_modified=row.get("lastModified"),
                 monitoring_paused=row.get("monitoringPaused", False),
+                source_kind=row.get("sourceKind", "drive"),
             )
             for row in records
             if _source_in_scope(row, selected)
@@ -172,8 +174,8 @@ async def set_source_monitoring(
 ) -> SourceSummary:
     source = await store.get(project_id, source_id)
     selected = (await connection.get_connection(project_id)).selected_folder_id
-    if not source or not selected or source.get("rootFolderId") != selected:
-        raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
+    if not _source_in_scope(source, selected):
+        raise HTTPException(status_code=404, detail="Source not found in this project scope.")
     if not body.paused and source.get("status") != "ready":
         raise HTTPException(status_code=409, detail="Repair or refresh this source before resuming monitoring.")
     await store.put(project_id, source_id, {**source, "monitoringPaused": body.paused,
@@ -183,7 +185,7 @@ async def set_source_monitoring(
         native_url=source["nativeUrl"], status=source["status"],
         failure_reason=source.get("failureReason"), table_mapping=source.get("tableMapping"),
         updated_at=source.get("updatedAt"), last_modified=source.get("lastModified"),
-        monitoring_paused=body.paused,
+        monitoring_paused=body.paused, source_kind=source.get("sourceKind", "drive"),
     )
 
 
