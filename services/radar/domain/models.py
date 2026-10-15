@@ -30,10 +30,11 @@ ConnectionStatus = Literal[
     "pending", "active", "needs_reconnect", "disconnected", "error"
 ]
 GOOGLE_DRIVE_CONNECTION_ID = "google-drive"
+GOOGLE_MEET_CONNECTION_ID = "google-meet"
 
 
 class Connection(BaseModel):
-    """Safe metadata for the project's single Drive grant.
+    """Safe metadata for a project Google service grant.
 
     Refresh tokens live only in Secret Manager and are deliberately absent here.
     """
@@ -71,6 +72,7 @@ class OAuthState(BaseModel):
     initiating_uid: str
     browser_nonce_hash: str
     expires_at: datetime
+    connection_id: str = GOOGLE_DRIVE_CONNECTION_ID
 
 
 class AuthorizeConnectionResponse(BaseModel):

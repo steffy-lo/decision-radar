@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { DriveConnectionPanel } from "@/components/connections/drive-connection-panel";
+import { MeetConnectionPanel } from "@/components/connections/meet-connection-panel";
 import { EvidenceReference } from "@/components/evidence-reference";
 import { ImpactGraph } from "@/components/graph/impact-graph";
 import { ReviewActionPanel } from "@/components/review-action-panel";
@@ -74,6 +75,7 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
   return <>
     <PageHeading eyebrow="PROJECT EVIDENCE" title="Sources" description="Bring project updates into one place and turn source text into facts you can review." />
     <DriveConnectionPanel projectId={projectId} onSourcesChanged={() => void load()} />
+    <MeetConnectionPanel projectId={projectId} />
     {error && <p role="alert" className="notice notice--error">{error}</p>}
     <Panel className="workspace-card workspace-card--spaced">
       <div className="flow-card-heading"><span className="flow-step">2</span><div className="flow-card-heading__copy"><span className="section-kicker">FACT EXTRACTION</span><h2>Match source wording</h2><p>Choose an assumption and enter how Gemini should identify its entity and predicate. If a candidate stays unresolved, check that it refers to this assumption before using Gemini’s wording.</p></div></div>

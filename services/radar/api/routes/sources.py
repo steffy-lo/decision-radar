@@ -49,6 +49,13 @@ class SourceSummary(BaseModel):
     table_mapping: dict[str, Any] | None = None
 
 
+def _source_in_scope(source: dict[str, Any] | None, selected_folder_id: str | None) -> bool:
+    return bool(source and (
+        source.get("sourceKind") == "meet-transcript"
+        or (selected_folder_id and source.get("rootFolderId") == selected_folder_id)
+    ))
+
+
 @router.put("/{source_id}/sheet-mapping")
 async def put_sheet_mapping(
     project_id: str, source_id: str, body: TableMapping,
@@ -131,8 +138,6 @@ async def list_sources(
     store: FirestoreSourceStore = Depends(get_source_store),
 ) -> list[SourceSummary]:
     selected = (await connection.get_connection(project_id)).selected_folder_id
-    if not selected:
-        return []
     records: list[dict[str, Any]] = await store.list(project_id)
     return sorted(
         (
@@ -142,7 +147,8 @@ async def list_sources(
                 failure_reason=row.get("failureReason"),
                 table_mapping=row.get("tableMapping"),
             )
-            for row in records if row.get("rootFolderId") == selected
+            for row in records
+            if _source_in_scope(row, selected)
         ),
         key=lambda row: row.name.casefold(),
     )
@@ -157,7 +163,7 @@ async def get_extraction(
 ) -> dict[str, Any]:
     source = await store.get(project_id, source_id)
     selected = (await connection.get_connection(project_id)).selected_folder_id
-    if not source or source.get("rootFolderId") != selected:
+    if not _source_in_scope(source, selected):
         raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
     project = store.client.collection("projects").document(project_id)
     snapshot = await project.collection("sourceExtractions").document(source_id).get()
@@ -178,7 +184,7 @@ async def get_source(
 ) -> dict[str, Any]:
     source = await store.get(project_id, source_id)
     selected = (await connection.get_connection(project_id)).selected_folder_id
-    if not source or source.get("rootFolderId") != selected:
+    if not _source_in_scope(source, selected):
         raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
     return {
         "id": source["id"], "name": source["name"],
@@ -196,7 +202,7 @@ async def get_source_version(
 ) -> dict[str, Any]:
     source = await store.get(project_id, source_id)
     selected = (await connection.get_connection(project_id)).selected_folder_id
-    if not source or source.get("rootFolderId") != selected:
+    if not _source_in_scope(source, selected):
         raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
     version = await store.get_version(project_id, source_id, version_id)
     if not version:
@@ -213,7 +219,7 @@ async def get_source_span(
 ) -> dict[str, Any]:
     source = await store.get(project_id, source_id)
     selected = (await connection.get_connection(project_id)).selected_folder_id
-    if not source or source.get("rootFolderId") != selected:
+    if not _source_in_scope(source, selected):
         raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
     snapshot = await store.get_version(project_id, source_id, version_id)
     if not snapshot:
@@ -247,7 +253,7 @@ async def extract_source(
         raise HTTPException(status_code=403, detail="Only project editors can extract sources.")
     source = await store.get(project_id, source_id)
     selected = (await connection.get_connection(project_id)).selected_folder_id
-    if not source or not selected or source.get("rootFolderId") != selected:
+    if not _source_in_scope(source, selected):
         raise HTTPException(status_code=404, detail="Source not found in the selected folder.")
     if source.get("status") != "ready":
         raise HTTPException(status_code=409, detail="Source is not ready for extraction.")

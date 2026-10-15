@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     TASK_WORKER_URL: Optional[str] = None
     TASK_WORKER_AUDIENCE: Optional[str] = None
     TASK_SERVICE_ACCOUNT_EMAIL: Optional[str] = None
+    MEET_EVENTS_TOPIC: Optional[str] = None
+    PUBSUB_PUSH_SERVICE_ACCOUNT_EMAIL: Optional[str] = None
+    PUBSUB_PUSH_AUDIENCE: Optional[str] = None
+    MEET_RENEWAL_SERVICE_ACCOUNT_EMAIL: Optional[str] = None
+    MEET_RENEWAL_AUDIENCE: Optional[str] = None
     VERTEX_PROJECT_ID: Optional[str] = None
     VERTEX_LOCATION: str = "us-central1"
     VERTEX_MODEL: str = "gemini-2.5-flash"

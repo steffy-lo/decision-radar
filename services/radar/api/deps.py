@@ -97,6 +97,6 @@ async def require_project_admin(
     if member.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only project administrators can manage Drive connections.",
+            detail="Only project administrators can manage connections.",
         )
     return member
