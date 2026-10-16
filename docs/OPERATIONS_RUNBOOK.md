@@ -175,7 +175,19 @@ completed and populated 11 Drive sources in a separate test project. The
 `decision-radar-meet-events` topic, `decision-radar-meet-events-kan7-uat`
 subscription, and enabled `decision-radar-meet-renewal-kan7-uat` Scheduler job
 were exercised with a real transcript, duplicate event, empty transcript, and
-subscription renewal on 15 October. KAN-7 is merged. The full KAN-12/25
-platform rehearsal still needs a clean integrated deployment and a post-deploy
-browser pass covering extraction, assessment, graph, and review under the new
-worker identity.
+subscription renewal on 15 October. KAN-7 is merged.
+
+On 16 October, the synthetic connection test project completed a first-time
+Drive crawl of 11 native sources under the separate worker identity. In the
+local branch app, real Vertex extraction of its Google Doc and text file saved
+one verified October 24 date fact. The Google Doc quote initially failed
+validation because Gemini collapsed line breaks; the unique whitespace-only
+quote correction in draft PR #17 allowed it to resolve to the exact source
+snapshot span. Browser **Run assessment** dispatched a Cloud Task to the
+deployed worker and completed with one assessed medium contradiction. The
+review page showed exact source citations and a +9 day impact graph. A
+**Request clarification** audit entry persisted after browser reload without
+changing the decision revision. This used the PR #17 web/API locally with
+deployed refresh and assessment workers; it was not a clean integrated staging
+image deployment. That deployment and a transient worker recovery drill remain
+for the KAN-12/25 platform rehearsal.
