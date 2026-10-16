@@ -70,7 +70,19 @@ def evaluate(case: dict):
         and row.update_evidence.quote in update_content
         for row in result.findings
     )
-    return outcome, result, citations_resolve
+    spans = []
+    if result.findings:
+        validator = EvidenceValidator()
+        baseline_source = DEMO.sources[0].model_copy(update={"content_snapshot": baseline_content})
+        update_source = DEMO.sources[1].model_copy(update={"content_snapshot": update_content})
+        for row in result.findings:
+            original = validator.verify(baseline_source, row.baseline_evidence.quote,
+                                        row.baseline_evidence.native_url)
+            updated = validator.verify(update_source, row.update_evidence.quote,
+                                       row.update_evidence.native_url)
+            spans.append({"baseline": [original.start_offset, original.end_offset],
+                          "update": [updated.start_offset, updated.end_offset]})
+    return outcome, result, citations_resolve, spans
 
 
 class TypedQualityEvaluation(unittest.TestCase):
@@ -80,9 +92,11 @@ class TypedQualityEvaluation(unittest.TestCase):
         tp = fp = fn = 0
         for case in CASES:
             with self.subTest(case=case["id"]):
-                outcome, result, citations_resolve = evaluate(case)
+                outcome, result, citations_resolve, spans = evaluate(case)
                 self.assertEqual(outcome, case["expect"])
                 self.assertTrue(citations_resolve)
+                self.assertEqual(len(result.findings), int(case["expectedFinding"]))
+                self.assertEqual(spans, [case["evidenceSpans"]] if case["expectedFinding"] else [])
                 self.assertEqual(len(result.alerts), 1 if case["expect"] == "contradicts" else 0)
                 expected_alert = case["expect"] == "contradicts"
                 actual_alert = bool(result.alerts)

@@ -1,6 +1,6 @@
 # KAN-23 quality evaluation, first pass
 
-6 October 2026. `fixtures/kan23_typed_cases.json` has 30 labeled synthetic cases for date, budget, and enum comparisons, including tentative and negated facts, entity and predicate mismatches, a leap day, a year boundary, missing evidence, and an inactive decision. `tests/test_quality_eval.py` builds typed inputs from those labels and checks the assessment output and retained quote references.
+6 October 2026. `fixtures/kan23_typed_cases.json` has 30 labeled synthetic cases for date, budget, and enum comparisons, including tentative and negated facts, entity and predicate mismatches, a leap day, a year boundary, missing evidence, and an inactive decision. Each case labels the expected classification, whether a finding should exist, and the expected baseline/update character spans when it should. `tests/test_quality_eval.py` builds typed inputs from those labels and checks the assessment output and snapshot-resolving quote locations.
 
 The domain run passed all 30 classifications: 5 contradictions, 7 supports, 14 uncertain, and 4 unassessed. It produced 5 expected alerts and no unexpected alerts, giving 100% alert precision and recall **within this synthetic set**. All 12 emitted findings kept quotes contained in their synthetic source text. The test finished in 0.007 seconds on this machine; that is domain execution time, not API or browser latency.
 
