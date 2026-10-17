@@ -137,6 +137,10 @@ bound to its original input version.
    input. Retry a failed job only when its immutable input is still valid; if
    the source changed, start a new refresh. Do not manually mark a job
    completed. Check Firestore data and the next assessment after recovery.
+   Secret Manager IAM changes took several minutes to apply on 17 October;
+   wait for a fix to take effect before using **Retry work**, because the
+   queue's three attempts finish in under a minute. A retried job keeps its
+   ID and increments its generation.
 3. **Drive grant failure:** The admin uses Reconnect Drive in the deployed app.
    Confirm the OAuth return reaches the public hostname, the connection is
    `active`, and a fresh folder refresh completes. If token storage fails,
@@ -189,5 +193,12 @@ review page showed exact source citations and a +9 day impact graph. A
 **Request clarification** audit entry persisted after browser reload without
 changing the decision revision. This used the PR #17 web/API locally with
 deployed refresh and assessment workers; it was not a clean integrated staging
-image deployment. That deployment and a transient worker recovery drill remain
-for the KAN-12/25 platform rehearsal.
+image deployment.
+
+On 17 October, a fresh project on the clean 16 October staging images
+(`00014-42c`, `00013-ng2`, `00012-ct9`) completed the full browser path from
+secret provisioning and Drive connection through extraction, assessment,
+graph, review, brief and Google Docs export, plus export retry, invalid-folder
+recovery and a transient worker recovery drill. See
+[deployed rehearsal 1](DEPLOYED_REHEARSAL1_UAT_20261017.md) for IDs, findings
+and limits. A second consecutive fresh rehearsal remains for KAN-25/26.
