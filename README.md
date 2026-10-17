@@ -7,6 +7,7 @@ Decision Radar is an organisational-memory and decision-intelligence product for
 - Original design attachments: [HLD v0.4](docs/reference/archive/2026-09-21/HLD-v0.4.pdf) and [LLD v0.4](docs/reference/archive/2026-09-21/LLD-v0.4.pdf).
 - [AI Builder Cup submission notes](docs/AI_BUILDER_CUP.md): official deadline, prototype requirements, and judging weights.
 - [Vendor-delay demo fixture](fixtures/README.md): shared Python/TypeScript contract and synthetic evidence path.
+- [Deployment and recovery runbook](docs/OPERATIONS_RUNBOOK.md): release checks, rollback, retries, and demo fallback.
 
 ## Project Tracking
 
