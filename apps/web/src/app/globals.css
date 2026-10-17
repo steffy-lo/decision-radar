@@ -232,9 +232,6 @@ textarea.form-control { resize: vertical; min-height: 76px; }
 .evidence-reference--unavailable p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .evidence-reference__footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; color: var(--muted); font-size: 12px; }
 .evidence-reference__locator { margin: 0 0 12px; color: var(--muted); font-size: 11px; }
-.evidence-reference__demo-source { margin-top: 12px; }
-.evidence-reference__demo-source summary { cursor: pointer; }
-.evidence-reference__demo-source[open] summary { margin-bottom: 12px; }
 .coverage-panel { margin-top: 18px; }
 .coverage-panel h2 { margin: 7px 0 14px; font-size: 18px; }
 .coverage-list { display: grid; gap: 10px; }

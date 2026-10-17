@@ -34,7 +34,8 @@ function FixtureSourcesWorkspace({ projectId }: { projectId: string }) {
       <div className="evidence-list">{workspace?.sources.map((source) => <Panel className="source-card" key={source.id}>
         <div className="source-card__head"><span className="source-card__icon" aria-hidden="true">▤</span><div><span className="eyebrow">{source.status === "ready" ? "GOOGLE DOC" : "SOURCE"}</span><h2>{source.name}</h2></div><StatusPill tone={source.status === "ready" ? "success" : "warning"}>{source.status === "ready" ? "Ready" : "Access unavailable"}</StatusPill></div>
         <p>{source.status === "ready" ? source.contentSnapshot : "Source details are hidden until access is restored."}</p>
-        <small>Synthetic source for the prototype demonstration</small>
+        {source.nativeUrl && <p><a className="text-link" href={source.nativeUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${source.name} sample Google Doc`}>Open sample Google Doc ↗</a></p>}
+        <small>Synthetic source for the prototype demonstration. Assessments use the bundled snapshot.</small>
       </Panel>)}</div>}
   </>;
 }
@@ -64,7 +65,7 @@ function FixtureReviewsWorkspace({ projectId, alertId }: { projectId: string; al
           <p className="review-card__meta">Classification: {finding.classification} · {data?.sources.some((source) => source.id === finding.updateEvidence.sourceId && source.status !== "ready") ? "Evidence unclear: source access unavailable" : "Coverage: assessed from exact source quotes"}</p>
           <div className="review-delta"><span>Expected by <strong>{finding.baselineValue.value}</strong></span><span aria-hidden="true">→</span><span>Now confirmed <strong>{finding.extractedValue.value}</strong></span><strong>+{finding.deltaDays} days</strong></div>
           <div className="review-evidence">
-            {[finding.baselineEvidence, finding.updateEvidence].map((evidence, index) => { const source = data?.sources.find((row) => row.id === evidence.sourceId); return <EvidenceReference key={`${alert.id}-${index}`} evidence={evidence} label={index === 0 ? "ORIGINAL ASSUMPTION" : "NEW EVIDENCE"} available={source?.status === "ready"} sourceType={source?.mimeType} locator={snapshotLocator(source, evidence)} demoSourceText={source?.contentSnapshot} />; })}
+            {[finding.baselineEvidence, finding.updateEvidence].map((evidence, index) => { const source = data?.sources.find((row) => row.id === evidence.sourceId); return <EvidenceReference key={`${alert.id}-${index}`} evidence={evidence} label={index === 0 ? "ORIGINAL ASSUMPTION" : "NEW EVIDENCE"} available={source?.status === "ready"} sourceType={source?.mimeType} locator={snapshotLocator(source, evidence)} />; })}
           </div>
           <div className="review-impact"><strong>Potential downstream impact</strong>{dependencies.map((item) => <p key={item.id}>{item.impactDescription}</p>)}</div>
           <a className="text-link" href={`/projects/${encodeURIComponent(projectId)}/reviews?alertId=${encodeURIComponent(alert.id)}`}>View impact graph →</a>
