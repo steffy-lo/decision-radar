@@ -9,12 +9,13 @@ function safeSourceUrl(value: string): string | null {
   }
 }
 
-export function EvidenceReference({ evidence, label, available = true, sourceType, locator }: {
+export function EvidenceReference({ evidence, label, available = true, sourceType, locator, demoSourceText }: {
   evidence: EvidenceRef;
   label: string;
   available?: boolean;
   sourceType?: string;
   locator?: string;
+  demoSourceText?: string;
 }) {
   if (!available) {
     return <div className="evidence-reference evidence-reference--unavailable">
@@ -24,7 +25,7 @@ export function EvidenceReference({ evidence, label, available = true, sourceTyp
     </div>;
   }
 
-  const href = safeSourceUrl(evidence.nativeUrl);
+  const href = demoSourceText === undefined ? safeSourceUrl(evidence.nativeUrl) : null;
   return <div className="evidence-reference">
     <span className="section-kicker">{label}</span>
     <blockquote>“{evidence.quote}”</blockquote>
@@ -33,5 +34,10 @@ export function EvidenceReference({ evidence, label, available = true, sourceTyp
       <span>{evidence.sourceTitle}{sourceType ? ` · ${sourceType.includes("google-apps.document") ? "Google Doc" : sourceType.startsWith("text/") ? "Text file" : "Source file"}` : ""}</span>
       {href && <a className="text-link" href={href} target="_blank" rel="noopener noreferrer" aria-label={`Open ${evidence.sourceTitle} in Google Drive`}>Open source ↗</a>}
     </div>
+    {demoSourceText !== undefined && <details className="evidence-reference__demo-source">
+      <summary className="text-link">View demo source</summary>
+      <p className="evidence-reference__locator">Synthetic demo document. No Google Drive file is linked.</p>
+      <div className="source-preview"><p>{demoSourceText}</p></div>
+    </details>}
   </div>;
 }
