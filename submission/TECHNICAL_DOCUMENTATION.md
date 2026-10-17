@@ -15,10 +15,12 @@ This document describes the implementation on `main` through 16 October and the 
 | Live prototype — Cloud Run staging | [Decision Radar](https://decision-radar-web-ngm5jlvo5q-as.a.run.app) |
 | Three-minute demo video | Recording and public link pending |
 | Proposal deck — editable | [DecisionRadar_Proposal.pptx](DecisionRadar_Proposal.pptx) |
-| Proposal deck — submission PDF | PDF export and final visual check pending |
+| Proposal deck — PDF for review | [DecisionRadar_Proposal.pdf](DecisionRadar_Proposal.pdf) — exported and visually reviewed; add the final video link and re-export before submission |
 | Source code | [steffy-lo/decision-radar](https://github.com/steffy-lo/decision-radar) |
 
 The homepage opens a labeled synthetic fixture. A connected project requires an authorised Google test user and project membership; an administrator manages OAuth grants. Judge access to the connected flow must be arranged and tested before submission. No account credentials belong in this document or the repository.
+
+See the [submission checklist](SUBMISSION_CHECKLIST.md) for completed material checks and the remaining release, access and video requirements.
 
 ## 1. Summary
 
