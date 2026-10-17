@@ -28,14 +28,14 @@
         "baselineEvidence": {
           "sourceId": "src_launch_prd",
           "sourceTitle": "Product Launch PRD v1",
-          "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+          "nativeUrl": "https://docs.google.com/document/d/1zETnMb2gHERIL2xPshdMhgVhSqTmimVjT5tv2HX8Vq0/edit",
           "quote": "Core API vendor integration is committed on or before October 10, 2026.",
           "locator": null
         },
         "updateEvidence": {
           "sourceId": "src_vendor_notes",
           "sourceTitle": "Vendor Sync & Status Notes",
-          "nativeUrl": "https://docs.google.com/document/d/demo-vendor-notes/edit",
+          "nativeUrl": "https://docs.google.com/document/d/1hCXUFL1AOpCs0ItgUBBPzk87qGu2IaPuC6dZk6QPRfg/edit",
           "quote": "Due to chip shortage, vendor delivery is pushed back to October 24, 2026.",
           "locator": null
         }

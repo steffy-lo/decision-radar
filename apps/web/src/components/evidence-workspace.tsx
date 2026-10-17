@@ -34,7 +34,8 @@ function FixtureSourcesWorkspace({ projectId }: { projectId: string }) {
       <div className="evidence-list">{workspace?.sources.map((source) => <Panel className="source-card" key={source.id}>
         <div className="source-card__head"><span className="source-card__icon" aria-hidden="true">▤</span><div><span className="eyebrow">{source.status === "ready" ? "GOOGLE DOC" : "SOURCE"}</span><h2>{source.name}</h2></div><StatusPill tone={source.status === "ready" ? "success" : "warning"}>{source.status === "ready" ? "Ready" : "Access unavailable"}</StatusPill></div>
         <p>{source.status === "ready" ? source.contentSnapshot : "Source details are hidden until access is restored."}</p>
-        <small>Synthetic source for the prototype demonstration</small>
+        {source.nativeUrl && <p><a className="text-link" href={source.nativeUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${source.name} sample Google Doc`}>Open sample Google Doc ↗</a></p>}
+        <small>Synthetic source for the prototype demonstration. Assessments use the bundled snapshot.</small>
       </Panel>)}</div>}
   </>;
 }

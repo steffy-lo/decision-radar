@@ -36,8 +36,8 @@ function Evidence({ label, evidence, demo }: { label: string; evidence: Evidence
   const url = evidenceUrl(evidence.nativeUrl);
   return <section className={styles.evidence}>
     <h4>{label}</h4><blockquote>“{evidence.quote}”</blockquote><p>{evidence.sourceTitle}</p>
-    {demo ? <small>Synthetic source · quote shown above</small> : url ?
-      <a href={url} target="_blank" rel="noopener noreferrer">Open source ↗</a> : <small>Source link unavailable</small>}
+    {demo && <small>Synthetic sample source · assessments use the bundled snapshot</small>}
+    {url ? <a href={url} target="_blank" rel="noopener noreferrer">{demo ? "Open sample Google Doc ↗" : "Open source ↗"}</a> : <small>Source link unavailable</small>}
   </section>;
 }
 

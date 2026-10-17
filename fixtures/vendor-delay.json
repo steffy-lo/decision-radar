@@ -56,7 +56,7 @@
       "evidence": {
         "sourceId": "src_launch_prd",
         "sourceTitle": "Product Launch PRD v1",
-        "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+        "nativeUrl": "https://docs.google.com/document/d/1zETnMb2gHERIL2xPshdMhgVhSqTmimVjT5tv2HX8Vq0/edit",
         "quote": "Launch target: October 20, 2026."
       }
     },
@@ -68,7 +68,7 @@
       "evidence": {
         "sourceId": "src_launch_prd",
         "sourceTitle": "Product Launch PRD v1",
-        "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+        "nativeUrl": "https://docs.google.com/document/d/1zETnMb2gHERIL2xPshdMhgVhSqTmimVjT5tv2HX8Vq0/edit",
         "quote": "Complete integration testing before launch."
       }
     },
@@ -80,7 +80,7 @@
       "evidence": {
         "sourceId": "src_launch_prd",
         "sourceTitle": "Product Launch PRD v1",
-        "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+        "nativeUrl": "https://docs.google.com/document/d/1zETnMb2gHERIL2xPshdMhgVhSqTmimVjT5tv2HX8Vq0/edit",
         "quote": "Approve production go-live after integration testing."
       }
     }
@@ -98,7 +98,7 @@
       "evidence": {
         "sourceId": "src_launch_prd",
         "sourceTitle": "Product Launch PRD v1",
-        "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+        "nativeUrl": "https://docs.google.com/document/d/1zETnMb2gHERIL2xPshdMhgVhSqTmimVjT5tv2HX8Vq0/edit",
         "quote": "Core API vendor integration is committed on or before October 10, 2026."
       },
       "status": "active"
@@ -115,7 +115,7 @@
       "evidence": {
         "sourceId": "src_launch_prd",
         "sourceTitle": "Product Launch PRD v1",
-        "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+        "nativeUrl": "https://docs.google.com/document/d/1zETnMb2gHERIL2xPshdMhgVhSqTmimVjT5tv2HX8Vq0/edit",
         "quote": "Vendor fee cap is USD 5000."
       },
       "status": "active"
@@ -133,7 +133,7 @@
       "evidence": {
         "sourceId": "src_vendor_notes",
         "sourceTitle": "Vendor Sync & Status Notes",
-        "nativeUrl": "https://docs.google.com/document/d/demo-vendor-notes/edit",
+        "nativeUrl": "https://docs.google.com/document/d/1hCXUFL1AOpCs0ItgUBBPzk87qGu2IaPuC6dZk6QPRfg/edit",
         "quote": "Confirmed vendor fee is USD 4500."
       }
     },
@@ -148,7 +148,7 @@
       "evidence": {
         "sourceId": "src_vendor_notes",
         "sourceTitle": "Vendor Sync & Status Notes",
-        "nativeUrl": "https://docs.google.com/document/d/demo-vendor-notes/edit",
+        "nativeUrl": "https://docs.google.com/document/d/1hCXUFL1AOpCs0ItgUBBPzk87qGu2IaPuC6dZk6QPRfg/edit",
         "quote": "Due to chip shortage, vendor delivery is pushed back to October 24, 2026."
       }
     },
@@ -163,7 +163,7 @@
       "evidence": {
         "sourceId": "src_vendor_notes",
         "sourceTitle": "Vendor Sync & Status Notes",
-        "nativeUrl": "https://docs.google.com/document/d/demo-vendor-notes/edit",
+        "nativeUrl": "https://docs.google.com/document/d/1hCXUFL1AOpCs0ItgUBBPzk87qGu2IaPuC6dZk6QPRfg/edit",
         "quote": "Tentative: an expedited shipment may arrive October 18, 2026."
       }
     },
@@ -178,7 +178,7 @@
       "evidence": {
         "sourceId": "src_vendor_notes",
         "sourceTitle": "Vendor Sync & Status Notes",
-        "nativeUrl": "https://docs.google.com/document/d/demo-vendor-notes/edit",
+        "nativeUrl": "https://docs.google.com/document/d/1hCXUFL1AOpCs0ItgUBBPzk87qGu2IaPuC6dZk6QPRfg/edit",
         "quote": "The vendor did not cancel the contract."
       }
     }
@@ -215,13 +215,13 @@
       "baselineEvidence": {
         "sourceId": "src_launch_prd",
         "sourceTitle": "Product Launch PRD v1",
-        "nativeUrl": "https://docs.google.com/document/d/demo-launch-prd/edit",
+        "nativeUrl": "https://docs.google.com/document/d/1zETnMb2gHERIL2xPshdMhgVhSqTmimVjT5tv2HX8Vq0/edit",
         "quote": "Core API vendor integration is committed on or before October 10, 2026."
       },
       "updateEvidence": {
         "sourceId": "src_vendor_notes",
         "sourceTitle": "Vendor Sync & Status Notes",
-        "nativeUrl": "https://docs.google.com/document/d/demo-vendor-notes/edit",
+        "nativeUrl": "https://docs.google.com/document/d/1hCXUFL1AOpCs0ItgUBBPzk87qGu2IaPuC6dZk6QPRfg/edit",
         "quote": "Due to chip shortage, vendor delivery is pushed back to October 24, 2026."
       }
     }

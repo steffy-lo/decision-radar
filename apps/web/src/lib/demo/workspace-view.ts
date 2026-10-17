@@ -1,3 +1,4 @@
+import { evidenceUrl } from "@/lib/domain/impact-view";
 import type { Alert, Assumption, Decision, DemoFixture, Dependency, Finding } from "@/lib/domain/models";
 
 export type DecisionView = {
@@ -56,5 +57,18 @@ export function createWorkspaceView(data: DemoFixture) {
     return decision && finding ? [{ alert, decision, finding, dependencies: dependenciesByDecision.get(decision.id) ?? [] }] : [];
   });
 
-  return { decisions, openReviews, sources: data.sources };
+  const sourceEvidence = [
+    ...data.revisions.map((row) => row.evidence),
+    ...data.assumptions.map((row) => row.evidence),
+    ...data.facts.map((row) => row.evidence),
+    ...data.findings.flatMap((row) => [row.baselineEvidence, row.updateEvidence]),
+  ];
+  const sources = data.sources.map((source) => ({
+    ...source,
+    nativeUrl: source.status === "ready"
+      ? evidenceUrl(sourceEvidence.find((ref) => ref.sourceId === source.id)?.nativeUrl ?? "")
+      : null,
+  }));
+
+  return { decisions, openReviews, sources };
 }
