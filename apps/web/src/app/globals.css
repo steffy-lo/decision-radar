@@ -299,8 +299,17 @@ textarea.form-control { resize: vertical; min-height: 76px; }
 .welcome-page h1 { font-size: clamp(45px, 6vw, 84px); line-height: 1.04; margin: 17px 0 23px; letter-spacing: -3.5px; font-weight: 750; }
 .welcome-page h1 em { font-style: normal; color: #6adfcb; }
 .welcome-page__content > p { color: #a4b7c3; line-height: 1.75; font-size: 15px; max-width: 500px; margin: 0 0 34px; }
-.welcome-page__note { color: #779aa4; font-size: 11px; margin-top: 24px; }
-.welcome-page__note span { color: #49c2b5; margin-right: 7px; }
+.welcome-page__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.welcome-page__action { display: grid; align-content: start; gap: 12px; min-width: 0; }
+.welcome-page__actions .button { width: 100%; min-height: 54px; padding: 12px 18px; border-radius: 12px; font-size: 14px; }
+.welcome-page__actions .button--primary { box-shadow: 0 8px 24px rgba(104, 87, 220, .3); }
+.welcome-page__actions .button:focus-visible { outline: 3px solid #8be9d8; outline-offset: 4px; }
+.welcome-page__action p { margin: 0; color: #b1c1cf; font-size: 12px; line-height: 1.65; }
+.welcome-page__walkthrough { display: inline-block; margin-top: 28px; color: #b5b0ff; font-size: 12px; }
+.welcome-page__walkthrough:hover { color: #e5e2ff; }
+@media (max-width: 560px) {
+  .welcome-page__actions { grid-template-columns: 1fr; gap: 24px; }
+}
 .welcome-page__visual { position: absolute; z-index: 1; right: -3%; top: 50%; transform: translateY(-50%); width: min(55vw, 720px); aspect-ratio: 1; display: grid; place-items: center; }
 .orbit { position: absolute; border: 1px solid rgba(76, 208, 191, .22); border-radius: 50%; }
 .orbit--outer { inset: 2%; box-shadow: 0 0 70px rgba(17, 164, 146, .08); }
@@ -388,3 +397,11 @@ textarea.form-control { resize: vertical; min-height: 76px; }
 .extraction-action p { flex: 1 1 250px; margin: 0; font-size: 13px; color: var(--muted); line-height: 1.6; }
 .source-anchor { scroll-margin-top: 24px; }
 .source-item__results h4 { margin: 0; }
+
+.workspace-login { display: grid; gap: 16px; }
+.workspace-login h1, .workspace-login p { margin: 0; }
+.workspace-login__list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.workspace-login__project { display: grid; gap: 8px; padding: 18px; border: 1px solid #d8d2ef; border-radius: 10px; background: #faf9ff; color: var(--ink); text-decoration: none; }
+.workspace-login__project:hover { background: #f0edff; border-color: #7469df; }
+.workspace-login__project:focus-visible { outline: 3px solid #7469df; outline-offset: 3px; }
+.workspace-login__project span { color: var(--muted); font-size: 13px; }
