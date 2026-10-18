@@ -30,10 +30,28 @@ Google sign-in domain list; all pre-existing authorized domains were preserved.
 - Hosted health returned 200. Workspace discovery and direct project membership
   requests without authentication both returned 401 with `private, no-store`.
 
-Google's account-selection page requires the user to complete it manually:
-automatic browser approval review could not inspect accounts.google.com because
-the review service reached its usage limit. The app-side checks can continue
-after the user completes the normal Google flow.
+## Authenticated hands-on UAT
 
-Authenticated workspace access and session-isolation results will be recorded
-in PR #36 after the user-completed Google sign-in is verified in the app.
+The user completed Google's account selection manually after the browser approval
+review service could not inspect accounts.google.com due to its usage limit.
+Early attempts returned the SDK's cancellation message; a later attempt succeeded
+with no code changes. The cause of the earlier failures was not established.
+No redirect or Firebase Hosting changes were made.
+
+- Verified the login page showed **maxxinggemini@gmail.com** and only the existing
+  **Real data testing** workspace, with **Administrator** access.
+- Opened that workspace and loaded its actual Drive connection and two source
+  documents from the real API. No private project data was edited.
+- Used **Workspaces** to return to the chooser without signing in again.
+- Entered the public demo in the same tab. It showed the separate demo identity,
+  the sample folder, and its three source documents.
+- Signed out of the demo, followed its Google-login link, and verified that the
+  original personal Google session and workspace access were still present.
+- Signed out of the personal Google session and verified the login screen returned.
+
+## Limits and release
+
+A second Google identity was not used; no-access and invalid-role behavior has
+backend test coverage. No Google account credentials were entered by the agent.
+The user-completed OAuth return and real workspace reads passed on the hosted
+preview. Main release and post-release checks are recorded in PR #36.
