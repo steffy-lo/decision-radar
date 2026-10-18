@@ -388,3 +388,11 @@ textarea.form-control { resize: vertical; min-height: 76px; }
 .extraction-action p { flex: 1 1 250px; margin: 0; font-size: 13px; color: var(--muted); line-height: 1.6; }
 .source-anchor { scroll-margin-top: 24px; }
 .source-item__results h4 { margin: 0; }
+
+.workspace-login { display: grid; gap: 16px; }
+.workspace-login h1, .workspace-login p { margin: 0; }
+.workspace-login__list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.workspace-login__project { display: grid; gap: 8px; padding: 18px; border: 1px solid #d8d2ef; border-radius: 10px; background: #faf9ff; color: var(--ink); text-decoration: none; }
+.workspace-login__project:hover { background: #f0edff; border-color: #7469df; }
+.workspace-login__project:focus-visible { outline: 3px solid #7469df; outline-offset: 3px; }
+.workspace-login__project span { color: var(--muted); font-size: 13px; }

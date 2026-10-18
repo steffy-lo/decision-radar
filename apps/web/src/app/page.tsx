@@ -12,6 +12,8 @@ export default function Home() {
         <p>Connect the evidence behind project decisions, catch changes that matter, and see their impact before your team moves forward.</p>
         <Link className="button button--primary button--large" href="/demo">Try connected demo <span aria-hidden="true">→</span></Link>
         <div className="welcome-page__note">No password needed · real Drive files with sample data</div>
+        <Link className="button button--secondary button--large" href="/login">Sign in with Google</Link>
+        <p className="welcome-page__note">Already have access? Open your own workspace.</p>
         <Link className="text-link" href="/projects/proj_demo_2026/decisions">Explore the fixed walkthrough →</Link>
       </div>
       <div className="welcome-page__visual" aria-hidden="true">

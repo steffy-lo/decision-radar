@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "firebase/auth";
 import { startDemoSession } from "@/lib/auth/demo-session";
@@ -26,6 +27,7 @@ export function DemoEntry({ projectId, email, onReady }: { projectId: string; em
       <button type="submit" className="button button--primary" disabled={busy}>{busy ? "Opening demo…" : "Try demo"}</button>
     </form>
     {error && <p role="alert" className="notice notice--error">{error}</p>}
+    <p><Link className="text-link" href="/login">Have a workspace? Sign in with Google →</Link></p>
     <p className="field-help">Sessions last one hour. Sample decisions and reviews are shared and changes are retained.</p>
   </section></main>;
 }

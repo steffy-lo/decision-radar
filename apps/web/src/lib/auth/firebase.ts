@@ -36,8 +36,12 @@ export function getDemoFirebaseAuth(): Auth {
   return configuredAuth(getApps().some((app) => app.name === name) ? getApp(name) : initializeApp(config, name));
 }
 
+export function getPersonalFirebaseAuth(): Auth {
+  return configuredAuth(getFirebaseApp());
+}
+
 export function getFirebaseAuth(): Auth {
   const path = typeof window === "undefined" ? "" : window.location.pathname;
   return demoProjectId && path.startsWith(`/projects/${encodeURIComponent(demoProjectId)}/`)
-    ? getDemoFirebaseAuth() : configuredAuth(getFirebaseApp());
+    ? getDemoFirebaseAuth() : getPersonalFirebaseAuth();
 }

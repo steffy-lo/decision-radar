@@ -519,3 +519,11 @@ export async function checkBackendHealth(): Promise<HealthResponse> {
   }
   return res.json();
 }
+
+export interface WorkspaceSummary { id: string; name: string; role: "admin" | "editor" | "viewer"; }
+
+export async function listMyWorkspaces(): Promise<WorkspaceSummary[]> {
+  const response = await fetchPrivateApi("/api/v1/projects");
+  if (!response.ok) throw new Error("Your workspaces could not be loaded. Please try again.");
+  return response.json();
+}
