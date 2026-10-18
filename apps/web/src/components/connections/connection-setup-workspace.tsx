@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { DriveConnectionPanel } from "@/components/connections/drive-connection-panel";
 import { MeetConnectionPanel } from "@/components/connections/meet-connection-panel";
+import { WorkflowGuide } from "@/components/workflow-guide";
 import { PageHeading, Panel, StatusPill } from "@/components/ui";
 import { getCurrentProjectMembership, listSources, setSourceMonitoring } from "@/lib/api/client";
 import type { ProjectMembership, SourceSummary } from "@/lib/api/client";
@@ -44,7 +45,8 @@ export function ConnectionSetupWorkspace({ projectId }: { projectId: string }) {
   }
 
   return <>
-    <PageHeading eyebrow="SOURCE SETUP" title="Connections" description="Choose a Drive folder or Meet space and check each source before assessment." />
+    <PageHeading eyebrow="STEP 1 · IMPORT EVIDENCE" title="Connections" description="Connect Drive and refresh a folder to import the original plan and later updates. Importing saves the text; extracting facts comes next." action={<Link className="button button--secondary" href={`/projects/${encodeURIComponent(projectId)}/decisions`}>Next: record a decision →</Link>} />
+    <WorkflowGuide projectId={projectId} current="connections" />
     <DriveConnectionPanel projectId={projectId} onSourcesChanged={() => void load()} />
     <MeetConnectionPanel projectId={projectId} />
     <Panel className="workspace-card workspace-card--spaced">

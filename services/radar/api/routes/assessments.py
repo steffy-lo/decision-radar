@@ -18,6 +18,51 @@ from services.radar.domain.models import AuthenticatedProjectMember, RadarModel
 router = APIRouter(prefix="/projects/{project_id}/assessments", tags=["Assessments"])
 
 
+def _run_time(row: dict[str, Any]) -> datetime:
+    value = row.get("lastActivatedAt") or row.get("createdAt")
+    try:
+        parsed = value if isinstance(value, datetime) else datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
+    except (TypeError, ValueError):
+        return datetime.min.replace(tzinfo=timezone.utc)
+
+
+@router.get("/readiness")
+async def assessment_readiness(
+    project_id: str,
+    _: AuthenticatedProjectMember = Depends(require_project_member),
+    store: FirestoreAssessmentStore = Depends(get_assessment_store),
+) -> dict[str, Any]:
+    """Explain missing inputs using the same current facts and rules as assessment."""
+    inputs = await store.load(project_id)
+    result = AssessmentService().assess(
+        project_id, inputs.decisions, inputs.assumptions, inputs.facts,
+        inputs.assumption_entities, observed_at=datetime.now(timezone.utc),
+    )
+    active = sum(row.status == "active" for row in inputs.decisions)
+    comparable = sum(row.state == "assessed" for row in result.coverage)
+    if not active:
+        step, title, reason = "decisions", "Confirm a decision first", "Drafts are not monitored. Create a decision from the original plan, then confirm it."
+    elif not result.manifest.assumption_ids:
+        step, title, reason = "decisions", "Add a monitored assumption", "An active decision needs an assumption on its current revision before it can be checked."
+    elif not inputs.facts:
+        step, title, reason = "sources", "Extract facts from an update", "Imported documents are ready to read, but assessment needs verified facts. Select an assumption in Sources and extract the update."
+    elif not comparable:
+        step, title, reason = "sources", "Check the source facts", "No current fact can be compared with a monitored assumption. Check matching wording, full dates including the year, and any uncertain evidence in Sources."
+    else:
+        step, title, reason = "reviews", "Ready to check for conflicts", "The assessment will compare verified facts with confirmed requirements. Check the coverage of each assumption in the result."
+    return {
+        "canAssess": comparable > 0,
+        "activeDecisionCount": active,
+        "draftDecisionCount": sum(row.status == "draft" for row in inputs.decisions),
+        "assumptionCount": len(result.manifest.assumption_ids),
+        "factCount": len(inputs.facts),
+        "comparableAssumptionCount": comparable,
+        "fingerprint": result.manifest.fingerprint,
+        "nextStep": step, "title": title, "reason": reason,
+    }
+
+
 @router.get("/results")
 async def assessment_results(
     project_id: str,
@@ -29,7 +74,7 @@ async def assessment_results(
     findings = [row.to_dict() or {} async for row in project.collection("findings").stream()]
     alerts = [row.to_dict() or {} async for row in project.collection("alerts").stream()]
     completed_runs = [row for row in runs if row.get("status") == "completed"]
-    latest = max(completed_runs, key=lambda row: str(row.get("lastActivatedAt") or row.get("createdAt", "")), default=None)
+    latest = max(completed_runs, key=_run_time, default=None)
     if latest is None:
         return {"latestRun": None, "findings": [], "alerts": []}
     if latest and "findingIds" in latest and "alertIds" in latest:

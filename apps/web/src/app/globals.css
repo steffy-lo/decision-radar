@@ -89,6 +89,36 @@ button { cursor: pointer; }
 .button--primary:hover { background: var(--teal-dark); }
 .button--secondary { background: #fff; border-color: #d8dbe6; color: #3d4354; }
 .button--secondary:hover { background: #f7f6ff; }
+.button--danger { background: #a63743; color: #fff; }
+.button--danger:hover { background: #8b2c36; }
+.workflow-guide { margin: 0 0 28px; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.workflow-guide__heading { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 20px; margin-bottom: 14px; }
+.workflow-guide__heading strong { font-size: 13px; }
+.workflow-guide__heading > span { color: var(--muted); font-size: 12px; }
+.workflow-guide ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 0; margin: 0; list-style: none; }
+.workflow-guide a { display: flex; align-items: flex-start; gap: 9px; min-height: 100%; padding: 12px; border: 1px solid transparent; border-radius: 10px; }
+.workflow-guide a:hover { background: #f7f6ff; }
+.workflow-guide a[aria-current="step"] { background: #f1efff; border-color: #dcd7fb; }
+.workflow-guide__number { flex: none; display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; background: #eeedf5; color: #534c80; font-size: 12px; font-weight: 750; }
+.workflow-guide a[aria-current="step"] .workflow-guide__number { background: var(--teal); color: white; }
+.workflow-guide strong { display: block; font-size: 12px; }
+.workflow-guide small { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.decision-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.decision-removal { margin-top: 18px; padding: 18px; border: 1px solid #ebc7cb; border-radius: 10px; background: #fff9f9; }
+.decision-removal p { line-height: 1.6; color: var(--muted); }
+.archived-decisions { margin-top: 20px; }
+.archived-decisions > .workspace-stack { margin-top: 16px; }
+.decision-form-section { border: 0; border-top: 1px solid var(--line); margin: 20px 0; padding: 16px 0 0; min-width: 0; }
+.decision-form-section legend { padding: 0 12px 0 0; color: #423a91; font-weight: 750; font-size: 14px; }
+.decision-form-section .field-help { font-weight: 400; }
+.readiness-panel { margin-bottom: 24px; border-left: 4px solid var(--teal); }
+.readiness-panel h2 { margin: 6px 0 10px; font-size: 20px; }
+.readiness-panel p { color: var(--muted); line-height: 1.6; }
+.readiness-counts { font-size: 12px; }
+.source-connection-settings { margin-bottom: 24px; }
+.source-connection-settings > summary { cursor: pointer; padding: 14px 0; color: var(--teal-dark); font-size: 13px; font-weight: 700; }
+@media (max-width: 1000px) { .workflow-guide ol { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .workflow-guide { padding: 14px; } .workflow-guide ol { grid-template-columns: 1fr; gap: 3px; } .workflow-guide a { padding: 9px; } }
 .button:disabled { cursor: not-allowed; opacity: .56; box-shadow: none; }
 .button--large { min-height: 47px; padding: 0 20px; font-size: 13px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 15px; box-shadow: var(--shadow); }

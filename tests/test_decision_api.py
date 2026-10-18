@@ -108,6 +108,25 @@ class DecisionRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertEqual(self.db.data[f"projects/{DEMO.project_id}/decisions/{decision_id}"]["status"], "draft")
 
+    def test_discard_draft_preserves_evidence_and_rejects_viewer(self):
+        decision_id = self.create().json()["decision"]["id"]
+        url = f"{self.prefix}/{decision_id}/retire"
+        headers = {"Idempotency-Key": "76441f2e-04ac-47a9-8853-0f40c27f79e7", "If-Match": '"1"'}
+        app.dependency_overrides[require_project_member] = lambda: AuthenticatedProjectMember(
+            uid="member_one", role="viewer", project_id=DEMO.project_id,
+        )
+        self.assertEqual(self.client.post(url, headers=headers).status_code, 403)
+        app.dependency_overrides[require_project_member] = lambda: AuthenticatedProjectMember(
+            uid="member_one", role="editor", project_id=DEMO.project_id,
+        )
+        discarded = self.client.post(url, headers=headers)
+        self.assertEqual(discarded.status_code, 200)
+        self.assertEqual(discarded.json()["decision"]["status"], "retired")
+        self.assertEqual(self.client.post(url, headers=headers).json(), discarded.json())
+        revisions = [row for path, row in self.db.data.items() if "/decisionRevisions/" in path]
+        self.assertEqual(len(revisions), 1)
+        self.assertTrue(revisions[0]["evidence"]["quote"])
+
     def test_viewer_and_missing_headers_cannot_change_decisions(self):
         self.assertEqual(self.client.post(self.prefix, json=payload()).status_code, 422)
         app.dependency_overrides[require_project_member] = lambda: AuthenticatedProjectMember(

@@ -125,6 +125,25 @@ export interface AssessmentResults {
   alerts: { id: string; findingId: string; decisionId: string; severity: string; reviewState: string }[];
 }
 
+export interface AssessmentReadiness {
+  canAssess: boolean;
+  activeDecisionCount: number;
+  draftDecisionCount: number;
+  assumptionCount: number;
+  factCount: number;
+  comparableAssumptionCount: number;
+  fingerprint: string;
+  nextStep: "decisions" | "sources" | "reviews";
+  title: string;
+  reason: string;
+}
+
+export async function getAssessmentReadiness(projectId: string): Promise<AssessmentReadiness> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/assessments/readiness`);
+  if (!response.ok) throw new Error("Could not check assessment readiness. Try loading this page again.");
+  return response.json();
+}
+
 export interface BriefPreview {
   id: string;
   projectId: string;
@@ -257,7 +276,7 @@ function decisionErrorMessage(payload: unknown, fallback: string): string {
     "assumptions.0.statement": "Assumption to monitor",
     "assumptions.0.entityId": "Entity ID",
     "assumptions.0.predicate": "Predicate",
-    "assumptions.0.expectedValue": "Expected by",
+    "assumptions.0.expectedValue": "Originally required by",
   };
   const messages = detail.flatMap((item: unknown) => {
     if (!item || typeof item !== "object" || !("msg" in item) || typeof item.msg !== "string") return [];
@@ -288,6 +307,18 @@ export async function confirmLiveDecision(projectId: string, decision: LiveDecis
   if (!response.ok) {
     const payload: unknown = await response.json().catch(() => ({}));
     throw new Error(decisionErrorMessage(payload, `Decision confirmation failed with status ${response.status}.`));
+  }
+  const result: { decision: LiveDecision } = await response.json();
+  return result.decision;
+}
+
+export async function retireLiveDecision(projectId: string, decision: LiveDecision): Promise<LiveDecision> {
+  const response = await fetchPrivateApi(`/api/v1/projects/${encodeURIComponent(projectId)}/decisions/${encodeURIComponent(decision.id)}/retire`, {
+    method: "POST", headers: { "Idempotency-Key": crypto.randomUUID(), "If-Match": `"${decision.version}"` },
+  });
+  if (!response.ok) {
+    const payload: unknown = await response.json().catch(() => ({}));
+    throw new Error(decisionErrorMessage(payload, `Decision could not be archived (${response.status}).`));
   }
   const result: { decision: LiveDecision } = await response.json();
   return result.decision;
