@@ -81,7 +81,7 @@ async def require_project_member(
 
     member_data = snapshot.to_dict() or {}
     try:
-        member = ProjectMember(uid=uid, role=member_data["role"])
+        member = ProjectMember(uid=uid, role=member_data["role"], refresh_folder_id=member_data.get("refresh_folder_id"))
     except (KeyError, ValueError) as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

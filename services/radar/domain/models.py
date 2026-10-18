@@ -20,6 +20,7 @@ NonEmpty = Annotated[str, StringConstraints(min_length=1)]
 class ProjectMember(RadarModel):
     uid: str
     role: Literal["admin", "editor", "viewer"]
+    refresh_folder_id: str | None = Field(default=None, min_length=1, max_length=256, pattern=r"^[A-Za-z0-9_-]+$")
 
 
 class AuthenticatedProjectMember(ProjectMember):

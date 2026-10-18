@@ -77,6 +77,9 @@ button { cursor: pointer; }
 .auth-page__card h1 { margin: 0; color: var(--ink); font-size: 27px; line-height: 1.2; letter-spacing: -.7px; }
 .auth-page__card p { margin: 0; color: var(--muted); line-height: 1.6; }
 .auth-page__card .button { width: 100%; }
+.auth-page__form { display: grid; gap: 17px; }
+.judge-guide { margin-bottom: 24px; }
+.judge-guide p { margin: 8px 0 0; line-height: 1.6; }
 .mobile-nav { display: none; }
 .page-content { max-width: 1260px; margin: auto; padding: 42px 48px 80px; }
 .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; margin-bottom: 32px; }

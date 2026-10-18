@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GoogleAuthProvider, User, onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+import { GoogleAuthProvider, User, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
 
 import { getFirebaseAuth } from "@/lib/auth/firebase";
 
-export function AuthGate({ children }: { children: React.ReactNode }) {
+export function AuthGate({ children, judgeWorkspace = false }: { children: React.ReactNode; judgeWorkspace?: boolean }) {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => onAuthStateChanged(getFirebaseAuth(), setUser), []);
 
@@ -20,20 +23,38 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       <main className="auth-page">
         <section className="auth-page__card">
           <span className="section-kicker">DECISION RADAR</span>
-          <h1>Sign in to your workspace</h1>
-          <p>Use your workspace account to access project decisions and evidence.</p>
+          <h1>{judgeWorkspace ? "Try the connected demo" : "Sign in to your workspace"}</h1>
+          <p>{judgeWorkspace ? "Use the judge account supplied with the submission. This workspace reads real Google Docs containing sample project data and runs Gemini assessments." : "Use your workspace account to access project decisions and evidence."}</p>
+          {judgeWorkspace && <form className="auth-page__form" onSubmit={async (event) => {
+            event.preventDefault();
+            setSigningIn(true);
+            setError(null);
+            try {
+              await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
+              setPassword("");
+            } catch {
+              setError("Unable to sign in. Check the judge email and password, then try again.");
+            } finally { setSigningIn(false); }
+          }}>
+            <label className="form-field">Judge email<input className="form-control" type="email" autoComplete="username" required value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+            <label className="form-field">Password<input className="form-control" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+            <button className="button button--primary" type="submit" disabled={signingIn}>{signingIn ? "Signing in…" : "Sign in as judge"}</button>
+          </form>}
           <button
             className="button button--primary"
+            disabled={signingIn}
             onClick={async () => {
+              setSigningIn(true);
+              setError(null);
               try {
                 await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider());
                 setError(null);
               } catch (signInError) {
                 setError(signInError instanceof Error ? signInError.message : "Sign-in failed.");
-              }
+              } finally { setSigningIn(false); }
             }}
           >
-            Continue with Google
+            {judgeWorkspace ? "Use an invited Google account" : "Continue with Google"}
           </button>
           {error && <p className="notice notice--error" role="alert">{error}</p>}
         </section>
