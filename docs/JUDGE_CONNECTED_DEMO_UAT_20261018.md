@@ -1,5 +1,8 @@
 # Judge account and Connections spacing UAT
 
+Historical password-based demo checks. The current public `/demo` flow is
+documented in `PASSWORDLESS_DEMO_UAT_20261018.md`.
+
 18 October 2026, Singapore time. Implementation commit: `3179e355`.
 
 ## Environments
