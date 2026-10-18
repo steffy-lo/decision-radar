@@ -49,6 +49,18 @@ No redirect or Firebase Hosting changes were made.
   original personal Google session and workspace access were still present.
 - Signed out of the personal Google session and verified the login screen returned.
 
+## Homepage action layout
+
+After the user requested clearer homepage spacing, the final web build aligned
+both actions in two columns with separate helper text. Hosted desktop UAT measured
+both buttons at 276 by 54 pixels with an 18-pixel horizontal gap. Both links were
+clicked: Google opened the normal sign-in page, and the demo opened passwordless
+entry. The rendered page was inspected and a screenshot retained. Narrow-screen
+stacking is implemented in CSS but was not manually resized during this UAT.
+
+The final layout change touches only the homepage and CSS; Google authentication
+and the API are the same implementation verified above.
+
 ## Limits and release
 
 A second Google identity was not used; no-access and invalid-role behavior has
