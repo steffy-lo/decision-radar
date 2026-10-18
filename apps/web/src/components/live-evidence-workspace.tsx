@@ -51,6 +51,7 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setCompletedSource(null);
     try {
       const [nextSources, nextAssumptions, nextMembership] = await Promise.all([
         listSources(projectId), listMonitoredAssumptions(projectId), getCurrentProjectMembership(projectId),
@@ -89,7 +90,7 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
       } catch { if (!cancelled) setPreviewError(true); }
     });
     return () => { cancelled = true; };
-  }, [projectId, selectedSource, previewAttempt]);
+  }, [projectId, selectedSource, update?.updated_at, previewAttempt]);
 
   async function runExtraction() {
     if (blocker || !selected || !update) return;
@@ -158,8 +159,7 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
       {loading ? <p className="supporting-copy">Loading sources…</p> : sources.length === 0 ? <EmptyState title="No sources yet" description="Connect Drive and refresh a folder to bring its files into this project." /> : <div className="workspace-stack">{sources.map((source) => {
         const result = extractions[source.id];
         return <Panel className="workspace-card source-item" key={source.id}>
-          <span id={`source-${source.id}`} className="source-anchor" />
-          <div className="source-item__head"><div><h3>{source.name}</h3><a href={source.native_url} target="_blank" rel="noopener noreferrer" className="text-link">Open source ↗</a></div><StatusPill tone={source.status === "ready" && !source.monitoring_paused ? "success" : "warning"}>{source.monitoring_paused ? "Monitoring paused" : source.failure_reason === "removed_from_folder" ? "Removed from folder" : source.status}</StatusPill></div>
+          <div className="source-item__head"><div><h3 id={`source-${source.id}`} className="source-anchor">{source.name}</h3><a href={source.native_url} target="_blank" rel="noopener noreferrer" className="text-link">Open source ↗</a></div><StatusPill tone={source.status === "ready" && !source.monitoring_paused ? "success" : "warning"}>{source.monitoring_paused ? "Monitoring paused" : source.failure_reason === "removed_from_folder" ? "Removed from folder" : source.status === "ready" ? "Ready" : source.status === "mapping_required" ? "Choose table columns" : source.status === "schema_drift" ? "Table columns changed" : "Needs attention"}</StatusPill></div>
           {source.failure_reason && <p role="status" className="notice notice--warning">{source.failure_reason === "removed_from_folder" ? "This file is no longer in the monitored folder. Add it back and refresh Drive to use it again." : "This file could not be read. Check that the connected Drive account can open it, then refresh Drive to try again."}</p>}
           {membership?.role === "admin" && isTable(source.mime_type) && <TableMappingForm projectId={projectId} source={source} onSaved={load} />}
 

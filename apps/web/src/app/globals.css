@@ -375,11 +375,11 @@ textarea.form-control { resize: vertical; min-height: 76px; }
 
 /* Keep extraction to one guided action, with help available by pointer or keyboard. */
 .extraction-form { display: grid; gap: 20px; }
-.field-label-row { display: flex; align-items: center; gap: 7px; }
-.help-tooltip { position: relative; display: inline-flex; flex: 0 0 auto; }
+.field-label-row { position: relative; display: flex; align-items: center; gap: 7px; }
+.help-tooltip { position: static; display: inline-flex; flex: 0 0 auto; }
 .help-tooltip__trigger { display: inline-grid; place-items: center; width: 24px; height: 24px; border: 1px solid #bcb6da; border-radius: 50%; background: #f4f2ff; color: #5146a8; font-size: 12px; font-weight: 700; cursor: pointer; }
 .help-tooltip__trigger:focus-visible { outline: 3px solid #7469df; outline-offset: 2px; }
-.help-tooltip__content { position: absolute; z-index: 10; top: 30px; right: -12px; width: min(270px, 65vw); padding: 12px 14px; border: 1px solid #d5cfee; border-radius: 9px; background: #29243e; color: #fff; box-shadow: 0 6px 20px #20203626; font-size: 12px; font-weight: 400; line-height: 1.6; }
+.help-tooltip__content { position: absolute; z-index: 10; top: 30px; left: 0; width: min(270px, calc(100vw - 80px)); max-width: 100%; padding: 12px 14px; border: 1px solid #d5cfee; border-radius: 9px; background: #29243e; color: #fff; box-shadow: 0 6px 20px #20203626; font-size: 12px; font-weight: 400; line-height: 1.6; }
 .help-tooltip__content[hidden] { display: none; }
 .extraction-preview { padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: #faf9fe; }
 .extraction-preview summary { cursor: pointer; font-size: 13px; font-weight: 600; }

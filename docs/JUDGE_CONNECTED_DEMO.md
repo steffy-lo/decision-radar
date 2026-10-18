@@ -57,10 +57,13 @@ visitor's access. No new IAM signing permission or service-account key is needed
    Copy an exact original commitment quote from the source text. Use original
    required-by date **2026-10-15**, entity **vendor_acme**, and predicate
    **delivery_date**. Confirm the decision.
-4. In Sources, select the new assumption. Use subject **Acme Logistics** and
-   change **delivery date**. Click **Extract with Gemini** on **Acme Logistics
-   vendor update**. The confirmed update is **2026-10-24**. Inspect unresolved
-   extraction results before retrying them.
+4. In Sources, choose the delivery deadline under **Requirement to check**
+   and **Acme Logistics vendor update** under **Update document**. Expand the
+   saved copy if you need to check the wording. Enter **Acme Logistics** for
+   who the update is about and **delivery date** for the information to find.
+   Click the single **Extract facts with Gemini** button. The verified update
+   is **2026-10-24**. Any unclear facts have guidance for correcting the wording
+   and trying again. Use the question-mark help beside each field as needed.
 5. In Reviews, run an assessment, inspect the nine-day delay, and submit a
    response with a rationale. A new test decision provides a fresh review;
    existing reviewed alerts remain history.
