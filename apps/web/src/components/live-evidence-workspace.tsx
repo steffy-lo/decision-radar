@@ -1,23 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { WorkflowGuide } from "@/components/workflow-guide";
+import { assessmentStatus } from "@/lib/domain/assessment-status";
 import { DriveConnectionPanel } from "@/components/connections/drive-connection-panel";
-import { MeetConnectionPanel } from "@/components/connections/meet-connection-panel";
 import { EvidenceReference } from "@/components/evidence-reference";
 import { ImpactGraph } from "@/components/graph/impact-graph";
 import { ReviewActionPanel } from "@/components/review-action-panel";
 import { TableMappingForm } from "@/components/table-mapping-form";
 import {
-  extractSource, getAssessmentResults, getCurrentProjectMembership, getExtraction,
+  extractSource, getAssessmentReadiness, getAssessmentResults, getCurrentProjectMembership, getExtraction,
   getJob, listMonitoredAssumptions, listSources, retryJob, submitAnalysisJob,
 } from "@/lib/api/client";
 import type {
-  AssessmentResults, BackgroundJob, ExtractionResult, MonitoredAssumption, ProjectMembership, SourceSummary,
+  AssessmentReadiness, AssessmentResults, BackgroundJob, ExtractionResult, MonitoredAssumption, ProjectMembership, SourceSummary,
 } from "@/lib/api/client";
 import { EmptyState, PageHeading, Panel, StatusPill } from "@/components/ui";
 
 function errorText(value: unknown): string {
   return value instanceof Error ? value.message : "The request failed. Please try again.";
+}
+
+function countLabel(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
@@ -73,12 +79,15 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
   }
 
   return <>
-    <PageHeading eyebrow="PROJECT EVIDENCE" title="Sources" description="Bring project updates into one place and turn source text into facts you can review." />
-    <DriveConnectionPanel projectId={projectId} onSourcesChanged={() => void load()} />
-    <MeetConnectionPanel projectId={projectId} />
+    <PageHeading eyebrow="STEP 3 · UPDATED EVIDENCE" title="Sources" description="Extract facts from the update document so they can be compared with your original requirement. Refresh Drive again whenever a document changes." action={<Link className="button button--secondary" href={`/projects/${encodeURIComponent(projectId)}/reviews`}>Next: check for conflicts →</Link>} />
+    <WorkflowGuide projectId={projectId} current="sources" />
+    <details className="source-connection-settings"><summary>Refresh files or manage the Drive connection</summary>
+      <DriveConnectionPanel projectId={projectId} onSourcesChanged={() => void load()} />
+      <p><Link className="text-link" href={`/projects/${encodeURIComponent(projectId)}/connections`}>Manage Meet connections and source monitoring →</Link></p>
+    </details>
     {error && <p role="alert" className="notice notice--error">{error}</p>}
     <Panel className="workspace-card workspace-card--spaced">
-      <div className="flow-card-heading"><span className="flow-step">2</span><div className="flow-card-heading__copy"><span className="section-kicker">FACT EXTRACTION</span><h2>Match source wording</h2><p>Choose an assumption and enter how Gemini should identify its entity and predicate. If a candidate stays unresolved, check that it refers to this assumption before using Gemini’s wording.</p></div></div>
+      <div className="flow-card-heading"><span className="flow-step">3</span><div className="flow-card-heading__copy"><span className="section-kicker">FACT EXTRACTION</span><h2>Turn an update into facts</h2><p>Choose the confirmed assumption to check. Match the name of its subject and what changed, then use Extract with Gemini on the update below.</p></div></div>
       <label className="form-field">Monitored assumption
         <select className="form-control" value={selectedAssumption} onChange={(event) => setSelectedAssumption(event.target.value)}>
           {assumptions.length === 0 && <option value="">No active assumptions</option>}
@@ -87,10 +96,11 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
       </label>
       {selected && <p className="field-help">Trusted entity: {selected.entityId} · predicate: {selected.predicate}</p>}
       <div className="form-grid form-grid--two">
-        <label className="form-field">Entity wording Gemini uses<input className="form-control" value={entityAlias} onChange={(event) => setEntityAlias(event.target.value)} placeholder="e.g. Acme Logistics" /></label>
-        <label className="form-field">Predicate wording Gemini uses<input className="form-control" value={predicateAlias} onChange={(event) => setPredicateAlias(event.target.value)} placeholder="e.g. delivery date" /></label>
+        <label className="form-field">Subject name in the update<input className="form-control" value={entityAlias} onChange={(event) => setEntityAlias(event.target.value)} placeholder="e.g. Acme Logistics" /><span className="field-help">The entity wording, such as the vendor&apos;s name.</span></label>
+        <label className="form-field">What changed in the update<input className="form-control" value={predicateAlias} onChange={(event) => setPredicateAlias(event.target.value)} placeholder="e.g. delivery date" /><span className="field-help">The predicate wording, such as delivery date.</span></label>
       </div>
-      {assumptions.length === 0 && <p className="notice notice--warning">Confirm a decision with a monitored assumption before extracting facts.</p>}
+      <p className="field-help">Dates must include a year in the source quote, for example October 29, 2026. Only confirmed, matched facts become available for assessment. If a candidate is unresolved, verify its meaning before using Gemini&apos;s wording.</p>
+      {!loading && assumptions.length === 0 && <p className="notice notice--warning"><Link className="text-link" href={`/projects/${encodeURIComponent(projectId)}/decisions`}>Confirm a decision with a monitored assumption</Link> before extracting facts. Drafts do not appear in this list.</p>}
     </Panel>
     <div className="workspace-section">
       <div className="workspace-section__heading"><div><span className="section-kicker">SOURCE LIBRARY</span><h2>Connected sources</h2></div><span className="section-count">{sources.length} files</span></div>
@@ -100,9 +110,9 @@ export function LiveSourcesWorkspace({ projectId }: { projectId: string }) {
           <div className="source-item__head"><div><h3>{source.name}</h3><a href={source.native_url} target="_blank" rel="noopener noreferrer" className="text-link">Open source ↗</a></div><StatusPill tone={source.status === "ready" && !source.monitoring_paused ? "success" : "warning"}>{source.monitoring_paused ? "Monitoring paused" : source.failure_reason === "removed_from_folder" ? "Removed from folder" : source.status}</StatusPill></div>
           {source.failure_reason && <p role="status" className="notice notice--warning">{source.failure_reason}</p>}
           {membership?.role !== "viewer" && ["application/vnd.google-apps.spreadsheet", "text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"].includes(source.mime_type) && <TableMappingForm projectId={projectId} source={source} onSaved={load} />}
-          {membership?.role !== "viewer" && !["application/vnd.google-apps.spreadsheet", "text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"].includes(source.mime_type) && <button className="button button--primary" disabled={busySource !== null || !selected || source.status !== "ready" || source.monitoring_paused} onClick={() => void runExtraction(source.id)}>{busySource === source.id ? "Extracting…" : "Extract with Gemini"}</button>}
+          {membership !== null && membership.role !== "viewer" && !["application/vnd.google-apps.spreadsheet", "text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"].includes(source.mime_type) && <button className="button button--primary" disabled={busySource !== null || !selected || !entityAlias.trim() || !predicateAlias.trim() || source.status !== "ready" || source.monitoring_paused} onClick={() => void runExtraction(source.id)}>{busySource === source.id ? "Extracting…" : "Extract with Gemini"}</button>}
           {result && (source.status !== "ready" || source.monitoring_paused) && <p role="status" className="notice notice--warning">{result.publishedFactCount} previously verified facts are paused until this source is ready and monitoring resumes.</p>}
-          {result && source.status === "ready" && !source.monitoring_paused && <div className="source-item__results"><p role="status" className={`notice ${result.publishedFactCount ? "notice--success" : "notice--warning"}`}>{result.publishedFactCount} verified facts ready for assessment</p>
+          {result && source.status === "ready" && !source.monitoring_paused && <div className="source-item__results"><p role="status" className={`notice ${result.publishedFactCount ? "notice--success" : "notice--warning"}`}>{countLabel(result.publishedFactCount, "verified fact")} ready for assessment</p>
             {result.facts.map((fact, index) => <div key={`${source.id}-${index}`} className="fact-card"><div><strong>{fact.entity} · {fact.predicate}</strong><StatusPill>{fact.state}</StatusPill></div><blockquote>“{fact.quote}”</blockquote>{fact.uncertainReason && <p className="notice notice--warning">{fact.uncertainReason}</p>}{fact.uncertainReason?.includes("unresolved") && membership?.role !== "viewer" && <div className="fact-card__actions"><button className="button button--secondary" type="button" onClick={() => setEntityAlias(fact.entity)}>Use entity wording</button><button className="button button--secondary" type="button" onClick={() => setPredicateAlias(fact.predicate)}>Use predicate wording</button></div>}</div>)}
             {result.decisions.map((decision, index) => <div key={`decision-${index}`} className="fact-card"><strong>Suggested decision</strong><p>{decision.statement}</p>{decision.uncertainReason && <p className="notice notice--warning">{decision.uncertainReason}</p>}</div>)}
           </div>}
@@ -119,11 +129,14 @@ export function LiveReviewsWorkspace({ projectId, alertId }: { projectId: string
   const [busy, setBusy] = useState(false);
   const [analysisJob, setAnalysisJob] = useState<BackgroundJob | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [readiness, setReadiness] = useState<AssessmentReadiness | null>(null);
+  const [loading, setLoading] = useState(true);
   const load = useCallback(async () => {
     try {
-      const [next, member, sourceRows] = await Promise.all([getAssessmentResults(projectId), getCurrentProjectMembership(projectId), listSources(projectId)]);
-      setData(next); setMembership(member); setSources(sourceRows); setError(null);
-    } catch (value) { setError(errorText(value)); }
+      const [next, member, sourceRows, ready] = await Promise.all([getAssessmentResults(projectId), getCurrentProjectMembership(projectId), listSources(projectId), getAssessmentReadiness(projectId)]);
+      setData(next); setMembership(member); setSources(sourceRows); setReadiness(ready); setError(null);
+    } catch (value) { setReadiness(null); setError(errorText(value)); }
+    finally { setLoading(false); }
   }, [projectId]);
   useEffect(() => { void Promise.resolve().then(load); }, [load]);
   useEffect(() => {
@@ -156,16 +169,26 @@ export function LiveReviewsWorkspace({ projectId, alertId }: { projectId: string
   const coverage = data?.latestRun?.coverage ?? [];
   const uncertainCount = coverage.filter((row) => row.state !== "assessed").length;
   const driftedTables = sources.filter((source) => source.status === "schema_drift");
-  const reviewState = data?.alerts.length ? "Needs review" : !data?.latestRun ? "Ready to assess" : uncertainCount || driftedTables.length ? "Evidence unclear" : "No detected issue in assessed sources";
+  const status = assessmentStatus(data?.latestRun ?? null, data?.alerts.length ?? 0, driftedTables.length > 0);
+  const jobPending = analysisJob !== null && ["queued", "running", "retrying"].includes(analysisJob.status);
+  const stale = Boolean(data?.latestRun && readiness && data.latestRun.runId !== readiness.fingerprint);
   return <>
-    <PageHeading eyebrow="REVIEW QUEUE" title="Reviews" description="Check confirmed decisions against verified source facts." action={membership && membership.role !== "viewer" && <button className="button button--primary" disabled={busy} onClick={() => void assess()}>{busy ? "Running assessment…" : "Run assessment"}</button>} />
+    <PageHeading eyebrow="STEP 4 · ASSESS AND REVIEW" title="Reviews" description="Check whether updated facts challenge your confirmed decisions. Review the evidence here and record your response; an assessment does not change your decisions." action={membership && membership.role !== "viewer" && <button className="button button--primary" disabled={busy || jobPending || !readiness?.canAssess} aria-describedby="assessment-readiness" onClick={() => void assess()}>{busy || jobPending ? "Running assessment…" : "Run assessment"}</button>} />
+    <WorkflowGuide projectId={projectId} current="reviews" />
+    <Panel className="workspace-card readiness-panel">
+      <div id="assessment-readiness"><span className="section-kicker">BEFORE YOU RUN</span><h2>{loading ? "Checking what is ready…" : readiness?.title ?? "Readiness could not be checked"}</h2><p>{readiness?.reason ?? "Load the latest project inputs before running an assessment."}</p></div>
+      {readiness && <p className="readiness-counts">{countLabel(readiness.activeDecisionCount, "active decision")} · {countLabel(readiness.draftDecisionCount, "draft")} excluded · {countLabel(readiness.assumptionCount, "monitored assumption")} · {readiness.comparableAssumptionCount} ready to compare</p>}
+      {readiness && !readiness.canAssess && <Link className="button button--secondary" href={`/projects/${encodeURIComponent(projectId)}/${readiness.nextStep}`}>{readiness.nextStep === "decisions" ? "Go to Decisions" : "Go to Sources"} →</Link>}
+      {!readiness && !loading && <button className="button button--secondary" onClick={() => void load()}>Try loading again</button>}
+    </Panel>
     {analysisJob && <p role="status" className="notice notice--info">Evidence analysis: {analysisJob.status}.
       {analysisJob.status === "failed" && <button className="button button--secondary" disabled={busy} onClick={() => void retryAnalysis()}>Retry analysis</button>}
     </p>}
     {alertId && <ImpactGraph key={`${projectId}/${alertId}`} projectId={projectId} alertId={alertId} severity={data?.alerts.find((alert) => alert.id === alertId)?.severity} />}
     {error && <p role="alert" className="notice notice--error">{error}</p>}
+    {stale && <p role="status" className="notice notice--warning">Project inputs have changed since this result. The result below is from the previous assessment. Complete any missing steps above, then run a new assessment.</p>}
     {driftedTables.length > 0 && <p role="status" className="notice notice--warning">Coverage gap: {driftedTables.map((source) => source.name).join(", ")} {driftedTables.length === 1 ? "has" : "have"} a paused table mapping. Repair the header or column values and refresh the folder before relying on this assessment.</p>}
-    <div className="review-summary workspace-card"><div><span className="section-kicker">LATEST ASSESSMENT</span><h2>{reviewState}</h2><p>{data?.latestRun ? `${data.latestRun.findingCount} ${data.latestRun.findingCount === 1 ? "finding" : "findings"} checked · ${data.latestRun.alertCount} ${data.latestRun.alertCount === 1 ? "alert" : "alerts"} · ${uncertainCount} ${uncertainCount === 1 ? "assumption" : "assumptions"} with incomplete coverage.` : "Run an assessment after you confirm decisions and extract source facts."}</p></div><span className="review-summary__symbol" aria-hidden="true">◇</span></div>
+    <div className="review-summary workspace-card"><div><span className="section-kicker">{stale ? "PREVIOUS ASSESSMENT" : "LATEST ASSESSMENT"}</span><h2>{status.title}</h2><p>{status.description}</p>{data?.latestRun && <p>{countLabel(data.latestRun.findingCount, "comparison")} · {countLabel(data.latestRun.alertCount, "alert")} · {countLabel(uncertainCount, "assumption")} with incomplete coverage.</p>}</div><span className="review-summary__symbol" aria-hidden="true">◇</span></div>
     {coverage.length > 0 && <Panel className="workspace-card coverage-panel"><span className="section-kicker">COVERAGE</span><h2>What the assessment checked</h2><div className="coverage-list">{coverage.map((row) => <div key={row.assumption_id} className="coverage-list__row"><StatusPill tone={row.state === "assessed" ? "success" : "warning"}>{row.state === "assessed" ? "Assessed" : "Evidence unclear"}</StatusPill><span>{row.reason}</span></div>)}</div></Panel>}
     <div className="workspace-section workspace-stack">{data?.alerts.length ? data.alerts.map((alert) => {
       const finding = data.findings.find((row) => row.id === alert.findingId);
@@ -178,6 +201,6 @@ export function LiveReviewsWorkspace({ projectId, alertId }: { projectId: string
         <a className="text-link" href={`/projects/${encodeURIComponent(projectId)}/reviews?alertId=${encodeURIComponent(alert.id)}`}>View impact graph →</a>
         <ReviewActionPanel projectId={projectId} alertId={alert.id} reviewState={alert.reviewState} canReview={membership?.role === "admin" || membership?.role === "editor"} onSubmitted={load} />
       </Panel>;
-    }) : <EmptyState title={reviewState} description={data?.latestRun ? uncertainCount ? "Some assumptions could not be assessed from the available evidence. Check coverage above before drawing a conclusion." : "The assessed sources did not contradict a monitored assumption in the latest run." : "Run an assessment after extracting facts from your connected sources."} />}</div>
+    }) : null}</div>
   </>;
 }

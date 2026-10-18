@@ -6,8 +6,8 @@ import type { ReactNode } from "react";
 import { isDemoProject } from "@/lib/demo/use-project-data";
 
 const items = [
-  { slug: "decisions", label: "Decisions", icon: "◈" },
   { slug: "connections", label: "Connections", icon: "⛓" },
+  { slug: "decisions", label: "Decisions", icon: "◈" },
   { slug: "sources", label: "Sources", icon: "▤" },
   { slug: "reviews", label: "Reviews", icon: "◎" },
   { slug: "briefs", label: "Briefs", icon: "▧" },
@@ -73,7 +73,7 @@ export function AppShell({
           </div>
         </header>
         <nav className="mobile-nav" aria-label="Mobile project navigation">
-          {items.map((item) => {
+          {items.filter((item) => !demo || item.slug !== "connections").map((item) => {
             const href = `${base}/${item.slug}`;
             return <Link href={href} aria-current={pathname === href ? "page" : undefined} key={item.slug}>{item.label}</Link>;
           })}

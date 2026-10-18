@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -83,6 +84,43 @@ class AssessmentRouteTests(unittest.TestCase):
         self.store.conflict = True
         self.assertEqual(self.post().status_code, 409)
 
+    def test_readiness_requires_confirmation_and_comparable_facts(self):
+        inputs = self.client.get(f"/api/v1/projects/{DEMO.project_id}/assessments/readiness")
+        self.assertEqual(inputs.status_code, 200)
+        self.assertTrue(inputs.json()["canAssess"])
+        self.assertGreater(inputs.json()["comparableAssumptionCount"], 0)
+        self.assertEqual(self.store.published, [])
+
+        async def draft_inputs(project_id):
+            return AssessmentInputs(
+                tuple(row.model_copy(update={"status": "draft"}) for row in DEMO.decisions),
+                tuple(row.model_copy(update={"status": "draft"}) for row in DEMO.assumptions),
+                (), {}, (),
+            )
+        self.store.load = draft_inputs
+        draft = self.client.get(f"/api/v1/projects/{DEMO.project_id}/assessments/readiness").json()
+        self.assertFalse(draft["canAssess"])
+        self.assertEqual(draft["nextStep"], "decisions")
+        self.assertEqual(draft["assumptionCount"], 0)
+        self.assertGreater(draft["draftDecisionCount"], 0)
+
+        async def no_fact_inputs(project_id):
+            return AssessmentInputs(tuple(DEMO.decisions), tuple(DEMO.assumptions), (),
+                                    {row.id: "vendor_acme" for row in DEMO.assumptions}, ())
+        self.store.load = no_fact_inputs
+        no_facts = self.client.get(f"/api/v1/projects/{DEMO.project_id}/assessments/readiness").json()
+        self.assertFalse(no_facts["canAssess"])
+        self.assertEqual(no_facts["nextStep"], "sources")
+        self.assertEqual(no_facts["title"], "Extract facts from an update")
+
+        async def unrelated_inputs(project_id):
+            return AssessmentInputs(tuple(DEMO.decisions), tuple(DEMO.assumptions), tuple(DEMO.facts),
+                                    {row.id: "different_vendor" for row in DEMO.assumptions}, ())
+        self.store.load = unrelated_inputs
+        unlinked = self.client.get(f"/api/v1/projects/{DEMO.project_id}/assessments/readiness").json()
+        self.assertFalse(unlinked["canAssess"])
+        self.assertEqual(unlinked["title"], "Check the source facts")
+
     def test_results_hide_incomplete_publication(self):
         db = Client()
         root = f"projects/{DEMO.project_id}"
@@ -117,6 +155,21 @@ class AssessmentRouteTests(unittest.TestCase):
         app.dependency_overrides[get_firestore_client] = lambda: db
         response = self.client.get(f"/api/v1/projects/{DEMO.project_id}/assessments/results")
         self.assertEqual(response.json()["latestRun"]["runId"], "run_reactivated")
+
+    def test_results_order_mixed_timestamp_formats_chronologically(self):
+        db = Client()
+        root = f"projects/{DEMO.project_id}/assessmentRuns"
+        db.data[f"{root}/run_old"] = {
+            "runId": "run_old", "status": "completed", "createdAt": "2026-10-18T00:00:00Z",
+            "findingIds": [], "alertIds": [],
+        }
+        db.data[f"{root}/run_new"] = {
+            "runId": "run_new", "status": "completed", "createdAt": datetime(2026, 10, 18, 1, tzinfo=timezone.utc),
+            "findingIds": [], "alertIds": [],
+        }
+        app.dependency_overrides[get_firestore_client] = lambda: db
+        response = self.client.get(f"/api/v1/projects/{DEMO.project_id}/assessments/results")
+        self.assertEqual(response.json()["latestRun"]["runId"], "run_new")
 
     def test_confirmed_decision_can_be_assessed_through_api(self):
         db = Client()
