@@ -72,7 +72,7 @@ export function JobStatusPanel({ projectId }: { projectId: string }) {
           <StatusPill tone={job.status === "failed" ? "danger" : job.status === "completed" ? "success" : "neutral"}>{labels[job.status]}</StatusPill>
         </div>
         {job.status === "failed" && <p>{failureMessage(job)}</p>}
-        {job.status === "failed" && membership && membership.role !== "viewer" && (job.request.kind !== "refresh" || membership.role === "admin") &&
+        {job.status === "failed" && membership && membership.role !== "viewer" && (job.request.kind !== "refresh" || membership.role === "admin" || membership.refreshFolderId === job.request.target_id) &&
           <button type="button" className="button button--secondary" disabled={retrying !== null} onClick={() => void retry(job)}>{retrying === job.id ? "Retrying…" : "Retry work"}</button>}
       </li>)}</ul>
     </div>

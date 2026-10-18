@@ -67,9 +67,14 @@ class AuthenticationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_editor_cannot_manage_a_drive_connection(self) -> None:
         member = AuthenticatedProjectMember(
-            uid="user-123", role="editor", project_id="project-a"
+            uid="user-123", role="editor", project_id="project-a", refresh_folder_id="sample-folder"
         )
         with self.assertRaises(HTTPException) as raised:
             await require_project_admin(member)
 
         self.assertEqual(raised.exception.status_code, status.HTTP_403_FORBIDDEN)
+
+    async def test_refresh_delegation_comes_from_project_membership(self) -> None:
+        member = await require_project_member(project_id="sample", claims={"uid": "judge", "refresh_folder_id": "untrusted"}, firestore_client=FakeFirestore({"projects/sample/members/judge": {"role": "editor", "refresh_folder_id": "approved-folder"}}))
+        self.assertEqual(member.refresh_folder_id, "approved-folder")
+        self.assertEqual(member.model_dump(by_alias=True)["refreshFolderId"], "approved-folder")

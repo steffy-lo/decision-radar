@@ -36,8 +36,20 @@ async def get_job_service() -> JobService:
 
 
 def authorize_work(member: AuthenticatedProjectMember, kind: str) -> None:
-    if member.role == "viewer" or (kind == "refresh" and member.role != "admin"):
-        raise HTTPException(status_code=403, detail="Only admins can refresh folders; editors can run analysis.")
+    if member.role == "viewer" or (kind == "refresh" and member.role != "admin" and not member.refresh_folder_id):
+        raise HTTPException(status_code=403, detail="Folder refresh requires an administrator or an explicit folder grant; analysis requires editor access.")
+
+
+async def authorize_refresh_scope(member: AuthenticatedProjectMember, folder_id: str) -> None:
+    """A delegated editor can refresh only its explicitly granted, selected folder."""
+    if member.role == "admin":
+        return
+    if member.role != "editor" or not member.refresh_folder_id or folder_id != member.refresh_folder_id:
+        raise HTTPException(status_code=403, detail="This folder is outside your refresh access.")
+    connection = get_connection_service(get_firestore_client())
+    selected = (await connection.get_connection(member.project_id)).selected_folder_id
+    if folder_id != selected:
+        raise HTTPException(status_code=403, detail="The configured folder changed. Ask an administrator to update your refresh access.")
 
 
 class FolderJobRequest(BaseModel):
@@ -72,6 +84,7 @@ async def submit_refresh(
     service: JobService = Depends(get_job_service),
 ) -> Job:
     authorize_work(member, "refresh")
+    await authorize_refresh_scope(member, body.folder_id)
     version = await current_refresh_version(project_id, body.folder_id)
     return await service.submit(project_id, JobRequest(
         kind="refresh", target_id=body.folder_id, source_version=version,
@@ -130,6 +143,8 @@ async def submit_job(
     service: JobService = Depends(get_job_service),
 ) -> Job:
     authorize_work(member, body.kind)
+    if body.kind == "refresh":
+        await authorize_refresh_scope(member, body.target_id)
     expected = (await current_refresh_version(project_id, body.target_id) if body.kind == "refresh"
                 else await current_analysis_version(project_id))
     if body.source_version != expected or (body.kind == "analysis" and body.target_id != "assessment"):
@@ -150,6 +165,8 @@ async def retry_job(
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found.")
     authorize_work(member, job.request.kind)
+    if job.request.kind == "refresh":
+        await authorize_refresh_scope(member, job.request.target_id)
     if job.generation == body.generation and job.status == "failed":
         current_version = (await current_refresh_version(project_id, job.request.target_id)
                            if job.request.kind == "refresh" else await current_analysis_version(project_id))

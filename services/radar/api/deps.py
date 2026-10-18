@@ -1,6 +1,7 @@
 """Authentication and project authorization dependencies."""
 
 from typing import Any, Callable, Optional
+from datetime import datetime, timezone
 
 from fastapi import Depends, HTTPException, Path, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -9,6 +10,7 @@ from firebase_admin import exceptions as firebase_exceptions
 from services.radar.adapters.firebase_auth import verify_id_token
 from services.radar.adapters.firestore import get_firestore_client
 from services.radar.domain.models import AuthenticatedProjectMember, ProjectMember
+from services.radar.config import settings
 
 TokenVerifier = Callable[[str], dict[str, Any]]
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -80,8 +82,17 @@ async def require_project_member(
         )
 
     member_data = snapshot.to_dict() or {}
+    if member_data.get("demo_session"):
+        expires_at = member_data.get("expires_at")
+        if not isinstance(expires_at, datetime) or expires_at.tzinfo is None or expires_at <= datetime.now(timezone.utc):
+            raise HTTPException(status_code=403, detail="Your demo session expired. Sign out and start a new demo session.")
+        if project_id != settings.DEMO_PROJECT_ID or member_data.get("refresh_folder_id") != settings.DEMO_FOLDER_ID:
+            raise HTTPException(status_code=403, detail="This demo workspace is unavailable.")
+        connection = await firestore_client.collection("projects").document(project_id).collection("connections").document("google-drive").get()
+        if (connection.to_dict() or {}).get("selected_folder_id") != settings.DEMO_FOLDER_ID:
+            raise HTTPException(status_code=403, detail="This demo workspace is unavailable.")
     try:
-        member = ProjectMember(uid=uid, role=member_data["role"])
+        member = ProjectMember(uid=uid, role=member_data["role"], refresh_folder_id=member_data.get("refresh_folder_id"))
     except (KeyError, ValueError) as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

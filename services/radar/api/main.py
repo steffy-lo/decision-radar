@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from services.radar.config import settings
-from services.radar.api.routes import assessments, briefs, connections, decisions, health, impact, jobs, projects, reviews, sources
+from services.radar.api.routes import assessments, briefs, connections, decisions, demo, health, impact, jobs, projects, reviews, sources
 
 app = FastAPI(
     title="Decision Radar API",
@@ -32,6 +32,7 @@ app.include_router(health.router, tags=["Health"])
 # Prefix route for proxy matching /api/v1
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(projects.router, prefix="/api/v1")
+app.include_router(demo.router, prefix="/api/v1")
 app.include_router(assessments.router, prefix="/api/v1")
 app.include_router(decisions.router, prefix="/api/v1")
 app.include_router(connections.router, prefix="/api/v1")

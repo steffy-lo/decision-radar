@@ -10,18 +10,34 @@ const config = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-let emulatorConnected = false;
+const emulatorConnections = new Set<string>();
+let demoProjectId: string | null = null;
+
+export function configureDemoWorkspace(projectId: string): void {
+  demoProjectId = projectId;
+}
 
 export function getFirebaseApp(): FirebaseApp {
-  return getApps().length ? getApp() : initializeApp(config);
+  return getApps().some((app) => app.name === "[DEFAULT]") ? getApp() : initializeApp(config);
+}
+
+function configuredAuth(app: FirebaseApp): Auth {
+  const auth = getAuth(app);
+  const emulatorUrl = process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL;
+  if (emulatorUrl && !emulatorConnections.has(app.name)) {
+    connectAuthEmulator(auth, emulatorUrl, { disableWarnings: true });
+    emulatorConnections.add(app.name);
+  }
+  return auth;
+}
+
+export function getDemoFirebaseAuth(): Auth {
+  const name = "connected-demo";
+  return configuredAuth(getApps().some((app) => app.name === name) ? getApp(name) : initializeApp(config, name));
 }
 
 export function getFirebaseAuth(): Auth {
-  const auth = getAuth(getFirebaseApp());
-  const emulatorUrl = process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL;
-  if (emulatorUrl && !emulatorConnected) {
-    connectAuthEmulator(auth, emulatorUrl, { disableWarnings: true });
-    emulatorConnected = true;
-  }
-  return auth;
+  const path = typeof window === "undefined" ? "" : window.location.pathname;
+  return demoProjectId && path.startsWith(`/projects/${encodeURIComponent(demoProjectId)}/`)
+    ? getDemoFirebaseAuth() : configuredAuth(getFirebaseApp());
 }

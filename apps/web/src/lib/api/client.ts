@@ -12,6 +12,7 @@ export interface ProjectMembership {
   uid: string;
   role: "admin" | "editor" | "viewer";
   projectId: string;
+  refreshFolderId?: string | null;
 }
 
 export interface Connection {

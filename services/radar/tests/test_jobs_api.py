@@ -28,9 +28,10 @@ class JobApiTests(unittest.TestCase):
 
         self.service = JobService(self.store, self.queue, {"refresh": failing, "analysis": failing})
         self.role = "admin"
+        self.refresh_folder_id = None
 
         async def member(project_id):
-            return AuthenticatedProjectMember(project_id=project_id, uid="user_a", role=self.role)
+            return AuthenticatedProjectMember(project_id=project_id, uid="user_a", role=self.role, refresh_folder_id=self.refresh_folder_id)
 
         app.dependency_overrides[require_project_member] = member
         app.dependency_overrides[get_job_store] = lambda: self.store
@@ -78,6 +79,36 @@ class JobApiTests(unittest.TestCase):
         job = self.submit().json()
         self.assertEqual(self.delivery(job, 0).status_code, 401)
         self.assertEqual(self.calls, 0)
+
+    def test_delegated_editor_refresh_is_bound_to_granted_and_selected_folder(self):
+        self.role = "editor"
+        self.refresh_folder_id = "folder_a"
+        connection = SimpleNamespace(get_connection=AsyncMock(return_value=SimpleNamespace(selected_folder_id="folder_a")))
+        with patch("services.radar.api.routes.jobs.get_firestore_client"), patch("services.radar.api.routes.jobs.get_connection_service", return_value=connection):
+            self.assertEqual(self.client.post("/api/v1/projects/project_a/jobs/refresh", json={"folder_id": "folder_a"}).status_code, 202)
+            self.assertEqual(self.submit().status_code, 202)
+            before = len(self.queue.tasks)
+            self.assertEqual(self.client.post("/api/v1/projects/project_a/jobs/refresh", json={"folder_id": "other"}).status_code, 403)
+            self.body["target_id"] = "other"
+            self.assertEqual(self.submit().status_code, 403)
+            connection.get_connection.return_value.selected_folder_id = "changed_by_admin"
+            self.body["target_id"] = "folder_a"
+            self.assertEqual(self.submit().status_code, 403)
+            self.assertEqual(len(self.queue.tasks), before)
+
+    def test_delegated_editor_cannot_retry_an_out_of_scope_refresh(self):
+        job = self.submit().json()
+        asyncio.run(self.store.change("project_a", job["id"], lambda current: current.model_copy(update={"status": "failed"})))
+        self.role = "editor"
+        self.refresh_folder_id = "other"
+        url = "/api/v1/projects/project_a/jobs/" + job["id"] + "/retry"
+        self.assertEqual(self.client.post(url, json={"generation": 1}).status_code, 403)
+        self.refresh_folder_id = "folder_a"
+        connection = SimpleNamespace(get_connection=AsyncMock(return_value=SimpleNamespace(selected_folder_id="folder_a")))
+        with patch("services.radar.api.routes.jobs.get_firestore_client"), patch("services.radar.api.routes.jobs.get_connection_service", return_value=connection):
+            self.assertEqual(self.client.post(url, json={"generation": 1}).status_code, 202)
+        self.role = "viewer"
+        self.assertEqual(self.client.post(url, json={"generation": 2}).status_code, 403)
 
     def test_retry_status_codes_exhaustion_and_manual_retry(self):
         worker.dependency_overrides[require_task_identity] = lambda: None

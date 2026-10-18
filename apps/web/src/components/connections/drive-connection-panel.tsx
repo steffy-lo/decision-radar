@@ -37,7 +37,7 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
       setMembership(nextMembership);
       setError(null);
 
-      if (nextMembership.role === "admin") {
+      if (nextMembership.role === "admin" || (nextMembership.role === "editor" && nextMembership.refreshFolderId)) {
         const nextConnection = await getConnection(projectId);
         setConnection(nextConnection);
         setFolderId(nextConnection.selected_folder_id ?? "");
@@ -150,7 +150,7 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
     );
   }
 
-  if (membership?.role !== "admin") {
+  if (membership?.role !== "admin" && !(membership?.role === "editor" && membership.refreshFolderId)) {
     return (
       <section className="panel mb-6 p-6 text-sm text-slate-600">
         Drive connection management is available to project administrators.
@@ -161,6 +161,7 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
   const isConnected = connection?.status === "active";
   const needsReconnect = connection?.status === "needs_reconnect";
   const connectLabel = isConnected || needsReconnect ? "Reconnect Drive" : "Connect Drive";
+  const isAdmin = membership?.role === "admin";
 
   return (
     <section className="panel mb-6 space-y-4 p-6">
@@ -171,7 +172,7 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
           </p>
           <h2 className="mt-2 text-lg font-semibold">Project evidence access</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Connect the Google account whose Drive folder the worker will read.
+            {isAdmin ? "Connect the Google account whose Drive folder the worker will read." : "Refresh the connected sample folder to read its latest files. Your access is limited to this folder."}
           </p>
         </div>
         <span
@@ -215,7 +216,7 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
         </p>
       )}
 
-      <div className="flex flex-wrap gap-3">
+      {isAdmin && <div className="flex flex-wrap gap-3">
         <button
           className="button button--primary"
           disabled={actionLoading}
@@ -232,7 +233,8 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
             Disconnect Drive
           </button>
         )}
-      </div>
+      </div>}
+      {!isAdmin && !isConnected && <p role="status">Ask an administrator to reconnect Drive before refreshing files. You can still inspect saved sources.</p>}
 
       {confirmDisconnect && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
@@ -287,11 +289,11 @@ export function DriveConnectionPanel({ projectId, onSourcesChanged }: { projectI
               onChange={(event) => setFolderId(event.target.value)}
               placeholder="Folder ID"
               className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
-              disabled={actionLoading}
+              disabled={actionLoading || !isAdmin}
             />
             <button
               className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-              disabled={actionLoading}
+              disabled={actionLoading || !folderId || (!isAdmin && folderId !== membership?.refreshFolderId)}
               onClick={() => void refreshFolder()}
             >
               {actionLoading ? "Refreshing…" : "Refresh folder"}
