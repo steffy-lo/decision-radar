@@ -10,11 +10,17 @@ export default function Home() {
         <span className="welcome-page__eyebrow">DECISION INTELLIGENCE FOR TEAMS</span>
         <h1>Keep every decision <em>in context.</em></h1>
         <p>Connect the evidence behind project decisions, catch changes that matter, and see their impact before your team moves forward.</p>
-        <Link className="button button--primary button--large" href="/demo">Try connected demo <span aria-hidden="true">→</span></Link>
-        <div className="welcome-page__note">No password needed · real Drive files with sample data</div>
-        <Link className="button button--secondary button--large" href="/login">Sign in with Google</Link>
-        <p className="welcome-page__note">Already have access? Open your own workspace.</p>
-        <Link className="text-link" href="/projects/proj_demo_2026/decisions">Explore the fixed walkthrough →</Link>
+        <nav className="welcome-page__actions" aria-label="Get started">
+          <div className="welcome-page__action">
+            <Link className="button button--primary button--large" href="/demo" aria-describedby="demo-entry-help">Try connected demo <span aria-hidden="true">→</span></Link>
+            <p id="demo-entry-help">Real Drive files with sample data.<br />No password needed.</p>
+          </div>
+          <div className="welcome-page__action">
+            <Link className="button button--secondary button--large" href="/login" aria-describedby="google-entry-help">Sign in with Google</Link>
+            <p id="google-entry-help">Open the workspace your Google account has access to.</p>
+          </div>
+        </nav>
+        <Link className="text-link welcome-page__walkthrough" href="/projects/proj_demo_2026/decisions">Explore the fixed walkthrough →</Link>
       </div>
       <div className="welcome-page__visual" aria-hidden="true">
         <div className="orbit orbit--outer" /><div className="orbit orbit--middle" /><div className="orbit orbit--inner" />
