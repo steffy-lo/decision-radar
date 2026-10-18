@@ -1,58 +1,73 @@
-# Connected judge workspace
+# Connected public demo
 
-The `/judge` entry point opens the workspace configured by the web service's
-`JUDGE_PROJECT_ID` environment variable. Set it to
-`proj_e2e_rehearsal2_20261017` for the current connected sample workspace.
-The homepage links to this entry point. The fixed fixture walkthrough remains
-available separately.
+Open `/demo` and click **Try demo**. The read-only **Demo email** field is
+prefilled with `demo@decision-radar.example`, a sample workspace label rather
+than a mailbox. No password, email verification, or Google invitation is needed.
+`/judge` redirects to `/demo`; the homepage links to `/demo`.
 
-The judge signs in with a Firebase email/password account supplied privately
-with the submission. This is an application account, with no Google mailbox.
-Email/password sign-in is enabled in Firebase; Google sign-in remains available.
-Do not put the password, Firebase tokens, or Drive grants in this repository.
+The owner explicitly approved public visitors refreshing the connected sample
+folder, creating and archiving sample decisions, extracting facts with Gemini,
+running assessments and saving reviews. This access applies only to the sample
+workspace, not personal workspaces or other Drive folders.
 
-The current account has editor membership in this workspace only. Its trusted
-Firestore membership also has `refresh_folder_id` set to the configured sample
-folder. The API returns this optional capability as `refreshFolderId`.
-Memberships without the capability keep their existing permissions. Viewers
-cannot use it. Refresh submission, generic job submission, and manual retry
-check both the explicitly granted folder and the currently selected folder
-before reading Drive or submitting work. Only admins can change folders,
-authorize, reconnect, or disconnect Drive. Direct synchronous refresh remains
-admin-only. The existing Drive grant stays in Secret Manager; it is not copied
-or disclosed to the judge.
+## Session and access controls
 
-The folder contains three actual Google Docs with synthetic project content.
-The app reads them through its existing OAuth connection and saves source
-snapshots. Gemini extraction, assessment, review, and retained decision history
-use the actual backend services. Opening a Google Doc outside the app still
-requires that Google account's own Drive access.
+Each visitor signs in with Firebase Anonymous Authentication and receives a
+separate UID. The authenticated admission endpoint accepts only verified
+anonymous identities and an empty request body. Project, role and folder cannot
+be chosen by the client. A transaction grants editor membership only in the
+configured demo project, with refresh access pinned to the configured folder.
+It admits at most ten new sessions per minute across the workspace. Repeated
+admission of the same UID is idempotent and does not extend access.
 
-## Judge walkthrough
+Access expires one hour after the Firebase identity was created. Every normal
+project API request checks the server-side expiry, configured project, granted
+folder and currently selected folder. Changing the selected folder blocks
+existing visitor access as well as new admission. Existing memberships cannot
+be promoted or overwritten by demo admission. Viewers and ordinary editors
+retain their existing permissions. OAuth, folder selection and disconnect
+remain admin-only. The Drive grant remains in Secret Manager.
 
-1. Open `/judge` and sign in using the supplied application credentials.
-2. In Connections, click **Refresh folder**. The folder ID is locked for the judge.
+The browser uses a separate named Firebase app for demo sessions and tab-session
+persistence. Entering or signing out of the demo does not replace a personal
+Google workspace sign-in. The UI returns to demo entry when its session expires;
+the API enforces expiry independently of browser state. Membership records can
+remain for audit purposes, but an expired record grants no API access.
+
+This follows [Firebase's anonymous sign-in flow](https://firebase.google.com/docs/auth/web/anonymous-auth).
+The API does not mint public custom tokens or reveal a shared account password.
+
+## Runtime configuration
+
+Enable Anonymous sign-in in Firebase Authentication. On the API service set:
+
+- `DEMO_PROJECT_ID=proj_e2e_rehearsal2_20261017`
+- `DEMO_FOLDER_ID=1PhXz4nT1Vikm81ATWuFciBpwMGkdByWO`
+
+On the web service set the same `DEMO_PROJECT_ID`. Deploy both API and web.
+Removing the API demo configuration disables admission and access for existing
+public demo memberships. Deleting one visitor's membership revokes that
+visitor's access. No new IAM signing permission or service-account key is needed.
+
+## Walkthrough
+
+1. Open `/demo` and click **Try demo**.
+2. In Connections, click **Refresh folder**. The folder ID is locked.
 3. In Decisions, create a test draft using **Decision record - Acme launch**.
-   Copy the exact original commitment quote shown in the source text. Use an
-   original required-by date of **2026-10-15**, entity **vendor_acme**, and predicate
-   **delivery_date**. Confirm the decision to enable monitoring.
+   Copy an exact original commitment quote from the source text. Use original
+   required-by date **2026-10-15**, entity **vendor_acme**, and predicate
+   **delivery_date**. Confirm the decision.
 4. In Sources, select the new assumption. Use subject **Acme Logistics** and
    change **delivery date**. Click **Extract with Gemini** on **Acme Logistics
-   vendor update**. It should publish the quoted **2026-10-24** date. If extraction
-   is unresolved, inspect its explanation and retry rather than treating it as
-   a verified fact.
-5. In Reviews, run an assessment. Open the new decision's nine-day delay and
-   submit a response with a rationale. Existing reviewed alerts are history;
-   creating a new test decision gives the judge a fresh review to try.
-6. Archive the test decision when finished. The shared workspace retains edits
-   and audit history between visits; it does not reset automatically.
+   vendor update**. The confirmed update is **2026-10-24**. Inspect unresolved
+   extraction results before retrying them.
+5. In Reviews, run an assessment, inspect the nine-day delay, and submit a
+   response with a rationale. A new test decision provides a fresh review;
+   existing reviewed alerts remain history.
+6. Archive the test decision when finished.
 
-## Deployment and access management
-
-Deploy both API and web changes, and set `JUDGE_PROJECT_ID` on the web service.
-The optional capability is provisioned directly in the trusted membership
-document, not accepted from request bodies or token claims. Remove the
-membership or disable the Firebase account to end judge access. Removing
-`refresh_folder_id` alone ends folder-refresh access while retaining normal
-editor functionality. An administrator changing the selected folder must
-explicitly update delegated access before that account can refresh again.
+The three Google Docs are actual connected documents with deliberately
+synthetic project content. Drive reads, Gemini extraction and saved app data use
+real services. Separately opening a Google Doc requires the browser account's
+own Drive permissions. This shared sample workspace retains edits and history
+between visits and does not reset automatically.

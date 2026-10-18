@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     FIRESTORE_EMULATOR_HOST: Optional[str] = None
     FIREBASE_AUTH_EMULATOR_HOST: Optional[str] = None
     FIREBASE_PROJECT_ID: str = "decision-radar"
+    DEMO_PROJECT_ID: Optional[str] = None
+    DEMO_FOLDER_ID: Optional[str] = None
     FIRESTORE_DATABASE_ID: str = "(default)"
     SOURCE_SNAPSHOT_BUCKET: Optional[str] = None
     GOOGLE_OAUTH_CLIENT_ID: Optional[str] = None
