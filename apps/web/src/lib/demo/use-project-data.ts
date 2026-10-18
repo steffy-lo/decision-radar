@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { parseDemoFixture, type DemoFixture } from "@/lib/domain/models";
 
-export const DEMO_PROJECT_ID = "proj_demo_2026";
-export const isDemoProject = (projectId: string) => projectId === DEMO_PROJECT_ID;
+import { isDemoProject } from "@/lib/demo/project";
+
+export { DEMO_PROJECT_ID, isDemoProject } from "@/lib/demo/project";
 
 type ProjectDataState = {
   projectId: string;

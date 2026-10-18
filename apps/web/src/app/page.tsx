@@ -20,7 +20,8 @@ export default function Home() {
             <p id="google-entry-help">Open the workspace your Google account has access to.</p>
           </div>
         </nav>
-        <Link className="text-link welcome-page__walkthrough" href="/projects/proj_demo_2026/decisions">Explore the fixed walkthrough →</Link>
+        <Link className="text-link welcome-page__walkthrough" href="/projects/proj_demo_2026/decisions" aria-describedby="walkthrough-entry-help">Explore the fixed walkthrough →</Link>
+        <p id="walkthrough-entry-help">Fixed sample data. No Google sign-in required.</p>
       </div>
       <div className="welcome-page__visual" aria-hidden="true">
         <div className="orbit orbit--outer" /><div className="orbit orbit--middle" /><div className="orbit orbit--inner" />

@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/app-shell";
 import { AuthGate } from "@/components/auth/auth-gate";
+import { isDemoProject } from "@/lib/demo/project";
 
 export default async function ProjectLayout({
   children,
@@ -9,6 +10,9 @@ export default async function ProjectLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  if (isDemoProject(id)) {
+    return <><a className="skip-link" href="#main-content">Skip to main content</a><AppShell projectId={id}>{children}</AppShell></>;
+  }
   const judgeWorkspace = Boolean(process.env.DEMO_PROJECT_ID && id === process.env.DEMO_PROJECT_ID);
   return <AuthGate demoProjectId={judgeWorkspace ? id : null}><AppShell projectId={id}>
     {judgeWorkspace && <aside className="notice judge-guide" aria-label="Demo workspace guide">
