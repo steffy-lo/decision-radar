@@ -4,6 +4,7 @@ import asyncio
 from hashlib import sha256
 from types import SimpleNamespace
 import unittest
+from copy import deepcopy
 
 from fastapi.testclient import TestClient
 
@@ -13,6 +14,7 @@ from services.radar.api.main import app
 from services.radar.api.routes.connections import get_connection_service
 from services.radar.api.routes.sources import get_extractor
 from services.radar.domain.models import AuthenticatedProjectMember
+from services.radar.pipeline.extraction import Extractor
 from tests.test_assessment_store import Client
 
 
@@ -98,6 +100,37 @@ class ExtractionReuseTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200, response.text)
             self.assertEqual(response.json()["publishedFactCount"], 1)
             self.assertEqual(self.client.data[f"{ROOT}/facts/fact_verified"]["id"], "fact_verified")
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_invalid_model_value_returns_guidance_without_changing_saved_data(self):
+        class InvalidGenerator:
+            def generate(self, _source, **_kwargs):
+                return {"facts": [{
+                    "entity": "Acme Logistics", "predicate": "delivery date",
+                    "value": {"type": "date", "value": "October 29, 2026"},
+                    "modality": "confirmed", "quote": TEXT, "contextComplete": True,
+                }]}
+
+        before = deepcopy(self.client.data)
+        app.dependency_overrides[get_source_store] = lambda: self.store
+        app.dependency_overrides[get_connection_service] = Connection
+        app.dependency_overrides[get_extractor] = lambda: Extractor(InvalidGenerator())
+        app.dependency_overrides[require_project_member] = lambda: AuthenticatedProjectMember(
+            uid="member_one", role="editor", project_id=PROJECT,
+        )
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    f"/api/v1/projects/{PROJECT}/sources/{SOURCE}/extract",
+                    # A changed mapping forces generation instead of reuse.
+                    json={"assumption_id": ASSUMPTION, "entity_alias": "Acme Logistics vendor",
+                          "predicate_alias": "delivery date"},
+                )
+            self.assertEqual(response.status_code, 422, response.text)
+            self.assertIn("YYYY-MM-DD", response.json()["detail"])
+            self.assertIn("facts[0].value.value", response.json()["detail"])
+            self.assertEqual(self.client.data, before)
         finally:
             app.dependency_overrides.clear()
 
