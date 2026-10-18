@@ -1,9 +1,14 @@
 import unittest
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from services.radar.domain.models import DemoFixture
-from services.radar.pipeline.extraction import EvidenceValidator, ExtractionError, Extractor
+from pydantic import ValidationError
+
+from services.radar.pipeline.extraction import (
+    ExtractionDraft, EvidenceValidator, ExtractionError, Extractor, extraction_validation_message,
+)
 from services.radar.pipeline.gemini import VertexGeminiGenerator
 
 
@@ -19,7 +24,7 @@ class FakeGenerator:
     def __init__(self, payload):
         self.payload = payload
 
-    def generate(self, source):
+    def generate(self, source, **_kwargs):
         return self.payload
 
 
@@ -31,6 +36,78 @@ def fact(quote, value, modality="confirmed", entity="vendor", predicate="deliver
 
 
 class ExtractionTests(unittest.TestCase):
+    def test_validation_error_identifies_non_value_fields(self):
+        candidate = fact("October 29, 2026", {"type": "date", "value": "2026-10-29"})
+        candidate["modality"] = "probably"
+        with self.assertRaises(ValidationError) as caught:
+            ExtractionDraft.model_validate({"facts": [candidate]})
+        self.assertIn("facts[0].modality", extraction_validation_message(caught.exception))
+
+    def test_response_schema_rejects_invalid_values_before_evidence_validation(self):
+        invalid = (
+            {"type": "date", "value": "October 29, 2026"},
+            {"type": "date", "value": "2026-02-30"},
+            {"type": "decimal", "value": "oops", "unit": "USD"},
+            {"type": "decimal", "value": "4500"},
+            {"type": "decimal", "value": "NaN", "unit": "USD"},
+            {"type": "enum", "value": ""},
+        )
+        for value in invalid:
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                ExtractionDraft.model_validate({"facts": [fact("A source quote", value)]})
+
+    def test_vertex_adapter_retries_invalid_date_then_returns_verified_fact(self):
+        quote = "Acme Logistics vendor delivery date changed to October 29, 2026"
+        source = NOTES.model_copy(update={"content_snapshot": quote})
+        invalid = {"facts": [fact(quote, {"type": "date", "value": "October 29, 2026"},
+                                  entity="Acme Logistics", predicate="delivery date")]}
+        valid = {"facts": [fact(quote, {"type": "date", "value": "2026-10-29"},
+                                entity="Acme Logistics", predicate="delivery date")]}
+        with patch("google.genai.Client") as client_class:
+            generate = client_class.return_value.models.generate_content
+            generate.side_effect = [MagicMock(parsed=None, text=json.dumps(invalid)),
+                                    MagicMock(parsed=valid)]
+            result = Extractor(VertexGeminiGenerator(project="real-project")).extract(
+                source, {"Acme Logistics": "vendor_acme"}, NOTES_URL,
+                {"delivery date": "delivery_date"},
+            )
+        self.assertEqual(generate.call_count, 2)
+        self.assertEqual(result.alert_eligible_facts[0].value.value.isoformat(), "2026-10-29")
+        self.assertIn("Acme Logistics", generate.call_args_list[0].kwargs["contents"])
+        self.assertIn("delivery date", generate.call_args_list[0].kwargs["contents"])
+        self.assertIn("facts[0].value", generate.call_args_list[1].kwargs["config"].system_instruction)
+        client_class.return_value.close.assert_called_once()
+
+    def test_vertex_adapter_stops_after_one_retry_with_actionable_error(self):
+        invalid = {"facts": [fact("A source quote", {"type": "date", "value": "private invalid date"})]}
+        with patch("google.genai.Client") as client_class:
+            generate = client_class.return_value.models.generate_content
+            generate.return_value = MagicMock(parsed=None, text=json.dumps(invalid))
+            with self.assertRaisesRegex(ExtractionError, r"facts\[0\].value.*YYYY-MM-DD") as caught:
+                VertexGeminiGenerator(project="real-project").generate(NOTES)
+        self.assertEqual(generate.call_count, 2)
+        self.assertNotIn("private invalid date", str(caught.exception))
+        client_class.return_value.close.assert_called_once()
+
+    def test_vertex_adapter_retries_malformed_json_without_leaking_response(self):
+        with patch("google.genai.Client") as client_class:
+            generate = client_class.return_value.models.generate_content
+            generate.side_effect = [MagicMock(parsed=None, text="private malformed response"),
+                                    MagicMock(parsed={"decisions": [], "facts": []})]
+            result = VertexGeminiGenerator(project="real-project").generate(NOTES)
+        self.assertEqual(result.facts, [])
+        self.assertEqual(generate.call_count, 2)
+        self.assertNotIn("private malformed response", generate.call_args.kwargs["config"].system_instruction)
+
+    def test_legacy_null_units_work_but_date_units_are_rejected(self):
+        self.assertEqual(ExtractionDraft.model_validate({"facts": [fact(
+            "October 29, 2026", {"type": "date", "value": "2026-10-29", "unit": None},
+        )]}).facts[0].value.value.isoformat(), "2026-10-29")
+        with self.assertRaises(ValidationError):
+            ExtractionDraft.model_validate({"facts": [fact(
+                "October 29, 2026", {"type": "date", "value": "2026-10-29", "unit": "days"},
+            )]})
+
     def test_model_quote_can_cross_document_line_breaks_without_changing_words(self):
         source = PRD.model_copy(update={"version_id": None, "content_snapshot": (
             "Decision: Launch after Acme Logistics delivers the integration package.\n"

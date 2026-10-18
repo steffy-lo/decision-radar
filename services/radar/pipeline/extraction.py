@@ -6,8 +6,9 @@ from hashlib import sha256
 import re
 from typing import Literal, Protocol
 from decimal import Decimal
+from datetime import date
 
-from pydantic import Field, TypeAdapter, ValidationError
+from pydantic import Field, TypeAdapter, ValidationError, model_validator
 
 from services.radar.domain.models import DateValue, DecimalValue, EnumValue, EvidenceRef, Fact, Id, RadarModel, Source, TypedValue
 from services.radar.services.source_versions import normalize_text, resolve_quote
@@ -17,10 +18,36 @@ class ExtractionError(ValueError):
     """A model response cannot be safely used as project evidence."""
 
 
-class RawValue(RadarModel):
-    type: Literal["date", "decimal", "enum"]
-    value: str
-    unit: str | None = None
+class RawNonDecimalValue(RadarModel):
+    @model_validator(mode="before")
+    @classmethod
+    def omit_legacy_null_unit(cls, value):
+        # Older candidates included unit:null for every type. Do not expose a
+        # null-only field in the Vertex schema; Vertex requires a concrete type.
+        if isinstance(value, dict) and value.get("unit", object()) is None:
+            return {key: item for key, item in value.items() if key != "unit"}
+        return value
+
+
+class RawDateValue(RawNonDecimalValue):
+    type: Literal["date"]
+    value: date = Field(description="A complete calendar date in YYYY-MM-DD format. Never infer a missing year.")
+
+
+class RawDecimalValue(RadarModel):
+    type: Literal["decimal"]
+    value: Decimal = Field(allow_inf_nan=False, description="The numeric amount only, without currency symbols or units.")
+    unit: str = Field(min_length=1, description="The explicit unit from the source, for example USD or days.")
+
+
+class RawEnumValue(RawNonDecimalValue):
+    type: Literal["enum"]
+    value: str = Field(min_length=1, description="A nonempty status or category supported by the quote.")
+
+
+# An ordinary union produces anyOf, supported by Vertex structured output.
+# Each variant carries the same value constraints as the published domain type.
+RawValue = RawDateValue | RawDecimalValue | RawEnumValue
 
 
 class RawAssumption(RadarModel):
@@ -42,8 +69,8 @@ class RawDecision(RadarModel):
 
 
 class RawFact(RadarModel):
-    entity: str
-    predicate: str
+    entity: str = Field(description="The named subject. Use a supplied entity label exactly when the quote identifies it.")
+    predicate: str = Field(description="The attribute. Use a supplied predicate label exactly when the quote supports it.")
     value: RawValue
     modality: Literal["confirmed", "tentative", "negated"]
     quote: str
@@ -102,7 +129,39 @@ class ExtractionResult:
 
 
 class CandidateGenerator(Protocol):
-    def generate(self, source: Source) -> ExtractionDraft | dict: ...
+    def generate(
+        self, source: Source, *, entity_aliases: tuple[str, ...] = (), predicate_aliases: tuple[str, ...] = (),
+    ) -> ExtractionDraft | dict: ...
+
+
+def extraction_validation_message(error: ValidationError) -> str:
+    """Describe failed fields without exposing model output or source content."""
+    paths = []
+    variants = {"RawDateValue", "RawDecimalValue", "RawEnumValue"}
+    issues = error.errors(include_input=False, include_url=False)
+    mismatched = {
+        issue["loc"][:-1] for issue in issues
+        if issue["type"] == "literal_error" and len(issue["loc"]) >= 2
+        and issue["loc"][-2] in variants and issue["loc"][-1] == "type"
+    }
+    for issue in issues:
+        if any(issue["loc"][:len(prefix)] == prefix for prefix in mismatched):
+            continue
+        if issue["type"] == "extra_forbidden":
+            continue
+        path = ""
+        for part in issue["loc"]:
+            if part in variants:
+                continue
+            path += f"[{part}]" if isinstance(part, int) else ("." if path else "") + str(part)
+        if path and path not in paths:
+            paths.append(path)
+    location = f" at {', '.join(paths[:3])}" if paths else ""
+    return (
+        f"Gemini returned an invalid extraction value{location}. "
+        "Dates need YYYY-MM-DD; amounts need a number and unit; text values cannot be blank. "
+        "Please retry extraction. No new facts were saved."
+    )
 
 
 class EvidenceValidator:
@@ -150,12 +209,10 @@ def _typed_value(raw: RawValue) -> TypedValue:
     value = {"type": raw.type, "value": raw.value}
     if raw.type == "decimal":
         value["unit"] = raw.unit
-    elif raw.unit is not None:
-        raise ExtractionError("unit is only valid for decimal values")
     try:
         return _VALUE.validate_python(value)
     except ValidationError as error:
-        raise ExtractionError("candidate has an invalid typed value") from error
+        raise ExtractionError(extraction_validation_message(error)) from error
 
 
 def _entity_id(name: str, known_entities: dict[str, Id]) -> str | None:
@@ -253,9 +310,12 @@ class Extractor:
         if source.status != "ready" or not source.content_snapshot.strip():
             raise ExtractionError("source is not ready for extraction")
         try:
-            draft = ExtractionDraft.model_validate(self.generator.generate(source))
+            draft = ExtractionDraft.model_validate(self.generator.generate(
+                source, entity_aliases=tuple(known_entities),
+                predicate_aliases=tuple(known_predicates or ()),
+            ))
         except ValidationError as error:
-            raise ExtractionError("model response does not match the extraction schema") from error
+            raise ExtractionError(extraction_validation_message(error)) from error
 
         decisions = []
         for candidate in draft.decisions:

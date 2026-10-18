@@ -135,7 +135,7 @@ class TypedQualityEvaluation(unittest.TestCase):
         }]}
 
         class Generator:
-            def generate(self, _source):
+            def generate(self, _source, **_kwargs):
                 return payload
 
         with self.assertRaises(ExtractionError):
