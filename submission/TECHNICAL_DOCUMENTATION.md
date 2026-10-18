@@ -21,8 +21,6 @@ This document describes the implementation on `main` through 16 October, the dat
 
 The homepage opens a labeled synthetic fixture. A connected project requires an authorised Google test user and project membership; an administrator manages OAuth grants. Judge access to the connected flow must be arranged and tested before submission. No account credentials belong in this document or the repository.
 
-See the [submission checklist](SUBMISSION_CHECKLIST.md) for completed material checks and the remaining release, access and signed-out verification requirements.
-
 ## 1. Summary
 
 Decision Radar preserves the evidence and rationale behind project decisions. It connects to a selected Google Drive folder, uses Gemini on Vertex AI to extract candidate decisions and facts, validates their source quotes, and compares verified facts with confirmed assumptions. A contradiction produces an alert with the original and updated evidence. An interactive graph shows the challenged decision and downstream effects through recorded dependencies.

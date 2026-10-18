@@ -6,6 +6,7 @@ Decision Radar is an organisational-memory and decision-intelligence product for
 - [Low-level design (MVP Prototype)](docs/LLD_MVP.md): streamlined implementation contract tailored to the 14 active sprint tasks and competition demo.
 - Original design attachments: [HLD v0.4](docs/reference/archive/2026-09-21/HLD-v0.4.pdf) and [LLD v0.4](docs/reference/archive/2026-09-21/LLD-v0.4.pdf).
 - [AI Builder Cup submission notes](docs/AI_BUILDER_CUP.md): official deadline, prototype requirements, and judging weights.
+- [Technical documentation](submission/TECHNICAL_DOCUMENTATION.md): implementation, architecture, Google AI usage, setup, current limits, and submission materials.
 - [Vendor-delay demo fixture](fixtures/README.md): shared Python/TypeScript contract and synthetic evidence path.
 
 ## Project Tracking
