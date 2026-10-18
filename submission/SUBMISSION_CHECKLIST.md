@@ -1,49 +1,44 @@
 # Decision Radar submission checklist
 
-Updated 17 October 2026 for [draft PR #31](https://github.com/steffy-lo/decision-radar/pull/31). Checked items refer to the evidence stated here. They do not close application-readiness tickets or establish a new end-to-end pass.
+Updated 18 October 2026 for [draft PR #31](https://github.com/steffy-lo/decision-radar/pull/31). Checked items refer to the evidence stated here. Material checks do not close application-readiness tickets or establish a new end-to-end pass.
 
 ## Submission materials completed
 
-- [x] Correct the deck's technical flow: confirm the initial monitored decision before extracting facts; Gemini extraction runs through the API; Cloud Tasks queues refresh and deterministic assessment in the worker.
-- [x] Correct the architecture arrow to show API-to-Vertex extraction and remove the worker extraction label.
-- [x] Qualify the timing and rehearsal evidence: 25.2 seconds was one worker execution, about 30 seconds to visible completion. Older core rehearsals used retries/mixed environments; final rehearsals through export remain outstanding.
-- [x] Describe table mapping, generated Meet intake and brief export as implemented with dated UAT limits. Keep native per-viewer Drive ACLs deferred under KAN-11.
-- [x] State manual Drive refresh, the root/direct-subfolder boundary and 100-file cap, test-user OAuth and project-role access. Identify benefits as intended outcomes; remove unmeasured cost and exactly-once claims.
-- [x] Verify problem statistics against primary sources, correct their populations/wording, and add source hyperlinks and speaker notes. Replace unsupported competitor scores with qualified category descriptions.
-- [x] Replace the prototype placeholders on slides 1 and 14 with working hyperlinks. The public homepage returned HTTP 200 on 17 October. This did not test connected-project sign-in or judge access.
-- [x] Use the exact **Future of Work & Enterprise Productivity** theme and English copy in the deck and technical documentation.
-- [x] Preserve the existing 14-slide design and dimensions, correct heading wrapping, and inspect the rendered slides against the original.
-- [x] Export the corrected [editable deck](DecisionRadar_Proposal.pptx) to a [14-page PDF](DecisionRadar_Proposal.pdf), inspect every page and check selectable text plus prototype/source link annotations. The PDF remains a draft because the video is pending.
-- [x] Check sequential technical-document headings, relative links, balanced code fences and whitespace. Link the PDF and this checklist from [technical documentation](TECHNICAL_DOCUMENTATION.md).
+- [x] Use the prescribed template in the [current Google Slides deck](https://docs.google.com/presentation/d/1po5L-kgbXIouKNFhlRipmtPI-acJCDOCjRGkZ1x8DA8/edit). It contains 14 slides, with **Future of Work & Enterprise Productivity** as the category/theme, GeminiMaxxing as the team name, and Mike Umali as team leader.
+- [x] Include the reported 17 October staging results, Microsoft Work Trend Index statistic, public repository link and future-development roadmap in the working deck.
+- [x] Replace the earlier 1:56 preview on the Links slide (slide 13) with the [final 3:25 English demo with captions](https://drive.google.com/file/d/18AG5b-67JpuyGSGHrtuknta6BowcyEUM/view?usp=sharing), as supplied in [Mike’s final-video comment](https://github.com/steffy-lo/decision-radar/pull/31#issuecomment-6243842082). Update the label and duration, and remove the pending-video wording.
+- [x] Export the updated Google Slides directly to [the submission PDF](DecisionRadar_Proposal.pdf) on 18 October. Inspect all 14 rendered pages, confirm selectable text and link annotations, and verify that the old video URL is absent. The other 13 pages render identically to the pre-edit Google Slides export.
+- [x] Open the updated Links slide in Google Slides, click the demo link and start playback. The player opens `DecisionRadar_Demo_v5_captions.mp4`, displays 3:25 and advances during playback. This was a signed-in browser check, not complete signed-out playback.
+- [x] Link the current Slides, PDF and final video from [technical documentation](TECHNICAL_DOCUMENTATION.md). Label the retained [PPTX](DecisionRadar_Proposal.pptx) as a historical snapshot; it does not match the current prescribed-template deck.
 
 ## Remaining before PR merge
 
-- [ ] Review the materials against the final deployed web/API/worker revisions after dependency merges. Reconcile any differences and retain dated UAT limits. Model labels currently say Gemini on Vertex AI; source defaults are not presented as proof of a deployed model version.
-- [ ] Record and publish the three-minute English video. Replace the explicit pending message on slide 14 and add its public link to the technical documentation.
-- [ ] Re-export and inspect the final PPTX/PDF after inserting the video URL; verify all final links in a signed-out browser. The earlier visual check does not cover future edits.
+- [ ] Review the materials against the final deployed web/API/worker revisions after dependency merges. Reconcile claims, screenshots, citations and source references with dated UAT evidence. Configurable model defaults do not prove the deployed model version.
+- [ ] Verify all submission links signed out, including the PDF download and complete final-video playback. Mike reports signed-out video access in his comment; the checks in this update used a signed-in browser.
 - [ ] Complete required repository checks and human PR review. Keep PR #31 draft until its remaining gates are resolved.
 
 ## Remaining before project submission
 
-- [ ] **KAN-12 / PR #27:** clean integrated deployment, per-project secret provisioning and transient worker recovery drill; record revisions, IAM/health results and persisted recovery evidence.
-- [ ] **KAN-25 / KAN-26:** two fresh end-to-end runs against real services, from connection and fresh source evidence through confirmation, extraction, assessment, citations, graph, human review, brief and actual Google Docs export. Use fresh reviewable alerts rather than clearing history or reopening an old result.
-- [ ] Exercise unchanged replay, failure/retry, pause/resume, Doc/TXT/direct-subfolder/saved-transcript paths and export recovery without duplicate results. Record BLOCKED and NOT TESTED cases. Include tables or substantive automatic Meet-to-alert behavior if those are demonstrated or claimed in the final video.
-- [ ] **KAN-24:** finish the full application keyboard, responsive, contrast and narrative checks. The slide/PDF review does not complete application accessibility UAT.
-- [ ] Arrange and test judge access to a connected project, including the approved OAuth account, membership and role. Disclose the native Drive ACL boundary. The public fixture is not proof of live-service access.
-- [ ] Verify final PDF download, public video access and complete playback signed out. Screens and narration must agree with actual capabilities, dates and limits.
-- [ ] Inspect the submission form's theme choices and confirm the exact cutoff/timezone for the published 18 October deadline. Resolve any category mismatch with the organisers.
-- [ ] Submit the final prototype/PDF/video links and required form fields, then retain confirmation.
+- [ ] **KAN-12 / KAN-25 / KAN-26:** reconcile final deployment, secret-provisioning and release evidence. [Mike’s 17 October report](https://github.com/steffy-lo/decision-radar/pull/31#issuecomment-6235417096) records two fresh full staging runs through actual Google Docs export and worker recovery with no duplicates. Run 1 evidence is in [PR #27](https://github.com/steffy-lo/decision-radar/pull/27), `docs/DEPLOYED_REHEARSAL1_UAT_20261017.md`. Rerun the integrated path after relevant deployment or dependency changes.
+- [ ] Confirm unchanged replay, failure/retry, pause/resume, Doc/TXT/direct-subfolder/saved-transcript paths and export recovery without duplicate results. Record FAIL, BLOCKED and NOT TESTED honestly. Exercise tables or substantive automatic Meet-to-alert behavior before claiming them in the final demo.
+- [ ] **KAN-24:** finish keyboard navigation/focus, graph selection, responsive and contrast checks across setup, decisions, reviews and briefs. Slide/PDF review does not complete application accessibility UAT.
+- [ ] Arrange and test judge access to a connected project, including the approved OAuth account, membership and role. Disclose the native Drive ACL boundary; KAN-11 remains deferred. The public homepage fixture does not prove connected live-service access.
+- [ ] Review the complete video for agreement with actual capabilities, dates and limits. Preserve synthetic-data labels and identify any fixture fallback.
+- [ ] Confirm the submission form’s category mapping and exact cutoff/timezone for the published 18 October deadline.
+- [ ] Submit the finalized PDF, public repository, prototype and final video links; verify signed-out access and retain confirmation.
 
 ## Material-validation evidence
 
-The PPTX was imported, edited and rendered with Artifact Tool. Package integrity, geometry, 14-slide count, reference-font declarations and re-import checks passed. The PDF was exported with bundled LibreOffice, rendered with Poppler, and inspected page by page. It retains selectable text and clickable prototype/source references. Native PowerPoint was not used, and no new application UAT or load test was performed for these material edits. The historical screenshots remain dated evidence; the graph screenshot is an excerpt rather than a new full-path recording.
+The current PDF was exported directly from the native Google Slides deck and rendered with Poppler. Every page was visually inspected; PDF text and source/repository/prototype/video annotations were checked. Only the Links slide changed in this update. The final PDF SHA-256 is `cd88efc0729d2e2da80d6b4f2b3a36bb9a1455973653850eddc847a3eaca6eb0`.
 
-The staging API configuration was read without changing it: revision `decision-radar-api-staging-00014-42c`; no explicit `VERTEX_MODEL` environment override appeared. This does not independently identify the model used by that deployed image. The deck therefore avoids asserting a runtime model version.
+Google Slides browser inspection and initial video playback passed. Complete playback and all-assets signed-out verification remain open. No new application release UAT, accessibility audit, load test or native PowerPoint check was performed. Historical prototype screenshots remain dated 10 October; the deck distinguishes them from the reported 17 October staging runs.
 
-## Sources checked
+The retained PPTX’s earlier Artifact Tool and LibreOffice validation applies only to that historical file. It does not validate the current Google Slides deck or PDF.
 
-- [McKinsey, Decision making in the age of urgency (2019)](https://www.mckinsey.com/capabilities/people-and-organization/our-insights/decision-making-in-the-age-of-urgency): 37% refers to surveyed respondents' average time, not a universal manager estimate. The survey had 1,259 participants, with 1,228 familiar with organisational decision-making.
-- [MGI, The social economy (2012)](https://www.mckinsey.com/industries/technology-media-and-telecommunications/our-insights/the-social-economy): nearly 20% refers to interaction workers finding information or helpful colleagues. These are historical estimates, not a current adoption or impact measure.
-- [PMI, Pulse of the Profession (2018), printed appendix p. 25](https://www.pmi.org/-/media/pmi/documents/public/pdf/learning/thought-leadership/pulse/pulse-of-the-profession-2018.pdf): respondents selected up to three primary failure causes, including changed priorities (39%) and inaccurate requirements gathering (35%).
-- [Quality evaluation](../docs/KAN23_QUALITY_EVALUATION.md), [rehearsal record](../docs/KAN26_DEMO_REHEARSAL.md), and [deployment UAT](../docs/CLOUD_RUN_DEPLOYMENT_UAT_20261009.md): dated synthetic-data results and environment/retry limits.
-- [Official requirements](https://aibuildercup.com/themes.html) and [published timeline](https://aibuildercup.com/): final theme/form/cutoff confirmation and actual submission remain open.
+## Evidence and sources
+
+- [Final video and scope](https://github.com/steffy-lo/decision-radar/pull/31#issuecomment-6243842082): 3:25, folder connection, quote-backed decision confirmation, technology overview and worker recovery.
+- [17 October staging report](https://github.com/steffy-lo/decision-radar/pull/31#issuecomment-6235417096): two fresh runs through actual Docs export; worker recovery with zero duplicates; about 9 seconds to a verified fact and 16 seconds for assessment, each a single observation.
+- [Microsoft, Will AI Fix Work? (2023)](https://www.microsoft.com/en-us/worklab/work-trend-index/will-ai-fix-work/): the working deck’s 62% information-search statistic, based on 31,000 respondents across 31 markets.
+- [Quality evaluation](../docs/KAN23_QUALITY_EVALUATION.md), [older rehearsal record](../docs/KAN26_DEMO_REHEARSAL.md) and [deployment UAT](../docs/CLOUD_RUN_DEPLOYMENT_UAT_20261009.md): dated synthetic-data results and environment/retry limits.
+- [Submission-form/template review](https://github.com/steffy-lo/decision-radar/pull/31#issuecomment-6235594799), [official requirements](https://aibuildercup.com/themes.html) and [published timeline](https://aibuildercup.com/): prescribed template, public repository, 3–4 minute video, and remaining form/cutoff confirmation.

@@ -4,23 +4,24 @@
 
 **Category:** Future of Work & Enterprise Productivity
 
-**Team GeminiMaxx:** Steffy Lo & Mike Umali
+**Team GeminiMaxxing:** Mike Umali (team leader) & Steffy Lo
 
-**Documentation date:** 17 October 2026
+**Documentation date:** 18 October 2026
 
-This document describes the implementation on `main` through 16 October and the dated test records cited below. A merged feature does not establish that every deployed service runs the same revision. Remaining release checks are stated explicitly.
+This document describes the implementation on `main` through 16 October, the dated test records cited below, and the reported 17 October staging rehearsals. Submission links were updated on 18 October. A merged feature does not establish that every deployed service runs the same revision. Remaining release checks are stated explicitly.
 
 | Item | Link or status |
 | --- | --- |
 | Live prototype — Cloud Run staging | [Decision Radar](https://decision-radar-web-ngm5jlvo5q-as.a.run.app) |
-| Three-minute demo video | Recording and public link pending |
-| Proposal deck — editable | [DecisionRadar_Proposal.pptx](DecisionRadar_Proposal.pptx) |
-| Proposal deck — PDF for review | [DecisionRadar_Proposal.pdf](DecisionRadar_Proposal.pdf) — exported and visually reviewed; add the final video link and re-export before submission |
+| Final demo video (3:25) | [English demo with captions](https://drive.google.com/file/d/18AG5b-67JpuyGSGHrtuknta6BowcyEUM/view?usp=sharing) |
+| Proposal deck — current editable version | [Google Slides](https://docs.google.com/presentation/d/1po5L-kgbXIouKNFhlRipmtPI-acJCDOCjRGkZ1x8DA8/edit) |
+| Proposal deck — historical PPTX snapshot | [DecisionRadar_Proposal.pptx](DecisionRadar_Proposal.pptx) — predates the prescribed Google Slides template; use the current Slides and PDF |
+| Proposal deck — current PDF | [DecisionRadar_Proposal.pdf](DecisionRadar_Proposal.pdf) — exported from Google Slides on 18 October with the final 3:25 video link; all 14 pages visually checked |
 | Source code | [steffy-lo/decision-radar](https://github.com/steffy-lo/decision-radar) |
 
 The homepage opens a labeled synthetic fixture. A connected project requires an authorised Google test user and project membership; an administrator manages OAuth grants. Judge access to the connected flow must be arranged and tested before submission. No account credentials belong in this document or the repository.
 
-See the [submission checklist](SUBMISSION_CHECKLIST.md) for completed material checks and the remaining release, access and video requirements.
+See the [submission checklist](SUBMISSION_CHECKLIST.md) for completed material checks and the remaining release, access and signed-out verification requirements.
 
 ## 1. Summary
 
@@ -198,7 +199,7 @@ Jobs use project-scoped deterministic identities and immutable input manifests. 
 - Date comparisons are day-only. Timestamp-bearing evidence needs explicit timezone handling or a human-confirmed calendar date; automatic normalisation is not implemented.
 - Meet intake occurs after transcript generation. Real automatic intake was tested, but a substantive spoken update through citation, assessment and review still needs rehearsal. Empty transcripts do not produce useful facts.
 - Source freshness and mapping validity constrain assessment and brief creation. A stale reviewed alert can be rejected when preparing a new brief; an existing fixed brief preserves its original content.
-- A clean integrated deployment, per-project secret bootstrap and transient worker recovery drill remain release work. Feature-level UAT does not establish two consecutive final rehearsals through all new dependencies and export.
+- [Mike’s 17 October staging report](https://github.com/steffy-lo/decision-radar/pull/31#issuecomment-6235417096) records two fresh full runs through actual Google Docs export and a worker recovery drill with no duplicate records. These are reported results for the dated deployment, not a new acceptance run for later revisions. Reconcile deployment/secret-provisioning evidence and path coverage before closing release gates; rerun after relevant dependency or deployment changes.
 - OCR/scanned PDFs, Gmail, Google Chat, Shared Drives, organisation-wide discovery and portfolio views are outside the implemented prototype.
 
 ## 10. Roadmap
@@ -206,7 +207,7 @@ Jobs use project-scoped deterministic identities and immutable input manifests. 
 | Stage | Scope |
 | --- | --- |
 | Implemented with dated UAT | Drive Doc/TXT ingestion, versioned evidence, Gemini extraction, decision confirmation, typed comparison, impact graph/path explanations, five human review actions, table mappings, source pause/resume, automatic Meet transcript intake, reviewed briefs and explicit Docs export. See the linked UAT records for each test's environment and limits. |
-| Release completion | Integrate and deploy the final services together; complete clean deployment and transient recovery; provision project secrets; rehearse the full user path through export twice; finish accessibility, screenshots, deck PDF, video and judge-access checks. KAN-12, KAN-24, KAN-25 and KAN-26 remain open in the latest inspected board. |
+| Release completion | Reconcile KAN-12 / KAN-25 / KAN-26 evidence with the final deployed revisions and dependency merges, including secret provisioning and intake/recovery coverage. Two fresh staging runs through Docs export and a worker recovery drill were reported on 17 October. The final video and deck PDF are available; accessibility (KAN-24), connected judge access and signed-out submission checks remain. This documentation update does not close those tickets. |
 | Trust follow-up | Native per-viewer Drive ACL enforcement and production observability (KAN-11); changed-input model evaluation, timestamp/date handling and measured pilot outcomes. |
 | Later exploration | Larger-scale retrieval, Jira/Chat/Gmail connectors, Shared Drives and organisation-wide discovery, and cross-project portfolio views. |
 
